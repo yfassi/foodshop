@@ -55,16 +55,16 @@ export default function CustomerSignupPage() {
       return;
     }
 
-    // Create customer profile
-    const { error: profileError } = await supabase
-      .from("customer_profiles")
-      .insert({
-        user_id: data.user.id,
-        full_name: fullName.trim(),
-      });
+    // Create customer profile via API (uses admin client to bypass RLS)
+    const profileRes = await fetch("/api/customer/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: data.user.id, full_name: fullName.trim() }),
+    });
 
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
+    if (!profileRes.ok) {
+      const profileData = await profileRes.json();
+      console.error("Profile creation error:", profileData.error);
       toast.error("Compte cree mais erreur lors de la creation du profil");
       setLoading(false);
       router.push(`/${slug}`);
