@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ClipboardList, UtensilsCrossed, Settings } from "lucide-react";
-import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 
 export default async function AdminLayout({
   children,
@@ -78,10 +77,6 @@ export default async function AdminLayout({
               Reglages
             </Link>
           </nav>
-          <KitchenToggle
-            restaurantId={restaurant.id}
-            initialOpen={restaurant.is_accepting_orders}
-          />
         </div>
       </header>
 

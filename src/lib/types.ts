@@ -8,7 +8,7 @@ export interface Restaurant {
   logo_url: string | null;
   address: string | null;
   phone: string | null;
-  opening_hours: Record<string, { open: string; close: string }>;
+  opening_hours: Record<string, { open: string; close: string }[]>;
   is_accepting_orders: boolean;
   owner_id: string | null;
   stripe_account_id: string | null;

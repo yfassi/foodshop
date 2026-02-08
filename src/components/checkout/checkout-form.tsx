@@ -15,13 +15,11 @@ type PaymentMethod = "online" | "on_site";
 
 export function CheckoutForm({
   slug,
-  openTime,
-  closeTime,
+  timeRanges,
   stripeConnected,
 }: {
   slug: string;
-  openTime: string;
-  closeTime: string;
+  timeRanges: { open: string; close: string }[];
   stripeConnected: boolean;
 }) {
   const router = useRouter();
@@ -153,8 +151,7 @@ export function CheckoutForm({
             <PickupTimeSelector
               value={pickupTime}
               onChange={setPickupTime}
-              openTime={openTime}
-              closeTime={closeTime}
+              ranges={timeRanges}
             />
           </div>
         </div>

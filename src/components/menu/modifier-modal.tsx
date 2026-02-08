@@ -12,6 +12,7 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { Minus, Plus, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -122,6 +123,17 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="border-b border-border pb-3">
+          {product.image_url && (
+            <div className="relative mx-auto mb-3 h-40 w-full overflow-hidden rounded-lg">
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, 400px"
+              />
+            </div>
+          )}
           <DrawerTitle className="text-lg font-bold">
             {product.name}
           </DrawerTitle>

@@ -38,34 +38,51 @@ export const ORDER_STATUS_CONFIG: Record<
 };
 
 export function generatePickupTimeSlots(
-  openingTime: string,
-  closingTime: string
+  ranges: { open: string; close: string }[]
 ): string[] {
   const now = new Date();
   const slots: string[] = [];
 
-  // Parse opening/closing times
-  const [closeH, closeM] = closingTime.split(":").map(Number);
+  for (const range of ranges) {
+    const [openH, openM] = range.open.split(":").map(Number);
+    const [closeH, closeM] = range.close.split(":").map(Number);
 
-  // Start from now + 15 minutes, rounded to next 15-min slot
-  const start = new Date(now.getTime() + 15 * 60 * 1000);
-  start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15, 0, 0);
+    const rangeStart = new Date(now);
+    rangeStart.setHours(openH, openM, 0, 0);
 
-  const end = new Date(now);
-  end.setHours(closeH, closeM, 0, 0);
+    const end = new Date(now);
+    end.setHours(closeH, closeM, 0, 0);
 
-  // If closing time is before current time (next day scenario), return empty
-  if (end <= now) return [];
+    if (end <= now) continue;
 
-  const current = new Date(start);
-  while (current <= end) {
-    const h = current.getHours().toString().padStart(2, "0");
-    const m = current.getMinutes().toString().padStart(2, "0");
-    slots.push(`${h}:${m}`);
-    current.setMinutes(current.getMinutes() + 15);
+    // Start from now + 15 minutes, rounded to next 15-min slot
+    const earliest = new Date(now.getTime() + 15 * 60 * 1000);
+    earliest.setMinutes(Math.ceil(earliest.getMinutes() / 15) * 15, 0, 0);
+
+    const start = earliest > rangeStart ? earliest : rangeStart;
+
+    const current = new Date(start);
+    while (current <= end) {
+      const h = current.getHours().toString().padStart(2, "0");
+      const m = current.getMinutes().toString().padStart(2, "0");
+      slots.push(`${h}:${m}`);
+      current.setMinutes(current.getMinutes() + 15);
+    }
   }
 
   return slots;
+}
+
+/** Normalize opening_hours entry: handles both old {open,close} and new [{open,close}] formats */
+export function normalizeHoursEntry(
+  entry: unknown
+): { open: string; close: string }[] | null {
+  if (!entry) return null;
+  if (Array.isArray(entry)) return entry as { open: string; close: string }[];
+  if (typeof entry === "object" && "open" in (entry as Record<string, unknown>)) {
+    return [entry as { open: string; close: string }];
+  }
+  return null;
 }
 
 export const DAYS_FR: Record<string, string> = {
