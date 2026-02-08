@@ -1,5 +1,8 @@
 // Database row types
 
+export type AcceptedPaymentMethod = "online" | "on_site";
+export type PaymentSource = "direct" | "wallet";
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -13,6 +16,7 @@ export interface Restaurant {
   owner_id: string | null;
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
+  accepted_payment_methods: AcceptedPaymentMethod[];
   created_at: string;
   updated_at: string;
 }
@@ -65,7 +69,7 @@ export type PaymentMethod = "online" | "on_site";
 
 export interface OrderCustomerInfo {
   name: string;
-  phone: string;
+  phone?: string;
 }
 
 export interface OrderItemModifier {
@@ -86,6 +90,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   order_number: number;
+  display_order_number: string | null;
   restaurant_id: string;
   customer_info: OrderCustomerInfo;
   items: OrderItem[];
@@ -93,6 +98,8 @@ export interface Order {
   total_price: number;
   pickup_time: string | null;
   payment_method: PaymentMethod;
+  payment_source: PaymentSource;
+  customer_user_id: string | null;
   stripe_session_id: string | null;
   stripe_payment_intent_id: string | null;
   paid: boolean;
@@ -112,6 +119,41 @@ export interface ProductWithModifiers extends Product {
 
 export interface CategoryWithProducts extends Category {
   products: ProductWithModifiers[];
+}
+
+// Customer & Wallet types
+
+export interface CustomerProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  restaurant_id: string;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WalletTxType = "topup_stripe" | "topup_admin" | "payment" | "refund";
+
+export interface WalletTransaction {
+  id: string;
+  wallet_id: string;
+  type: WalletTxType;
+  amount: number;
+  balance_after: number;
+  description: string | null;
+  order_id: string | null;
+  stripe_session_id: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 // Cart types

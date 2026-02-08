@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { ClipboardList, UtensilsCrossed, Settings } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Settings, Users } from "lucide-react";
 
 export default async function AdminLayout({
   children,
@@ -70,6 +70,13 @@ export default async function AdminLayout({
               Menu
             </Link>
             <Link
+              href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+            >
+              <Users className="h-4 w-4" />
+              Clients
+            </Link>
+            <Link
               href={`/admin/${slug}/settings${isDemo ? "?demo=true" : ""}`}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
             >
@@ -105,6 +112,13 @@ export default async function AdminLayout({
         >
           <UtensilsCrossed className="h-5 w-5" />
           Menu
+        </Link>
+        <Link
+          href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
+          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          <Users className="h-5 w-5" />
+          Clients
         </Link>
         <Link
           href={`/admin/${slug}/settings${isDemo ? "?demo=true" : ""}`}

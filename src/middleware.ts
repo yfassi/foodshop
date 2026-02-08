@@ -34,6 +34,8 @@ export async function middleware(request: NextRequest) {
   if (
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login") &&
+    !request.nextUrl.pathname.startsWith("/admin/signup") &&
+    !request.nextUrl.pathname.startsWith("/admin/onboarding") &&
     !isDemo
   ) {
     if (!user) {

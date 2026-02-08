@@ -7,36 +7,52 @@ import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PickupTimeSelector } from "./pickup-time-selector";
+import type { AcceptedPaymentMethod, CustomerProfile } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet } from "lucide-react";
 
 type PaymentMethod = "online" | "on_site";
+type PaymentSource = "direct" | "wallet";
 
 export function CheckoutForm({
   slug,
-  timeRanges,
   stripeConnected,
+  acceptedPaymentMethods,
+  customerProfile,
+  walletBalance,
 }: {
   slug: string;
-  timeRanges: { open: string; close: string }[];
   stripeConnected: boolean;
+  acceptedPaymentMethods: AcceptedPaymentMethod[];
+  customerProfile: CustomerProfile | null;
+  walletBalance: number;
 }) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [pickupTime, setPickupTime] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("on_site");
+  const showOnSite = acceptedPaymentMethods.includes("on_site");
+  const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
+  const showWallet = !!customerProfile && walletBalance >= totalPrice();
+
+  const defaultMethod: PaymentMethod = showOnSite ? "on_site" : "online";
+  const [name, setName] = useState(customerProfile?.full_name ?? "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
 
-  const isFormValid =
-    name.trim().length >= 2 &&
-    phone.trim().length >= 6 &&
-    pickupTime !== "";
+  const isFormValid = name.trim().length >= 2;
+
+  const selectWallet = () => {
+    setPaymentSource("wallet");
+    setPaymentMethod("online");
+  };
+
+  const selectDirect = (method: PaymentMethod) => {
+    setPaymentSource("direct");
+    setPaymentMethod(method);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,9 +75,9 @@ export function CheckoutForm({
               group_id: m.group_id,
             })),
           })),
-          customer_info: { name: name.trim(), phone: phone.trim() },
-          pickup_time: pickupTime,
+          customer_info: { name: name.trim() },
           payment_method: paymentMethod,
+          payment_source: paymentSource,
         }),
       });
 
@@ -72,10 +88,8 @@ export function CheckoutForm({
       }
 
       if (data.url) {
-        // Stripe redirect
         window.location.href = data.url;
       } else if (data.order_id) {
-        // On-site payment: go to confirmation
         clearCart();
         router.push(`/${slug}/order-confirmation/${data.order_id}`);
       }
@@ -87,6 +101,16 @@ export function CheckoutForm({
       setLoading(false);
     }
   };
+
+  const isWalletSelected = paymentSource === "wallet";
+
+  const buttonLabel = loading
+    ? null
+    : isWalletSelected
+      ? `Payer avec le solde \u2014 ${formatPrice(totalPrice())}`
+      : paymentMethod === "online"
+        ? `Payer en ligne \u2014 ${formatPrice(totalPrice())}`
+        : `Confirmer la commande \u2014 ${formatPrice(totalPrice())}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -113,7 +137,12 @@ export function CheckoutForm({
       </div>
 
       {/* Customer info */}
-      <div className="space-y-3">
+      {customerProfile ? (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Commande au nom de</p>
+          <p className="text-sm font-semibold">{customerProfile.full_name}</p>
+        </div>
+      ) : (
         <div>
           <Label htmlFor="name" className="text-sm font-medium">
             Prenom / Nom
@@ -127,60 +156,34 @@ export function CheckoutForm({
             className="mt-1.5 h-12 text-base"
           />
         </div>
-
-        <div>
-          <Label htmlFor="phone" className="text-sm font-medium">
-            Telephone
-          </Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="06 12 34 56 78"
-            required
-            className="mt-1.5 h-12 text-base"
-          />
-        </div>
-
-        <div>
-          <Label className="text-sm font-medium">
-            Heure de retrait
-          </Label>
-          <div className="mt-1.5">
-            <PickupTimeSelector
-              value={pickupTime}
-              onChange={setPickupTime}
-              ranges={timeRanges}
-            />
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Payment method */}
       <div>
         <Label className="mb-2.5 block text-sm font-medium">
           Mode de paiement
         </Label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("on_site")}
-            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-              paymentMethod === "on_site"
-                ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                : "border-border hover:border-primary/50 hover:bg-accent"
-            }`}
-          >
-            <Banknote className="h-4 w-4" />
-            Sur place
-          </button>
-          {stripeConnected ? (
+        <div className={`grid gap-2 ${showWallet ? "grid-cols-1" : "grid-cols-2"}`}>
+          {showOnSite && (
             <button
               type="button"
-              onClick={() => setPaymentMethod("online")}
+              onClick={() => selectDirect("on_site")}
               className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-                paymentMethod === "online"
+                !isWalletSelected && paymentMethod === "on_site"
+                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
+                  : "border-border hover:border-primary/50 hover:bg-accent"
+              }`}
+            >
+              <Banknote className="h-4 w-4" />
+              Sur place
+            </button>
+          )}
+          {showOnline && (
+            <button
+              type="button"
+              onClick={() => selectDirect("online")}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                !isWalletSelected && paymentMethod === "online"
                   ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
                   : "border-border hover:border-primary/50 hover:bg-accent"
               }`}
@@ -188,14 +191,19 @@ export function CheckoutForm({
               <CreditCard className="h-4 w-4" />
               En ligne
             </button>
-          ) : (
+          )}
+          {showWallet && (
             <button
               type="button"
-              disabled
-              className="flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground opacity-50"
+              onClick={selectWallet}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                isWalletSelected
+                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
+                  : "border-border hover:border-primary/50 hover:bg-accent"
+              }`}
             >
-              <CreditCard className="h-4 w-4" />
-              En ligne
+              <Wallet className="h-4 w-4" />
+              Solde ({formatPrice(walletBalance)})
             </button>
           )}
         </div>
@@ -210,10 +218,8 @@ export function CheckoutForm({
       >
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
-        ) : paymentMethod === "online" ? (
-          `Payer en ligne \u2014 ${formatPrice(totalPrice())}`
         ) : (
-          `Confirmer la commande \u2014 ${formatPrice(totalPrice())}`
+          buttonLabel
         )}
       </Button>
     </form>
