@@ -1,6 +1,6 @@
 import { MapPin, Phone, Clock } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
-import { DAYS_FR } from "@/lib/constants";
+import { DAYS_FR, normalizeHoursEntry } from "@/lib/constants";
 
 function getCurrentDayHours(restaurant: Restaurant) {
   const days = [
@@ -13,9 +13,9 @@ function getCurrentDayHours(restaurant: Restaurant) {
     "saturday",
   ];
   const today = days[new Date().getDay()];
-  const hours = restaurant.opening_hours?.[today];
-  if (!hours) return null;
-  return `${hours.open} - ${hours.close}`;
+  const ranges = normalizeHoursEntry(restaurant.opening_hours?.[today]);
+  if (!ranges || ranges.length === 0) return null;
+  return ranges.map((r) => `${r.open} - ${r.close}`).join(" / ");
 }
 
 export function RestaurantHeader({

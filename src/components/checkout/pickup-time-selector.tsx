@@ -12,15 +12,13 @@ import { generatePickupTimeSlots } from "@/lib/constants";
 export function PickupTimeSelector({
   value,
   onChange,
-  openTime,
-  closeTime,
+  ranges,
 }: {
   value: string;
   onChange: (value: string) => void;
-  openTime: string;
-  closeTime: string;
+  ranges: { open: string; close: string }[];
 }) {
-  const slots = generatePickupTimeSlots(openTime, closeTime);
+  const slots = generatePickupTimeSlots(ranges);
 
   if (slots.length === 0) {
     return (
