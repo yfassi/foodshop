@@ -10,71 +10,49 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-export default function AdminLoginPage() {
+export default function AdminSignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caracteres");
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
-      toast.error("Email ou mot de passe incorrect");
+      toast.error(error.message);
       setLoading(false);
       return;
     }
 
-    // Find the restaurant owned by this user
-    const { data: restaurant } = await supabase
-      .from("restaurants")
-      .select("slug")
-      .eq("owner_id", data.user.id)
-      .single();
-
-    if (restaurant) {
-      router.push(`/admin/${restaurant.slug}`);
-    } else {
-      // User has account but no restaurant yet — go to onboarding
-      router.push("/admin/onboarding");
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!email.trim()) {
-      toast.error("Entrez votre email d'abord");
-      return;
-    }
-
-    setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/login`,
-    });
-
-    if (error) {
-      toast.error("Erreur lors de l'envoi du lien");
-    } else {
-      setResetSent(true);
-      toast.success("Lien de reinitialisation envoye par email");
-    }
-    setLoading(false);
+    router.push("/admin/onboarding");
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
-        <h1 className="mb-6 text-center text-xl font-bold">
-          Espace Restaurateur
+        <h1 className="mb-2 text-center text-xl font-bold">
+          Creer mon restaurant
         </h1>
+        <p className="mb-6 text-center text-sm text-muted-foreground">
+          Inscrivez-vous pour configurer votre espace
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -86,7 +64,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@chezmomo.fr"
+              placeholder="vous@restaurant.fr"
               required
               className="mt-1.5 h-12"
             />
@@ -101,6 +79,21 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="6 caracteres minimum"
+              required
+              className="mt-1.5 h-12"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="confirm-password" className="text-sm font-medium">
+              Confirmer le mot de passe
+            </Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               className="mt-1.5 h-12"
             />
@@ -114,38 +107,20 @@ export default function AdminLoginPage() {
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              "Se connecter"
+              "Creer mon compte"
             )}
           </Button>
         </form>
 
-        <button
-          type="button"
-          onClick={handleResetPassword}
-          disabled={loading || resetSent}
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
-        >
-          {resetSent ? "Lien envoye, verifiez vos emails" : "Mot de passe oublie ?"}
-        </button>
-
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          Pas encore de compte ?{" "}
+          Deja un compte ?{" "}
           <Link
-            href="/admin/signup"
+            href="/admin/login"
             className="font-medium text-primary hover:underline"
           >
-            Creer mon restaurant
+            Se connecter
           </Link>
         </p>
-
-        <div className="mt-4 border-t border-border pt-4">
-          <Link
-            href="/admin/chez-momo?demo=true"
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-amber-50 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
-          >
-            Entrer en mode demo
-          </Link>
-        </div>
       </div>
     </div>
   );

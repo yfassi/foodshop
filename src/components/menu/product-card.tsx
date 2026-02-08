@@ -2,34 +2,17 @@
 
 import { useState } from "react";
 import type { ProductWithModifiers } from "@/lib/types";
-import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { ModifierModal } from "./modifier-modal";
-import { toast } from "sonner";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 
 export function ProductCard({ product }: { product: ProductWithModifiers }) {
   const [showModal, setShowModal] = useState(false);
-  const addItem = useCartStore((s) => s.addItem);
-
-  const hasModifiers = product.modifier_groups.length > 0;
 
   const handleClick = () => {
     if (!product.is_available) return;
-
-    if (hasModifiers) {
-      setShowModal(true);
-    } else {
-      addItem({
-        product_id: product.id,
-        product_name: product.name,
-        base_price: product.price,
-        quantity: 1,
-        modifiers: [],
-      });
-      toast.success(`${product.name} ajout\u00E9 au panier`);
-    }
+    setShowModal(true);
   };
 
   return (

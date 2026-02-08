@@ -7,7 +7,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Banknote } from "lucide-react";
+import { CreditCard, Banknote, Wallet } from "lucide-react";
 
 export function OrderCard({ order }: { order: Order }) {
   const config = ORDER_STATUS_CONFIG[order.status];
@@ -24,28 +24,38 @@ export function OrderCard({ order }: { order: Order }) {
     }
   };
 
+  const displayNumber = order.display_order_number || `#${order.order_number}`;
+
+  const paymentIcon =
+    order.payment_source === "wallet" ? (
+      <>
+        <Wallet className="h-3 w-3" />
+        <span>Solde</span>
+      </>
+    ) : order.payment_method === "online" ? (
+      <>
+        <CreditCard className="h-3 w-3" />
+        <span>En ligne</span>
+      </>
+    ) : (
+      <>
+        <Banknote className="h-3 w-3" />
+        <span>Sur place</span>
+      </>
+    );
+
   return (
     <div className={`rounded-xl p-4 ${config.bgClass}`}>
       {/* Header */}
       <div className="mb-2 flex items-start justify-between">
         <div>
-          <p className="text-2xl font-bold">#{order.order_number}</p>
+          <p className="text-2xl font-bold">{displayNumber}</p>
           <p className="text-sm font-medium">{order.customer_info.name}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <OrderStatusBadge status={order.status} />
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            {order.payment_method === "online" ? (
-              <>
-                <CreditCard className="h-3 w-3" />
-                <span>En ligne</span>
-              </>
-            ) : (
-              <>
-                <Banknote className="h-3 w-3" />
-                <span>Sur place</span>
-              </>
-            )}
+            {paymentIcon}
           </div>
         </div>
       </div>

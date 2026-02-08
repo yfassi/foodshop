@@ -228,6 +228,170 @@ CREATE POLICY "Owner: delete modifiers" ON public.modifiers FOR DELETE
   ));
 
 -- ============================================
+-- CUSTOMER PROFILES
+-- ============================================
+CREATE TABLE public.customer_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT NOT NULL,
+  phone TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_customer_profiles_user ON public.customer_profiles(user_id);
+
+CREATE TRIGGER set_customer_profiles_updated_at
+  BEFORE UPDATE ON public.customer_profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE public.customer_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Customer: read own profile" ON public.customer_profiles
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Customer: insert own profile" ON public.customer_profiles
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Customer: update own profile" ON public.customer_profiles
+  FOR UPDATE USING (user_id = auth.uid());
+
+-- ============================================
+-- WALLETS
+-- ============================================
+CREATE TABLE public.wallets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
+  balance INTEGER NOT NULL DEFAULT 0 CHECK (balance >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, restaurant_id)
+);
+
+CREATE INDEX idx_wallets_user ON public.wallets(user_id);
+CREATE INDEX idx_wallets_restaurant ON public.wallets(restaurant_id);
+
+CREATE TRIGGER set_wallets_updated_at
+  BEFORE UPDATE ON public.wallets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Customer: read own wallet" ON public.wallets
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Owner: read restaurant wallets" ON public.wallets
+  FOR SELECT USING (restaurant_id IN (
+    SELECT id FROM public.restaurants WHERE owner_id = auth.uid()
+  ));
+
+-- ============================================
+-- WALLET TRANSACTIONS
+-- ============================================
+CREATE TYPE wallet_tx_type AS ENUM ('topup_stripe', 'topup_admin', 'payment', 'refund');
+
+CREATE TABLE public.wallet_transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  wallet_id UUID NOT NULL REFERENCES public.wallets(id) ON DELETE CASCADE,
+  type wallet_tx_type NOT NULL,
+  amount INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  description TEXT,
+  order_id UUID REFERENCES public.orders(id),
+  stripe_session_id TEXT,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_wallet_tx_wallet ON public.wallet_transactions(wallet_id);
+
+ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Customer: read own transactions" ON public.wallet_transactions
+  FOR SELECT USING (wallet_id IN (
+    SELECT id FROM public.wallets WHERE user_id = auth.uid()
+  ));
+CREATE POLICY "Owner: read restaurant transactions" ON public.wallet_transactions
+  FOR SELECT USING (wallet_id IN (
+    SELECT w.id FROM public.wallets w
+    JOIN public.restaurants r ON r.id = w.restaurant_id
+    WHERE r.owner_id = auth.uid()
+  ));
+
+-- ============================================
+-- DAILY ORDER COUNTERS
+-- ============================================
+CREATE TABLE public.daily_order_counters (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
+  order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  prefix TEXT NOT NULL,
+  current_count INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(restaurant_id, order_date, prefix)
+);
+
+CREATE INDEX idx_daily_counters_lookup ON public.daily_order_counters(restaurant_id, order_date, prefix);
+
+ALTER TABLE public.daily_order_counters ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- POSTGRES FUNCTIONS
+-- ============================================
+
+-- Atomic daily order number generation
+CREATE OR REPLACE FUNCTION next_daily_order_number(
+  p_restaurant_id UUID,
+  p_prefix TEXT
+) RETURNS TEXT AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  INSERT INTO public.daily_order_counters (restaurant_id, order_date, prefix, current_count)
+  VALUES (p_restaurant_id, CURRENT_DATE, p_prefix, 1)
+  ON CONFLICT (restaurant_id, order_date, prefix)
+  DO UPDATE SET current_count = daily_order_counters.current_count + 1
+  RETURNING current_count INTO v_count;
+
+  RETURN p_prefix || '-' || LPAD(v_count::TEXT, 3, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Atomic wallet balance deduction
+CREATE OR REPLACE FUNCTION deduct_wallet_balance(
+  p_wallet_id UUID,
+  p_amount INTEGER,
+  p_order_id UUID
+) RETURNS INTEGER AS $$
+DECLARE
+  v_new_balance INTEGER;
+BEGIN
+  UPDATE public.wallets
+  SET balance = balance - p_amount
+  WHERE id = p_wallet_id AND balance >= p_amount
+  RETURNING balance INTO v_new_balance;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Insufficient wallet balance';
+  END IF;
+
+  INSERT INTO public.wallet_transactions (wallet_id, type, amount, balance_after, order_id)
+  VALUES (p_wallet_id, 'payment', -p_amount, v_new_balance, p_order_id);
+
+  RETURN v_new_balance;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
+-- ADDITIONAL COLUMNS
+-- ============================================
+
+-- Restaurant: accepted payment methods
+ALTER TABLE public.restaurants ADD COLUMN accepted_payment_methods JSONB NOT NULL DEFAULT '["on_site"]'::jsonb;
+
+-- Orders: display order number, customer link, payment source
+ALTER TABLE public.orders ADD COLUMN display_order_number TEXT;
+ALTER TABLE public.orders ADD COLUMN customer_user_id UUID REFERENCES auth.users(id);
+ALTER TABLE public.orders ADD COLUMN payment_source TEXT NOT NULL DEFAULT 'direct';
+
+-- ============================================
 -- REALTIME
 -- ============================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;

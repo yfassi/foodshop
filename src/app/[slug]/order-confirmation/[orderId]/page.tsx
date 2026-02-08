@@ -29,9 +29,11 @@ export default async function OrderConfirmationPage({
         </div>
         <h2 className="text-xl font-bold">Commande confirmee !</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {order.payment_method === "online"
-            ? "Paiement en ligne effectue"
-            : "A regler sur place"}
+          {order.payment_source === "wallet"
+            ? "Paye avec le solde"
+            : order.payment_method === "online"
+              ? "Paiement en ligne effectue"
+              : "A regler sur place"}
         </p>
       </div>
 
@@ -40,7 +42,9 @@ export default async function OrderConfirmationPage({
         <p className="text-sm font-medium text-muted-foreground">
           Commande N&deg;
         </p>
-        <p className="text-4xl font-bold text-primary">#{order.order_number}</p>
+        <p className="text-4xl font-bold text-primary">
+          {order.display_order_number || `#${order.order_number}`}
+        </p>
         {order.pickup_time && (
           <p className="mt-2 text-sm">
             Retrait prevu a{" "}

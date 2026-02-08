@@ -38,6 +38,11 @@ export default function SettingsPage() {
   const [hours, setHours] = useState<Record<string, TimeRange[] | null>>({});
   const [savingRestaurant, setSavingRestaurant] = useState(false);
 
+  // Payment methods
+  const [acceptOnSite, setAcceptOnSite] = useState(true);
+  const [acceptOnline, setAcceptOnline] = useState(false);
+  const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
+
   // Account
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -71,6 +76,10 @@ export default function SettingsPage() {
           h[day] = normalizeHoursEntry(data.opening_hours?.[day]);
         }
         setHours(h);
+
+        const methods: string[] = data.accepted_payment_methods || ["on_site"];
+        setAcceptOnSite(methods.includes("on_site"));
+        setAcceptOnline(methods.includes("online"));
       }
 
       setLoading(false);
@@ -169,6 +178,33 @@ export default function SettingsPage() {
 
     toast.success("Informations mises a jour");
     setSavingRestaurant(false);
+  };
+
+  // --- Payment methods ---
+
+  const savePaymentMethods = async () => {
+    const methods: string[] = [];
+    if (acceptOnSite) methods.push("on_site");
+    if (acceptOnline) methods.push("online");
+
+    if (methods.length === 0) {
+      toast.error("Au moins un mode de paiement doit etre actif");
+      return;
+    }
+
+    setSavingPaymentMethods(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ accepted_payment_methods: methods })
+      .eq("id", restaurant!.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Modes de paiement mis a jour");
+    }
+    setSavingPaymentMethods(false);
   };
 
   // --- Account ---
@@ -461,9 +497,57 @@ export default function SettingsPage() {
         {/* Tab: Paiement */}
         {activeTab === "payment" && (
           <div className="space-y-4">
+            {/* Accepted payment methods */}
             <div className="rounded-xl border border-border bg-card p-4">
               <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Paiement en ligne
+                Modes de paiement acceptes
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Especes / sur place</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le client paie au comptoir
+                    </p>
+                  </div>
+                  <Switch
+                    checked={acceptOnSite}
+                    onCheckedChange={setAcceptOnSite}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Carte bancaire en ligne</p>
+                    <p className="text-xs text-muted-foreground">
+                      {restaurant.stripe_onboarding_complete
+                        ? "Paiement en ligne via Stripe"
+                        : "Connectez Stripe pour activer"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={acceptOnline}
+                    onCheckedChange={setAcceptOnline}
+                    disabled={!restaurant.stripe_onboarding_complete}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={savePaymentMethods}
+                disabled={savingPaymentMethods || (!acceptOnSite && !acceptOnline)}
+                className="mt-4 w-full"
+                variant="outline"
+              >
+                {savingPaymentMethods && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Enregistrer
+              </Button>
+            </div>
+
+            {/* Stripe connection */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Compte Stripe
               </h3>
 
               {checkingStatus ? (
@@ -474,17 +558,11 @@ export default function SettingsPage() {
                   </span>
                 </div>
               ) : restaurant.stripe_onboarding_complete ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                      Actif
-                    </span>
-                    <span className="text-sm">Compte Stripe connecte</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Les clients peuvent payer en ligne. Les paiements sont verses
-                    directement sur votre compte.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                    Actif
+                  </span>
+                  <span className="text-sm">Compte Stripe connecte</span>
                 </div>
               ) : restaurant.stripe_account_id ? (
                 <div className="space-y-3">
@@ -494,11 +572,6 @@ export default function SettingsPage() {
                     </span>
                     <span className="text-sm">Configuration en cours</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Votre compte Stripe n&apos;est pas encore entierement
-                    configure. Completez la configuration pour recevoir des
-                    paiements en ligne.
-                  </p>
                   <Button
                     onClick={handleConnectStripe}
                     disabled={stripeLoading}
@@ -515,11 +588,7 @@ export default function SettingsPage() {
                 <div className="space-y-3">
                   <p className="text-sm">
                     Connectez un compte Stripe pour accepter les paiements en
-                    ligne.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Sans compte Stripe, seul le paiement sur place est propose
-                    aux clients.
+                    ligne et les recharges de solde.
                   </p>
                   <Button
                     onClick={handleConnectStripe}

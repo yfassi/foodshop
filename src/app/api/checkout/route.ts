@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
 import type { OrderItem, OrderItemModifier } from "@/lib/types";
 
@@ -13,19 +14,24 @@ interface CheckoutItem {
 interface CheckoutBody {
   restaurant_slug: string;
   items: CheckoutItem[];
-  customer_info: { name: string; phone: string };
-  pickup_time: string;
+  customer_info: { name: string; phone?: string };
   payment_method: "online" | "on_site";
+  payment_source?: "direct" | "wallet";
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CheckoutBody;
-    const { restaurant_slug, items, customer_info, pickup_time, payment_method } =
-      body;
+    const {
+      restaurant_slug,
+      items,
+      customer_info,
+      payment_method,
+      payment_source = "direct",
+    } = body;
 
     // Validate input
-    if (!restaurant_slug || !items?.length || !customer_info?.name || !pickup_time) {
+    if (!restaurant_slug || !items?.length || !customer_info?.name) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
         { status: 400 }
@@ -55,11 +61,34 @@ export async function POST(request: Request) {
       );
     }
 
-    if (payment_method === "online" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
+    if (payment_method === "online" && payment_source === "direct" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
       return NextResponse.json(
         { error: "Le paiement en ligne n'est pas disponible pour ce restaurant" },
         { status: 400 }
       );
+    }
+
+    // Get authenticated user if any
+    let customerUserId: string | null = null;
+    if (payment_source === "wallet") {
+      const serverSupabase = await createClient();
+      const { data: { user } } = await serverSupabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json(
+          { error: "Vous devez etre connecte pour payer avec le solde" },
+          { status: 401 }
+        );
+      }
+      customerUserId = user.id;
+    } else {
+      // Check if user is logged in (optional for direct payments)
+      try {
+        const serverSupabase = await createClient();
+        const { data: { user } } = await serverSupabase.auth.getUser();
+        if (user) customerUserId = user.id;
+      } catch {
+        // Not logged in, that's fine
+      }
     }
 
     // Fetch and validate products + modifiers server-side
@@ -158,13 +187,79 @@ export async function POST(request: Request) {
       });
     }
 
-    // Build pickup datetime
-    const now = new Date();
-    const [h, m] = pickup_time.split(":").map(Number);
-    const pickupDate = new Date(now);
-    pickupDate.setHours(h, m, 0, 0);
+    // Generate display order number
+    const orderPrefix = payment_method === "on_site" ? "ESP" : "CB";
+    const { data: orderNumberResult } = await supabase.rpc(
+      "next_daily_order_number",
+      { p_restaurant_id: restaurant.id, p_prefix: orderPrefix }
+    );
+    const displayOrderNumber = orderNumberResult || `${orderPrefix}-000`;
 
-    // Create order in database
+    // Handle wallet payment
+    if (payment_source === "wallet" && customerUserId) {
+      // Get wallet
+      const { data: wallet } = await supabase
+        .from("wallets")
+        .select("id, balance")
+        .eq("user_id", customerUserId)
+        .eq("restaurant_id", restaurant.id)
+        .single();
+
+      if (!wallet || wallet.balance < totalPrice) {
+        return NextResponse.json(
+          { error: "Solde insuffisant" },
+          { status: 400 }
+        );
+      }
+
+      // Create order first
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          restaurant_id: restaurant.id,
+          customer_info,
+          items: orderItems,
+          status: "new",
+          total_price: totalPrice,
+          payment_method,
+          payment_source: "wallet",
+          customer_user_id: customerUserId,
+          display_order_number: displayOrderNumber,
+          paid: true,
+        })
+        .select("id")
+        .single();
+
+      if (orderError || !order) {
+        console.error("Order creation error:", orderError);
+        return NextResponse.json(
+          { error: "Erreur lors de la creation de la commande" },
+          { status: 500 }
+        );
+      }
+
+      // Deduct wallet balance atomically
+      const { error: deductError } = await supabase.rpc(
+        "deduct_wallet_balance",
+        { p_wallet_id: wallet.id, p_amount: totalPrice, p_order_id: order.id }
+      );
+
+      if (deductError) {
+        // Rollback: cancel the order
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled" })
+          .eq("id", order.id);
+        return NextResponse.json(
+          { error: "Solde insuffisant" },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({ order_id: order.id });
+    }
+
+    // Create order in database (direct payment)
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -173,9 +268,11 @@ export async function POST(request: Request) {
         items: orderItems,
         status: "new",
         total_price: totalPrice,
-        pickup_time: pickupDate.toISOString(),
         payment_method,
-        paid: payment_method === "on_site", // On-site orders are "paid" immediately (collected at pickup)
+        payment_source: "direct",
+        display_order_number: displayOrderNumber,
+        ...(customerUserId && { customer_user_id: customerUserId }),
+        paid: payment_method === "on_site",
       })
       .select("id")
       .single();
@@ -221,6 +318,7 @@ export async function POST(request: Request) {
       metadata: {
         order_id: order.id,
         restaurant_id: restaurant.id,
+        type: "order",
       },
       success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
       cancel_url: `${appUrl}/${restaurant_slug}/checkout`,

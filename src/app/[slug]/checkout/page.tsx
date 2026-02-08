@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeHoursEntry } from "@/lib/constants";
+import type { AcceptedPaymentMethod, CustomerProfile } from "@/lib/types";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -14,10 +14,10 @@ export default function CheckoutPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
   const items = useCartStore((s) => s.items);
-  const [timeRanges, setTimeRanges] = useState<
-    { open: string; close: string }[] | null
-  >(null);
   const [stripeConnected, setStripeConnected] = useState(false);
+  const [acceptedMethods, setAcceptedMethods] = useState<AcceptedPaymentMethod[]>(["on_site"]);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,43 +26,57 @@ export default function CheckoutPage() {
       return;
     }
 
-    const fetchHours = async () => {
+    const fetchData = async () => {
       const supabase = createClient();
-      const { data } = await supabase
+
+      // Fetch restaurant config
+      const { data: restaurant } = await supabase
         .from("restaurants")
-        .select(
-          "opening_hours, is_accepting_orders, stripe_onboarding_complete"
-        )
+        .select("id, is_accepting_orders, stripe_onboarding_complete, accepted_payment_methods")
         .eq("slug", slug)
         .single();
 
-      if (data && !data.is_accepting_orders) {
+      if (restaurant && !restaurant.is_accepting_orders) {
         router.replace(`/${slug}`);
         return;
       }
 
-      if (data?.opening_hours) {
-        const days = [
-          "sunday",
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-        ];
-        const today = days[new Date().getDay()];
-        const todayRanges =
-          normalizeHoursEntry(data.opening_hours[today]) || [
-            { open: "11:00", close: "22:00" },
-          ];
-        setTimeRanges(todayRanges);
+      if (restaurant) {
+        setStripeConnected(restaurant.stripe_onboarding_complete === true);
+        const methods = (restaurant.accepted_payment_methods as string[]) || ["on_site"];
+        setAcceptedMethods(methods as AcceptedPaymentMethod[]);
+
+        // Fetch customer profile if logged in
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("customer_profiles")
+            .select("*")
+            .eq("user_id", user.id)
+            .single();
+
+          if (profile) {
+            setCustomerProfile(profile as CustomerProfile);
+          }
+
+          // Fetch wallet balance
+          const { data: wallet } = await supabase
+            .from("wallets")
+            .select("balance")
+            .eq("user_id", user.id)
+            .eq("restaurant_id", restaurant.id)
+            .single();
+
+          if (wallet) {
+            setWalletBalance(wallet.balance);
+          }
+        }
       }
-      setStripeConnected(data?.stripe_onboarding_complete === true);
+
       setLoading(false);
     };
 
-    fetchHours();
+    fetchData();
   }, [items.length, slug, router]);
 
   if (loading || items.length === 0) {
@@ -86,13 +100,13 @@ export default function CheckoutPage() {
       <h2 className="mb-4 text-lg font-bold">Finaliser la commande</h2>
 
       <div className="mx-auto max-w-lg">
-        {timeRanges && (
-          <CheckoutForm
-            slug={slug}
-            timeRanges={timeRanges}
-            stripeConnected={stripeConnected}
-          />
-        )}
+        <CheckoutForm
+          slug={slug}
+          stripeConnected={stripeConnected}
+          acceptedPaymentMethods={acceptedMethods}
+          customerProfile={customerProfile}
+          walletBalance={walletBalance}
+        />
       </div>
     </div>
   );
