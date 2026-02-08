@@ -11,6 +11,8 @@ export interface Restaurant {
   opening_hours: Record<string, { open: string; close: string }>;
   is_accepting_orders: boolean;
   owner_id: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean;
   created_at: string;
   updated_at: string;
 }

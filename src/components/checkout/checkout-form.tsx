@@ -17,10 +17,12 @@ export function CheckoutForm({
   slug,
   openTime,
   closeTime,
+  stripeConnected,
 }: {
   slug: string;
   openTime: string;
   closeTime: string;
+  stripeConnected: boolean;
 }) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
@@ -176,18 +178,29 @@ export function CheckoutForm({
             <Banknote className="h-4 w-4" />
             Sur place
           </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("online")}
-            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-              paymentMethod === "online"
-                ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                : "border-border hover:border-primary/50 hover:bg-accent"
-            }`}
-          >
-            <CreditCard className="h-4 w-4" />
-            En ligne
-          </button>
+          {stripeConnected ? (
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("online")}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                paymentMethod === "online"
+                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
+                  : "border-border hover:border-primary/50 hover:bg-accent"
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              En ligne
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              En ligne
+            </button>
+          )}
         </div>
       </div>
 

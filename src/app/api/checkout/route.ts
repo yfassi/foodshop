@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, is_accepting_orders")
+      .select("id, is_accepting_orders, stripe_account_id, stripe_onboarding_complete")
       .eq("slug", restaurant_slug)
       .single();
 
@@ -51,6 +51,13 @@ export async function POST(request: Request) {
     if (!restaurant.is_accepting_orders) {
       return NextResponse.json(
         { error: "Le restaurant ne prend plus de commandes" },
+        { status: 400 }
+      );
+    }
+
+    if (payment_method === "online" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
+      return NextResponse.json(
+        { error: "Le paiement en ligne n'est pas disponible pour ce restaurant" },
         { status: 400 }
       );
     }
@@ -206,6 +213,11 @@ export async function POST(request: Request) {
         },
         quantity: item.quantity,
       })),
+      payment_intent_data: {
+        transfer_data: {
+          destination: restaurant.stripe_account_id!,
+        },
+      },
       metadata: {
         order_id: order.id,
         restaurant_id: restaurant.id,

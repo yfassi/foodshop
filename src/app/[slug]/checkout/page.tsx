@@ -16,6 +16,7 @@ export default function CheckoutPage() {
   const [hours, setHours] = useState<{ open: string; close: string } | null>(
     null
   );
+  const [stripeConnected, setStripeConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function CheckoutPage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("restaurants")
-        .select("opening_hours, is_accepting_orders")
+        .select("opening_hours, is_accepting_orders, stripe_onboarding_complete")
         .eq("slug", slug)
         .single();
 
@@ -54,6 +55,7 @@ export default function CheckoutPage() {
         } | undefined;
         setHours(todayHours || { open: "11:00", close: "22:00" });
       }
+      setStripeConnected(data?.stripe_onboarding_complete === true);
       setLoading(false);
     };
 
@@ -88,6 +90,7 @@ export default function CheckoutPage() {
             slug={slug}
             openTime={hours.open}
             closeTime={hours.close}
+            stripeConnected={stripeConnected}
           />
         )}
       </div>
