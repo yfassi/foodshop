@@ -26,6 +26,8 @@ CREATE TABLE public.restaurants (
   }'::jsonb,
   is_accepting_orders BOOLEAN NOT NULL DEFAULT true,
   owner_id UUID REFERENCES auth.users(id),
+  stripe_account_id TEXT,
+  stripe_onboarding_complete BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
