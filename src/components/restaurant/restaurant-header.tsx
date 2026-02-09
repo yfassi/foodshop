@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Clock, ChevronDown } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
 import { DAYS_FR, normalizeHoursEntry } from "@/lib/constants";
@@ -38,9 +39,22 @@ export function RestaurantHeader({
   return (
     <header className="border-b border-border bg-card px-4 py-5">
       <div className="flex items-start justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {restaurant.name}
-        </h1>
+        <div className="flex items-center gap-3">
+          {restaurant.logo_url && (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+              <Image
+                src={restaurant.logo_url}
+                alt={`${restaurant.name} logo`}
+                fill
+                className="object-cover"
+                sizes="40px"
+              />
+            </div>
+          )}
+          <h1 className="text-2xl font-bold tracking-tight">
+            {restaurant.name}
+          </h1>
+        </div>
         <CustomerAuthButton slug={restaurant.slug} />
       </div>
       {todayHours && (
