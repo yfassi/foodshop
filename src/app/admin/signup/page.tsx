@@ -41,7 +41,8 @@ export default function AdminSignupPage() {
       return;
     }
 
-    router.push("/admin/onboarding");
+    // Full page navigation to ensure auth cookies are sent through middleware
+    window.location.href = "/admin/onboarding";
   };
 
   return (

@@ -9,6 +9,8 @@ export interface Restaurant {
   slug: string;
   description: string | null;
   logo_url: string | null;
+  primary_color: string | null;
+  font_family: string | null;
   address: string | null;
   phone: string | null;
   opening_hours: Record<string, { open: string; close: string }[]>;

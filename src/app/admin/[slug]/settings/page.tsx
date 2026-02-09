@@ -8,12 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { LogOut, Loader2, Store, CreditCard, User, Plus, X } from "lucide-react";
+import {
+  LogOut,
+  Loader2,
+  Store,
+  CreditCard,
+  User,
+  Plus,
+  X,
+  Palette,
+  Camera,
+} from "lucide-react";
+import Image from "next/image";
 import type { Restaurant } from "@/lib/types";
 import { DAYS_FR, normalizeHoursEntry } from "@/lib/constants";
+import { FONT_OPTIONS } from "@/lib/branding";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "account";
+type Tab = "restaurant" | "appearance" | "payment" | "account";
 
 interface TimeRange {
   open: string;
@@ -42,6 +61,13 @@ export default function SettingsPage() {
   const [acceptOnSite, setAcceptOnSite] = useState(true);
   const [acceptOnline, setAcceptOnline] = useState(false);
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
+
+  // Branding
+  const [primaryColor, setPrimaryColor] = useState("");
+  const [fontFamily, setFontFamily] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Account
   const [email, setEmail] = useState("");
@@ -76,6 +102,10 @@ export default function SettingsPage() {
           h[day] = normalizeHoursEntry(data.opening_hours?.[day]);
         }
         setHours(h);
+
+        setPrimaryColor(data.primary_color || "");
+        setFontFamily(data.font_family || "");
+        setLogoUrl(data.logo_url || null);
 
         const methods: string[] = data.accepted_payment_methods || ["on_site"];
         setAcceptOnSite(methods.includes("on_site"));
@@ -247,6 +277,95 @@ export default function SettingsPage() {
     router.push("/admin/login");
   };
 
+  // --- Branding ---
+
+  const saveBranding = async () => {
+    setSavingBranding(true);
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        primary_color: primaryColor.trim() || null,
+        font_family: fontFamily || null,
+      })
+      .eq("id", restaurant!.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Apparence mise a jour");
+    }
+    setSavingBranding(false);
+  };
+
+  const uploadLogo = async (file: File) => {
+    const MAX_SIZE = 2 * 1024 * 1024;
+    const ALLOWED_TYPES = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml",
+    ];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Format accepte : JPG, PNG, WebP ou SVG");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      toast.error("Le logo ne doit pas depasser 2 Mo");
+      return;
+    }
+
+    setUploadingLogo(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `${restaurant!.id}/logo.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("restaurant-logos")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Erreur lors de l'upload");
+      setUploadingLogo(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("restaurant-logos")
+      .getPublicUrl(filePath);
+
+    const newLogoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase
+      .from("restaurants")
+      .update({ logo_url: newLogoUrl })
+      .eq("id", restaurant!.id);
+
+    setLogoUrl(newLogoUrl);
+    setUploadingLogo(false);
+    toast.success("Logo mis a jour");
+  };
+
+  const removeLogo = async () => {
+    if (!logoUrl) return;
+
+    const supabase = createClient();
+    const pathMatch = logoUrl.split("/restaurant-logos/")[1]?.split("?")[0];
+    if (pathMatch) {
+      await supabase.storage.from("restaurant-logos").remove([pathMatch]);
+    }
+
+    await supabase
+      .from("restaurants")
+      .update({ logo_url: null })
+      .eq("id", restaurant!.id);
+
+    setLogoUrl(null);
+    toast.success("Logo supprime");
+  };
+
   // --- Hours helpers ---
 
   const toggleDay = (day: string, enabled: boolean) => {
@@ -302,6 +421,7 @@ export default function SettingsPage() {
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "restaurant", label: "Etablissement", icon: <Store className="h-4 w-4" /> },
+    { key: "appearance", label: "Apparence", icon: <Palette className="h-4 w-4" /> },
     { key: "payment", label: "Paiement", icon: <CreditCard className="h-4 w-4" /> },
     { key: "account", label: "Mon compte", icon: <User className="h-4 w-4" /> },
   ];
@@ -490,6 +610,147 @@ export default function SettingsPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Enregistrer
+            </Button>
+          </div>
+        )}
+
+        {/* Tab: Apparence */}
+        {activeTab === "appearance" && (
+          <div className="space-y-4">
+            {/* Logo */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Logo
+              </h3>
+              <div className="relative inline-block">
+                <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted transition-colors hover:border-primary">
+                  {uploadingLogo ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : logoUrl ? (
+                    <Image
+                      src={logoUrl}
+                      alt="Logo"
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Camera className="h-5 w-5" />
+                      <span className="text-[10px]">Ajouter</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadLogo(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {logoUrl && (
+                  <button
+                    onClick={removeLogo}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Primary color */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Couleur principale
+              </h3>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={primaryColor || "#d4522a"}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="h-10 w-10 cursor-pointer rounded-lg border border-border"
+                />
+                <Input
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  placeholder="#d4522a"
+                  className="flex-1 font-mono text-sm"
+                  maxLength={7}
+                />
+                {primaryColor && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPrimaryColor("")}
+                    className="text-xs text-muted-foreground"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+              {primaryColor && (
+                <div className="mt-3 flex items-center gap-2">
+                  <div
+                    className="h-8 rounded-md px-4 text-xs font-medium leading-8 text-white"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Apercu bouton
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Apercu de la couleur
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Font */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Police
+              </h3>
+              <Select value={fontFamily} onValueChange={setFontFamily}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Geist Sans (par defaut)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      <span className="flex items-center gap-2">
+                        <span>{font.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {font.category}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fontFamily && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFontFamily("")}
+                  className="mt-2 text-xs text-muted-foreground"
+                >
+                  Revenir a la police par defaut
+                </Button>
+              )}
+            </div>
+
+            {/* Save */}
+            <Button
+              onClick={saveBranding}
+              disabled={savingBranding}
+              className="w-full"
+            >
+              {savingBranding && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Enregistrer l&apos;apparence
             </Button>
           </div>
         )}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RestaurantHeader } from "@/components/restaurant/restaurant-header";
+import { BrandingProvider } from "@/components/branding-provider";
 import type { Restaurant } from "@/lib/types";
 
 export async function generateMetadata({
@@ -43,7 +44,11 @@ export default async function RestaurantLayout({
   if (!restaurant) notFound();
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl bg-background shadow-sm lg:my-6 lg:rounded-2xl lg:border lg:border-border">
+    <BrandingProvider
+      primaryColor={restaurant.primary_color}
+      fontFamily={restaurant.font_family}
+      className="mx-auto min-h-screen max-w-3xl bg-background shadow-sm lg:my-6 lg:rounded-2xl lg:border lg:border-border"
+    >
       <RestaurantHeader restaurant={restaurant} />
       {!restaurant.is_accepting_orders && (
         <div className="bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
@@ -51,6 +56,6 @@ export default async function RestaurantLayout({
         </div>
       )}
       <main className="pb-24">{children}</main>
-    </div>
+    </BrandingProvider>
   );
 }

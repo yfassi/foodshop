@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,12 +18,25 @@ import {
   MapPin,
   Clock,
   CreditCard,
+  Palette,
+  Plus,
+  Camera,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { FONT_OPTIONS } from "@/lib/branding";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STEPS = [
   { label: "Restaurant", icon: Store },
   { label: "Contact", icon: MapPin },
   { label: "Horaires", icon: Clock },
+  { label: "Apparence", icon: Palette },
   { label: "Paiement", icon: CreditCard },
 ];
 
@@ -36,8 +50,12 @@ const DAYS = [
   { key: "sunday", label: "Dimanche" },
 ];
 
-type DayHours = { enabled: boolean; open: string; close: string };
-type HoursState = Record<string, DayHours>;
+interface TimeRange {
+  open: string;
+  close: string;
+}
+
+type HoursState = Record<string, TimeRange[] | null>;
 
 function toSlug(name: string) {
   return name
@@ -49,13 +67,13 @@ function toSlug(name: string) {
 }
 
 const DEFAULT_HOURS: HoursState = {
-  monday: { enabled: true, open: "11:00", close: "22:00" },
-  tuesday: { enabled: true, open: "11:00", close: "22:00" },
-  wednesday: { enabled: true, open: "11:00", close: "22:00" },
-  thursday: { enabled: true, open: "11:00", close: "22:00" },
-  friday: { enabled: true, open: "11:00", close: "22:00" },
-  saturday: { enabled: true, open: "11:00", close: "23:00" },
-  sunday: { enabled: true, open: "12:00", close: "22:00" },
+  monday: [{ open: "11:00", close: "22:00" }],
+  tuesday: [{ open: "11:00", close: "22:00" }],
+  wednesday: [{ open: "11:00", close: "22:00" }],
+  thursday: [{ open: "11:00", close: "22:00" }],
+  friday: [{ open: "11:00", close: "22:00" }],
+  saturday: [{ open: "11:00", close: "23:00" }],
+  sunday: [{ open: "12:00", close: "22:00" }],
 };
 
 export default function OnboardingPage() {
@@ -78,7 +96,13 @@ export default function OnboardingPage() {
   // Step 3 — Hours
   const [hours, setHours] = useState<HoursState>(DEFAULT_HOURS);
 
-  // Step 4 — Payment
+  // Step 4 — Appearance
+  const [primaryColor, setPrimaryColor] = useState("");
+  const [fontFamily, setFontFamily] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Step 5 — Payment
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(false);
 
@@ -97,7 +121,9 @@ export default function OnboardingPage() {
     }
     setSlugChecking(true);
     try {
-      const res = await fetch(`/api/admin/check-slug?slug=${encodeURIComponent(s)}`);
+      const res = await fetch(
+        `/api/admin/check-slug?slug=${encodeURIComponent(s)}`
+      );
       const data = await res.json();
       setSlugAvailable(data.available);
     } catch {
@@ -117,12 +143,16 @@ export default function OnboardingPage() {
   const canAdvance = () => {
     switch (step) {
       case 0:
-        return name.trim().length > 0 && slug.length >= 2 && slugAvailable === true;
+        return (
+          name.trim().length > 0 && slug.length >= 2 && slugAvailable === true
+        );
       case 1:
-        return true; // contact is optional
+        return true;
       case 2:
-        return true; // hours have defaults
+        return true;
       case 3:
+        return true;
+      case 4:
         return cashEnabled || cardEnabled;
       default:
         return false;
@@ -149,14 +179,14 @@ export default function OnboardingPage() {
     // Build opening_hours
     const opening_hours: Record<string, { open: string; close: string }[]> = {};
     for (const day of DAYS) {
-      const h = hours[day.key];
-      opening_hours[day.key] = h.enabled ? [{ open: h.open, close: h.close }] : [];
+      const ranges = hours[day.key];
+      opening_hours[day.key] = ranges || [];
     }
 
     // Build payment methods
     const accepted_payment_methods: string[] = [];
-    if (cashEnabled) accepted_payment_methods.push("cash");
-    if (cardEnabled) accepted_payment_methods.push("card");
+    if (cashEnabled) accepted_payment_methods.push("on_site");
+    if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
       const res = await fetch("/api/admin/onboarding", {
@@ -170,6 +200,8 @@ export default function OnboardingPage() {
           phone: phone.trim() || undefined,
           opening_hours,
           accepted_payment_methods,
+          primary_color: primaryColor.trim() || undefined,
+          font_family: fontFamily || undefined,
         }),
       });
 
@@ -189,11 +221,96 @@ export default function OnboardingPage() {
     }
   };
 
-  const updateDay = (key: string, field: keyof DayHours, value: string | boolean) => {
+  // --- Hours helpers ---
+
+  const toggleDay = (key: string, enabled: boolean) => {
     setHours((prev) => ({
       ...prev,
-      [key]: { ...prev[key], [field]: value },
+      [key]: enabled ? [{ open: "11:00", close: "22:00" }] : null,
     }));
+  };
+
+  const updateRange = (
+    day: string,
+    index: number,
+    field: "open" | "close",
+    value: string
+  ) => {
+    setHours((prev) => {
+      const ranges = prev[day];
+      if (!ranges) return prev;
+      const updated = ranges.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      );
+      return { ...prev, [day]: updated };
+    });
+  };
+
+  const addRange = (day: string) => {
+    setHours((prev) => {
+      const ranges = prev[day];
+      if (!ranges) return prev;
+      const lastClose = ranges[ranges.length - 1].close;
+      return {
+        ...prev,
+        [day]: [...ranges, { open: lastClose, close: "22:00" }],
+      };
+    });
+  };
+
+  const removeRange = (day: string, index: number) => {
+    setHours((prev) => {
+      const ranges = prev[day];
+      if (!ranges || ranges.length <= 1) return prev;
+      return { ...prev, [day]: ranges.filter((_, i) => i !== index) };
+    });
+  };
+
+  // --- Logo upload ---
+
+  const uploadLogo = async (file: File) => {
+    const MAX_SIZE = 2 * 1024 * 1024;
+    const ALLOWED_TYPES = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml",
+    ];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Format accepte : JPG, PNG, WebP ou SVG");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      toast.error("Le logo ne doit pas depasser 2 Mo");
+      return;
+    }
+
+    setUploadingLogo(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `temp-onboarding/${Date.now()}/logo.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("restaurant-logos")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Erreur lors de l'upload");
+      setUploadingLogo(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("restaurant-logos")
+      .getPublicUrl(filePath);
+
+    setLogoUrl(`${urlData.publicUrl}?t=${Date.now()}`);
+    setUploadingLogo(false);
+  };
+
+  const removeLogo = () => {
+    setLogoUrl(null);
   };
 
   return (
@@ -225,7 +342,9 @@ export default function OnboardingPage() {
                   </div>
                   <span
                     className={`mt-1.5 text-[10px] font-medium transition-colors duration-300 ${
-                      isActive || isDone ? "text-foreground" : "text-muted-foreground/50"
+                      isActive || isDone
+                        ? "text-foreground"
+                        : "text-muted-foreground/50"
                     }`}
                   >
                     {s.label}
@@ -233,7 +352,7 @@ export default function OnboardingPage() {
                 </div>
                 {i < STEPS.length - 1 && (
                   <div
-                    className={`mx-1 mb-5 h-0.5 w-8 transition-colors duration-300 ${
+                    className={`mx-1 mb-5 h-0.5 w-6 transition-colors duration-300 ${
                       i < step ? "bg-primary" : "bg-muted-foreground/20"
                     }`}
                   />
@@ -363,7 +482,9 @@ export default function OnboardingPage() {
           {step === 2 && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold">Horaires d&apos;ouverture</h2>
+                <h2 className="text-lg font-bold">
+                  Horaires d&apos;ouverture
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   Configurez vos horaires pour chaque jour
                 </p>
@@ -371,52 +492,92 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 {DAYS.map((day) => {
-                  const h = hours[day.key];
+                  const ranges = hours[day.key];
+                  const isOpen = !!ranges && ranges.length > 0;
+
                   return (
                     <div
                       key={day.key}
-                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                        h.enabled
+                      className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                        isOpen
                           ? "border-border bg-card"
                           : "border-transparent bg-muted/50"
                       }`}
                     >
-                      <Switch
-                        checked={h.enabled}
-                        onCheckedChange={(v) => updateDay(day.key, "enabled", v)}
-                      />
-                      <span
-                        className={`w-20 text-sm font-medium ${
-                          !h.enabled ? "text-muted-foreground" : ""
-                        }`}
-                      >
-                        {day.label}
-                      </span>
-                      {h.enabled ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="time"
-                            value={h.open}
-                            onChange={(e) =>
-                              updateDay(day.key, "open", e.target.value)
-                            }
-                            className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
-                          />
-                          <span className="text-xs text-muted-foreground">-</span>
-                          <input
-                            type="time"
-                            value={h.close}
-                            onChange={(e) =>
-                              updateDay(day.key, "close", e.target.value)
-                            }
-                            className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Ferme
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={isOpen}
+                          onCheckedChange={(v) => toggleDay(day.key, v)}
+                        />
+                        <span
+                          className={`w-20 text-sm font-medium ${
+                            !isOpen ? "text-muted-foreground" : ""
+                          }`}
+                        >
+                          {day.label}
                         </span>
-                      )}
+                        {isOpen ? (
+                          <div className="flex flex-1 flex-col gap-1.5">
+                            {ranges.map((range, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-1.5"
+                              >
+                                <input
+                                  type="time"
+                                  value={range.open}
+                                  onChange={(e) =>
+                                    updateRange(
+                                      day.key,
+                                      idx,
+                                      "open",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  -
+                                </span>
+                                <input
+                                  type="time"
+                                  value={range.close}
+                                  onChange={(e) =>
+                                    updateRange(
+                                      day.key,
+                                      idx,
+                                      "close",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
+                                />
+                                {ranges.length > 1 && (
+                                  <button
+                                    onClick={() => removeRange(day.key, idx)}
+                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {ranges.length < 2 && (
+                              <button
+                                onClick={() => addRange(day.key)}
+                                className="flex items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Coupure
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Ferme
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -424,8 +585,189 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 4: Payment */}
+          {/* Step 4: Appearance */}
           {step === 3 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-bold">Apparence</h2>
+                <p className="text-sm text-muted-foreground">
+                  Personnalisez le look de votre restaurant
+                </p>
+              </div>
+
+              {/* Logo */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Logo</Label>
+                <div className="relative inline-block">
+                  <label className="relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted transition-colors hover:border-primary">
+                    {uploadingLogo ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : logoUrl ? (
+                      <Image
+                        src={logoUrl}
+                        alt="Logo"
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-0.5 text-muted-foreground">
+                        <Camera className="h-4 w-4" />
+                        <span className="text-[9px]">Ajouter</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadLogo(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {logoUrl && (
+                    <button
+                      onClick={removeLogo}
+                      className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Color */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Couleur principale
+                </Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={primaryColor || "#d4522a"}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="h-10 w-10 cursor-pointer rounded-lg border border-border"
+                  />
+                  <Input
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    placeholder="#d4522a"
+                    className="flex-1 font-mono text-sm"
+                    maxLength={7}
+                  />
+                  {primaryColor && (
+                    <button
+                      onClick={() => setPrimaryColor("")}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Font */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Police</Label>
+                <Select value={fontFamily} onValueChange={setFontFamily}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Geist Sans (par defaut)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_OPTIONS.map((font) => (
+                      <SelectItem key={font.value} value={font.value}>
+                        <span className="flex items-center gap-2">
+                          <span>{font.label}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {font.category}
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fontFamily && (
+                  <button
+                    onClick={() => setFontFamily("")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Revenir a la police par defaut
+                  </button>
+                )}
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Apercu</Label>
+                <div
+                  className="overflow-hidden rounded-xl border border-border"
+                  style={
+                    fontFamily
+                      ? { fontFamily: `"${fontFamily}", system-ui, sans-serif` }
+                      : undefined
+                  }
+                >
+                  {/* Preview fonts link */}
+                  {fontFamily && (
+                    <link
+                      rel="stylesheet"
+                      href={`https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, "+")}:wght@400;600;700&display=swap`}
+                      precedence="default"
+                    />
+                  )}
+                  <div className="border-b border-border bg-card px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {logoUrl && (
+                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
+                          <Image
+                            src={logoUrl}
+                            alt="Logo"
+                            fill
+                            className="object-cover"
+                            sizes="28px"
+                          />
+                        </div>
+                      )}
+                      <span className="text-sm font-bold">
+                        {name || "Mon Restaurant"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold">Plat du jour</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Delicieux plat maison
+                        </p>
+                      </div>
+                      <span
+                        className="text-xs font-bold"
+                        style={
+                          primaryColor ? { color: primaryColor } : undefined
+                        }
+                      >
+                        12,90 &euro;
+                      </span>
+                    </div>
+                    <button
+                      className="w-full rounded-lg px-3 py-2 text-xs font-semibold text-white"
+                      style={{
+                        backgroundColor: primaryColor || "#d4522a",
+                      }}
+                    >
+                      Ajouter au panier
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Payment */}
+          {step === 4 && (
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-bold">Modes de paiement</h2>
