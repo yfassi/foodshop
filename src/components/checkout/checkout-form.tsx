@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ export function CheckoutForm({
   customerProfile: CustomerProfile | null;
   walletBalance: number;
 }) {
-  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -91,7 +89,7 @@ export function CheckoutForm({
         window.location.href = data.url;
       } else if (data.order_id) {
         clearCart();
-        router.push(`/${slug}/order-confirmation/${data.order_id}`);
+        window.location.href = `/${slug}/order-confirmation/${data.order_id}`;
       }
     } catch (err) {
       toast.error(
