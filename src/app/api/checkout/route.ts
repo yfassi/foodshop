@@ -188,7 +188,7 @@ export async function POST(request: Request) {
     }
 
     // Generate display order number
-    const orderPrefix = payment_method === "on_site" ? "ESP" : "CB";
+    const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
     const { data: orderNumberResult } = await supabase.rpc(
       "next_daily_order_number",
       { p_restaurant_id: restaurant.id, p_prefix: orderPrefix }

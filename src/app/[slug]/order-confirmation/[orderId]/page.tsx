@@ -1,16 +1,17 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/lib/types";
-import { formatPrice, formatTime } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, UserPlus } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
 }: {
   params: Promise<{ slug: string; orderId: string }>;
 }) {
-  const { orderId } = await params;
+  const { slug, orderId } = await params;
   const supabase = await createClient();
 
   const { data: order } = await supabase
@@ -21,36 +22,43 @@ export default async function OrderConfirmationPage({
 
   if (!order) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isOnSite = order.payment_method === "on_site" && order.payment_source !== "wallet";
+  const orderNumber = order.display_order_number || `#${order.order_number}`;
+
   return (
     <div className="mx-auto max-w-lg px-4 py-6 md:px-6">
+      {/* Success header */}
       <div className="mb-6 flex flex-col items-center text-center">
         <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
           <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
-        <h2 className="text-xl font-bold">Commande confirmee !</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {order.payment_source === "wallet"
-            ? "Paye avec le solde"
-            : order.payment_method === "online"
-              ? "Paiement en ligne effectue"
-              : "A regler sur place"}
-        </p>
+        <h2 className="text-xl font-bold">Commande confirmée !</h2>
       </div>
 
-      {/* Order number */}
+      {/* Order number + payment instruction */}
       <div className="mb-4 rounded-xl border border-border bg-card p-5 text-center shadow-sm">
         <p className="text-sm font-medium text-muted-foreground">
-          Commande N&deg;
+          Votre numéro de commande
         </p>
-        <p className="text-4xl font-bold text-primary">
-          {order.display_order_number || `#${order.order_number}`}
+        <p className="mt-1 text-4xl font-bold text-primary">{orderNumber}</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {isOnSite ? (
+            <>
+              Rendez-vous au <span className="font-semibold text-foreground">comptoir</span> et
+              communiquez votre numéro{" "}
+              <span className="font-semibold text-foreground">{orderNumber}</span> pour régler
+              et récupérer votre commande.
+            </>
+          ) : order.payment_source === "wallet" ? (
+            "Payé avec votre solde. Votre commande est en préparation !"
+          ) : (
+            "Paiement par carte effectué. Votre commande est en préparation !"
+          )}
         </p>
-        {order.pickup_time && (
-          <p className="mt-2 text-sm">
-            Retrait prevu a{" "}
-            <span className="font-semibold">{formatTime(order.pickup_time)}</span>
-          </p>
-        )}
       </div>
 
       {/* Realtime status tracker */}
@@ -58,7 +66,9 @@ export default async function OrderConfirmationPage({
 
       {/* Order summary */}
       <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Recapitulatif</h3>
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
+          Récapitulatif
+        </h3>
         {order.items.map((item, i) => (
           <div key={i} className="flex justify-between py-1 text-sm">
             <span>
@@ -69,7 +79,9 @@ export default async function OrderConfirmationPage({
                 </span>
               )}
             </span>
-            <span className="font-semibold">{formatPrice(item.line_total)}</span>
+            <span className="font-semibold">
+              {formatPrice(item.line_total)}
+            </span>
           </div>
         ))}
         <div className="mt-2 flex justify-between border-t border-border pt-2">
@@ -79,6 +91,26 @@ export default async function OrderConfirmationPage({
           </span>
         </div>
       </div>
+
+      {/* Sign-up CTA for non-logged-in users */}
+      {!user && (
+        <div className="mt-4 rounded-xl border border-border bg-primary/5 p-4 text-center shadow-sm">
+          <UserPlus className="mx-auto mb-2 h-6 w-6 text-primary" />
+          <p className="text-sm font-semibold">
+            Créez votre compte fidélité
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Profitez d&apos;offres exceptionnelles et cumulez des avantages à
+            chaque commande.
+          </p>
+          <Link
+            href={`/${slug}/signup`}
+            className="mt-3 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Créer mon compte
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

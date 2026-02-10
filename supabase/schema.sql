@@ -42,6 +42,7 @@ CREATE TABLE public.categories (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   description TEXT,
+  icon TEXT,
   restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_visible BOOLEAN NOT NULL DEFAULT true,
@@ -390,6 +391,10 @@ ALTER TABLE public.restaurants ADD COLUMN accepted_payment_methods JSONB NOT NUL
 ALTER TABLE public.orders ADD COLUMN display_order_number TEXT;
 ALTER TABLE public.orders ADD COLUMN customer_user_id UUID REFERENCES auth.users(id);
 ALTER TABLE public.orders ADD COLUMN payment_source TEXT NOT NULL DEFAULT 'direct';
+
+-- Restaurant: loyalty program
+ALTER TABLE public.restaurants ADD COLUMN loyalty_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.restaurants ADD COLUMN loyalty_tiers JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- ============================================
 -- REALTIME
