@@ -21,16 +21,10 @@ import {
   Palette,
   Plus,
   Camera,
+  Coins,
+  ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { FONT_OPTIONS } from "@/lib/branding";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const STEPS = [
   { label: "Restaurant", icon: Store },
@@ -80,6 +74,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Step 1 — Restaurant
   const [name, setName] = useState("");
@@ -98,13 +93,24 @@ export default function OnboardingPage() {
 
   // Step 4 — Appearance
   const [primaryColor, setPrimaryColor] = useState("");
-  const [fontFamily, setFontFamily] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Step 5 — Payment
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(false);
+
+  // Check auth on mount
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.replace("/admin/signup");
+      } else {
+        setAuthChecked(true);
+      }
+    });
+  }, [router]);
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -201,7 +207,6 @@ export default function OnboardingPage() {
           opening_hours,
           accepted_payment_methods,
           primary_color: primaryColor.trim() || undefined,
-          font_family: fontFamily || undefined,
         }),
       });
 
@@ -239,9 +244,18 @@ export default function OnboardingPage() {
     setHours((prev) => {
       const ranges = prev[day];
       if (!ranges) return prev;
-      const updated = ranges.map((r, i) =>
-        i === index ? { ...r, [field]: value } : r
-      );
+      const updated = ranges.map((r, i) => {
+        if (i !== index) return r;
+        if (field === "open") {
+          const close = value >= r.close ? value.replace(/:(\d+)/, (_, m) => `:${String(Math.min(59, Number(m)))}`) : r.close;
+          const adjustedClose = value >= r.close
+            ? `${String(Math.min(23, Number(value.split(":")[0]) + 1)).padStart(2, "0")}:00`
+            : r.close;
+          return { open: value, close: adjustedClose };
+        }
+        if (value <= r.open) return r;
+        return { ...r, close: value };
+      });
       return { ...prev, [day]: updated };
     });
   };
@@ -312,6 +326,14 @@ export default function OnboardingPage() {
   const removeLogo = () => {
     setLogoUrl(null);
   };
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
@@ -470,9 +492,17 @@ export default function OnboardingPage() {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="01 23 45 67 89"
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    const formatted = digits.replace(
+                      /(\d{2})(?=\d)/g,
+                      "$1 "
+                    );
+                    setPhone(formatted);
+                  }}
+                  placeholder="06 12 34 56 78"
                   className="h-12"
+                  maxLength={14}
                 />
               </div>
             </div>
@@ -490,7 +520,7 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {DAYS.map((day) => {
                   const ranges = hours[day.key];
                   const isOpen = !!ranges && ranges.length > 0;
@@ -498,7 +528,7 @@ export default function OnboardingPage() {
                   return (
                     <div
                       key={day.key}
-                      className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                      className={`rounded-xl border px-3 py-2 transition-colors ${
                         isOpen
                           ? "border-border bg-card"
                           : "border-transparent bg-muted/50"
@@ -510,7 +540,7 @@ export default function OnboardingPage() {
                           onCheckedChange={(v) => toggleDay(day.key, v)}
                         />
                         <span
-                          className={`w-20 text-sm font-medium ${
+                          className={`w-16 text-sm font-medium ${
                             !isOpen ? "text-muted-foreground" : ""
                           }`}
                         >
@@ -534,11 +564,9 @@ export default function OnboardingPage() {
                                       e.target.value
                                     )
                                   }
-                                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
+                                  className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
                                 />
-                                <span className="text-xs text-muted-foreground">
-                                  -
-                                </span>
+                                <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                                 <input
                                   type="time"
                                   value={range.close}
@@ -550,7 +578,8 @@ export default function OnboardingPage() {
                                       e.target.value
                                     )
                                   }
-                                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
+                                  min={range.open}
+                                  className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
                                 />
                                 {ranges.length > 1 && (
                                   <button
@@ -573,7 +602,7 @@ export default function OnboardingPage() {
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs italic text-muted-foreground">
                             Ferme
                           </span>
                         )}
@@ -668,55 +697,10 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* Font */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Police</Label>
-                <Select value={fontFamily} onValueChange={setFontFamily}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Geist Sans (par defaut)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FONT_OPTIONS.map((font) => (
-                      <SelectItem key={font.value} value={font.value}>
-                        <span className="flex items-center gap-2">
-                          <span>{font.label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {font.category}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fontFamily && (
-                  <button
-                    onClick={() => setFontFamily("")}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Revenir a la police par defaut
-                  </button>
-                )}
-              </div>
-
               {/* Preview */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Apercu</Label>
-                <div
-                  className="overflow-hidden rounded-xl border border-border"
-                  style={
-                    fontFamily
-                      ? { fontFamily: `"${fontFamily}", system-ui, sans-serif` }
-                      : undefined
-                  }
-                >
-                  {/* Preview fonts link */}
-                  {fontFamily && (
-                    <link
-                      rel="stylesheet"
-                      href={`https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, "+")}:wght@400;600;700&display=swap`}
-                      precedence="default"
-                    />
-                  )}
+                <div className="overflow-hidden rounded-xl border border-border">
                   <div className="border-b border-border bg-card px-4 py-3">
                     <div className="flex items-center gap-2">
                       {logoUrl && (
@@ -776,32 +760,64 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-xl border border-border p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCashEnabled(!cashEnabled)}
+                  className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
+                    cashEnabled
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <div
+                    className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                      cashEnabled
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Coins className="h-7 w-7" />
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold">Especes / sur place</p>
-                    <p className="text-xs text-muted-foreground">
-                      Paiement au comptoir lors du retrait
+                    <p className="text-sm font-semibold">Au comptoir</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                      Especes ou CB au retrait
                     </p>
                   </div>
-                  <Switch
-                    checked={cashEnabled}
-                    onCheckedChange={setCashEnabled}
-                  />
-                </div>
+                  {cashEnabled && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </button>
 
-                <div className="flex items-center justify-between rounded-xl border border-border p-4">
+                <button
+                  type="button"
+                  onClick={() => setCardEnabled(!cardEnabled)}
+                  className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
+                    cardEnabled
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <div
+                    className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                      cardEnabled
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <CreditCard className="h-7 w-7" />
+                  </div>
                   <div>
                     <p className="text-sm font-semibold">Carte bancaire</p>
-                    <p className="text-xs text-muted-foreground">
-                      Paiement en ligne via Stripe
+                    <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                      Paiement en ligne securise
                     </p>
                   </div>
-                  <Switch
-                    checked={cardEnabled}
-                    onCheckedChange={setCardEnabled}
-                  />
-                </div>
+                  {cardEnabled && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </button>
               </div>
 
               {!cashEnabled && !cardEnabled && (
@@ -810,10 +826,17 @@ export default function OnboardingPage() {
                 </p>
               )}
 
-              <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                Stripe pourra etre connecte plus tard dans les reglages de votre
-                restaurant.
-              </p>
+              {cardEnabled && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-muted/50 p-3">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Le paiement par carte necessite la configuration de votre
+                    compte avec notre partenaire de paiement securise{" "}
+                    <span className="font-semibold text-foreground">Stripe</span>.
+                    Vous pourrez le configurer dans les reglages.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
