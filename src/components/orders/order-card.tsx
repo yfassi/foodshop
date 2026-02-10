@@ -20,7 +20,7 @@ export function OrderCard({ order }: { order: Order }) {
       .eq("id", order.id);
 
     if (error) {
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
     }
   };
 

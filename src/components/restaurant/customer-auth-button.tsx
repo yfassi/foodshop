@@ -65,7 +65,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   // Handle wallet topup success
   useEffect(() => {
     if (searchParams.get("wallet_topup") === "success") {
-      toast.success("Solde recharge avec succes !");
+      toast.success("Solde rechargé avec succès !");
     }
   }, [searchParams]);
 
@@ -136,7 +136,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-accent"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Deconnexion
+              Déconnexion
             </button>
           </div>
         )}

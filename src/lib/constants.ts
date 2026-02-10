@@ -12,26 +12,26 @@ export const ORDER_STATUS_CONFIG: Record<
     nextLabel: "Commencer",
   },
   preparing: {
-    label: "En preparation",
+    label: "En préparation",
     color: "text-amber-700",
     bgClass: "bg-amber-50 border border-amber-200",
     nextStatus: "ready",
-    nextLabel: "Pret !",
+    nextLabel: "Prêt !",
   },
   ready: {
-    label: "Prete",
+    label: "Prête",
     color: "text-green-700",
     bgClass: "bg-green-50 border border-green-200",
     nextStatus: "done",
-    nextLabel: "Recupere",
+    nextLabel: "Récupéré",
   },
   done: {
-    label: "Terminee",
+    label: "Terminée",
     color: "text-gray-500",
     bgClass: "bg-gray-50 border border-gray-200",
   },
   cancelled: {
-    label: "Annulee",
+    label: "Annulée",
     color: "text-gray-500",
     bgClass: "bg-gray-50 border border-gray-200",
   },
@@ -94,3 +94,27 @@ export const DAYS_FR: Record<string, string> = {
   saturday: "Samedi",
   sunday: "Dimanche",
 };
+
+export const DAYS_FR_SHORT: Record<string, string> = {
+  monday: "Lun",
+  tuesday: "Mar",
+  wednesday: "Mer",
+  thursday: "Jeu",
+  friday: "Ven",
+  saturday: "Sam",
+  sunday: "Dim",
+};
+
+/** Generate time options from 00:00 to 23:45 in 15-minute increments */
+export function generateTimeOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const value = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+      options.push({ value, label: value });
+    }
+  }
+  return options;
+}
+
+export const TIME_OPTIONS = generateTimeOptions();

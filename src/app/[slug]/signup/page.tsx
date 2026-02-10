@@ -25,7 +25,7 @@ export default function CustomerSignupPage() {
     e.preventDefault();
 
     if (password.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caracteres");
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
@@ -35,22 +35,31 @@ export default function CustomerSignupPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
 
-    // Sign up
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+    // Create user via API (auto-confirms email)
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
 
-    if (error) {
-      toast.error(error.message);
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error(result.error || "Erreur lors de la création du compte");
       setLoading(false);
       return;
     }
 
-    if (!data.user) {
-      toast.error("Erreur lors de la creation du compte");
+    // Sign in to get a session
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      toast.error(signInError.message);
       setLoading(false);
       return;
     }
@@ -59,21 +68,20 @@ export default function CustomerSignupPage() {
     const profileRes = await fetch("/api/customer/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: data.user.id, full_name: fullName.trim() }),
+      body: JSON.stringify({ user_id: result.user.id, full_name: fullName.trim() }),
     });
 
     if (!profileRes.ok) {
       const profileData = await profileRes.json();
       console.error("Profile creation error:", profileData.error);
-      toast.error("Compte cree mais erreur lors de la creation du profil");
+      toast.error("Compte créé mais erreur lors de la création du profil");
       setLoading(false);
       router.push(`/${slug}`);
       return;
     }
 
-    toast.success("Compte cree avec succes !");
-    router.push(`/${slug}`);
-    router.refresh();
+    toast.success("Compte créé avec succès !");
+    window.location.href = `/${slug}`;
   };
 
   return (
@@ -86,11 +94,11 @@ export default function CustomerSignupPage() {
         Retour
       </Link>
 
-      <h2 className="mb-6 text-xl font-bold">Creer un compte</h2>
+      <h2 className="mb-6 text-xl font-bold">Créer un compte</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName">Prenom / Nom</Label>
+          <Label htmlFor="fullName">Prénom / Nom</Label>
           <Input
             id="fullName"
             value={fullName}
@@ -121,7 +129,7 @@ export default function CustomerSignupPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 6 caracteres"
+            placeholder="Min. 6 caractères"
             required
             className="h-12"
           />
@@ -134,7 +142,7 @@ export default function CustomerSignupPage() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repeter le mot de passe"
+            placeholder="Répéter le mot de passe"
             required
             className="h-12"
           />
@@ -146,12 +154,12 @@ export default function CustomerSignupPage() {
           className="h-12 w-full font-semibold"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Creer mon compte
+          Créer mon compte
         </Button>
       </form>
 
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        Deja un compte ?{" "}
+        Déjà un compte ?{" "}
         <Link
           href={`/${slug}/login`}
           className="font-medium text-primary hover:underline"

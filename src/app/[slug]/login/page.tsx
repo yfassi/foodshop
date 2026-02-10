@@ -96,7 +96,7 @@ export default function CustomerLoginPage() {
           href={`/${slug}/signup`}
           className="font-medium text-primary hover:underline"
         >
-          Creer un compte
+          Créer un compte
         </Link>
       </p>
     </div>

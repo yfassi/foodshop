@@ -72,7 +72,7 @@ export default async function AdminLayout({
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
             >
               <UtensilsCrossed className="h-4 w-4" />
-              Menu
+              Articles
             </Link>
             <Link
               href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
@@ -86,7 +86,7 @@ export default async function AdminLayout({
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
             >
               <Settings className="h-4 w-4" />
-              Reglages
+              Réglages
             </Link>
           </nav>
         </div>
@@ -95,7 +95,7 @@ export default async function AdminLayout({
       {/* Demo banner */}
       {isDemo && (
         <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">
-          Mode Demo
+          Mode Démo
         </div>
       )}
 
@@ -130,7 +130,7 @@ export default async function AdminLayout({
           className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <Settings className="h-5 w-5" />
-          Reglages
+          Réglages
         </Link>
       </nav>
     </BrandingProvider>

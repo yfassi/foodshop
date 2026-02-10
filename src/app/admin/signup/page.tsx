@@ -26,24 +26,36 @@ export default function AdminSignupPage() {
     }
 
     if (password.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caracteres");
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
     setLoading(true);
 
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Create user via API (auto-confirms email)
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-    if (error) {
-      toast.error(error.message);
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error(result.error || "Erreur lors de la création du compte");
       setLoading(false);
       return;
     }
 
-    // If no session returned, email confirmation is required
-    if (!data.session) {
-      toast.success("Verifiez votre boite mail pour confirmer votre compte");
+    // Sign in to get a session
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      toast.error(signInError.message);
       setLoading(false);
       return;
     }
@@ -56,7 +68,7 @@ export default function AdminSignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
         <h1 className="mb-2 text-center text-xl font-bold">
-          Creer mon restaurant
+          Créer mon restaurant
         </h1>
         <p className="mb-6 text-center text-sm text-muted-foreground">
           Inscrivez-vous pour configurer votre espace
@@ -87,7 +99,7 @@ export default function AdminSignupPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="6 caracteres minimum"
+              placeholder="6 caractères minimum"
               required
               className="mt-1.5 h-12"
             />
@@ -115,13 +127,13 @@ export default function AdminSignupPage() {
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              "Creer mon compte"
+              "Créer mon compte"
             )}
           </Button>
         </form>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          Deja un compte ?{" "}
+          Déjà un compte ?{" "}
           <Link
             href="/admin/login"
             className="font-medium text-primary hover:underline"
