@@ -12,6 +12,7 @@ interface OnboardingBody {
   accepted_payment_methods: string[];
   primary_color?: string;
   font_family?: string;
+  logo_url?: string;
 }
 
 export async function POST(request: Request) {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as OnboardingBody;
-    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family } = body;
+    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -72,17 +73,18 @@ export async function POST(request: Request) {
       description: description || null,
       address: address || null,
       phone: phone || null,
+      logo_url: logo_url || null,
       opening_hours,
-      accepted_payment_methods,
-      primary_color: primary_color || null,
-      font_family: font_family || null,
       owner_id: user.id,
       is_accepting_orders: true,
     });
 
     if (error) {
       console.error("Onboarding insert error:", error);
-      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message || "Erreur lors de la creation du restaurant" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ slug });

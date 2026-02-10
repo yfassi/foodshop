@@ -1,19 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
 import type { Order } from "@/lib/types";
 import { OrderCard } from "@/components/orders/order-card";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
+import { PartyPopper, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AdminDashboard() {
   const params = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
   const slug = params.slug;
   const [orders, setOrders] = useState<Order[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
   const { playAlert } = useNewOrderAlert();
+
+  useEffect(() => {
+    if (searchParams.get("welcome") === "true") {
+      setShowWelcome(true);
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+    }
+  }, [searchParams]);
 
   // Fetch restaurant ID and initial orders
   useEffect(() => {
@@ -110,14 +123,30 @@ export default function AdminDashboard() {
 
   return (
     <div className="px-4 py-4 md:px-6">
-      {orders.length === 0 ? (
+      {showWelcome && (
+        <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
+          <PartyPopper className="mx-auto mb-3 h-10 w-10 text-primary" />
+          <h2 className="mb-1 text-lg font-bold">Restaurant créé !</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Ajoutez vos premiers articles pour commencer à recevoir des commandes.
+          </p>
+          <Link href={`/admin/${slug}/menu`}>
+            <Button className="rounded-xl font-semibold">
+              Créer mes articles
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {orders.length === 0 && !showWelcome ? (
         <div className="flex h-64 items-center justify-center">
           <p className="text-sm text-muted-foreground">
-            Aucune commande en cours. Les nouvelles commandes apparaitront ici
-            en temps reel.
+            Aucune commande en cours. Les nouvelles commandes apparaîtront ici
+            en temps réel.
           </p>
         </div>
-      ) : (
+      ) : orders.length > 0 ? (
         <>
           {/* Mobile: stacked layout */}
           <div className="space-y-6 lg:hidden">
@@ -137,7 +166,7 @@ export default function AdminDashboard() {
             {preparingOrders.length > 0 && (
               <section>
                 <h2 className="mb-3 text-sm font-semibold">
-                  En preparation ({preparingOrders.length})
+                  En préparation ({preparingOrders.length})
                 </h2>
                 <div className="space-y-3">
                   {preparingOrders.map((order) => (
@@ -149,7 +178,7 @@ export default function AdminDashboard() {
             {readyOrders.length > 0 && (
               <section>
                 <h2 className="mb-3 text-sm font-semibold">
-                  Pretes ({readyOrders.length})
+                  Prêtes ({readyOrders.length})
                 </h2>
                 <div className="space-y-3">
                   {readyOrders.map((order) => (
@@ -176,7 +205,7 @@ export default function AdminDashboard() {
 
             <section className="min-h-[200px] rounded-xl bg-amber-50/50 p-4">
               <h2 className="mb-3 text-sm font-semibold">
-                En preparation ({preparingOrders.length})
+                En préparation ({preparingOrders.length})
               </h2>
               <div className="space-y-3">
                 {preparingOrders.map((order) => (
@@ -187,7 +216,7 @@ export default function AdminDashboard() {
 
             <section className="min-h-[200px] rounded-xl bg-green-50/50 p-4">
               <h2 className="mb-3 text-sm font-semibold">
-                Pretes ({readyOrders.length})
+                Prêtes ({readyOrders.length})
               </h2>
               <div className="space-y-3">
                 {readyOrders.map((order) => (
@@ -197,7 +226,7 @@ export default function AdminDashboard() {
             </section>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

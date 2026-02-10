@@ -25,10 +25,10 @@ export function KitchenToggle({
       .eq("id", restaurantId);
 
     if (error) {
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
     } else {
       setIsOpen(checked);
-      toast.success(checked ? "Commandes ouvertes" : "Commandes fermees");
+      toast.success(checked ? "Commandes ouvertes" : "Commandes fermées");
     }
     setLoading(false);
   };
@@ -40,7 +40,7 @@ export function KitchenToggle({
           isOpen ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
         }`}
       >
-        {isOpen ? "Ouvert" : "Ferme"}
+        {isOpen ? "Ouvert" : "Fermé"}
       </span>
       <Switch
         checked={isOpen}

@@ -25,6 +25,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { TIME_OPTIONS } from "@/lib/constants";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STEPS = [
   { label: "Restaurant", icon: Store },
@@ -207,6 +215,7 @@ export default function OnboardingPage() {
           opening_hours,
           accepted_payment_methods,
           primary_color: primaryColor.trim() || undefined,
+          logo_url: logoUrl || undefined,
         }),
       });
 
@@ -216,11 +225,11 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Erreur");
       }
 
-      toast.success("Restaurant cree avec succes !");
-      router.push(`/admin/${data.slug}`);
+      toast.success("Restaurant créé avec succès !");
+      window.location.href = `/admin/${data.slug}?welcome=true`;
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Erreur lors de la creation"
+        err instanceof Error ? err.message : "Erreur lors de la création"
       );
       setSubmitting(false);
     }
@@ -283,43 +292,25 @@ export default function OnboardingPage() {
   // --- Logo upload ---
 
   const uploadLogo = async (file: File) => {
-    const MAX_SIZE = 2 * 1024 * 1024;
-    const ALLOWED_TYPES = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/svg+xml",
-    ];
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Format accepte : JPG, PNG, WebP ou SVG");
-      return;
-    }
-    if (file.size > MAX_SIZE) {
-      toast.error("Le logo ne doit pas depasser 2 Mo");
-      return;
-    }
-
     setUploadingLogo(true);
-    const supabase = createClient();
-    const ext = file.name.split(".").pop() || "png";
-    const filePath = `temp-onboarding/${Date.now()}/logo.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("restaurant-logos")
-      .upload(filePath, file, { upsert: true });
+    const formData = new FormData();
+    formData.append("file", file);
 
-    if (uploadError) {
-      toast.error("Erreur lors de l'upload");
+    const res = await fetch("/api/upload/logo", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error(result.error || "Erreur lors de l'upload");
       setUploadingLogo(false);
       return;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("restaurant-logos")
-      .getPublicUrl(filePath);
-
-    setLogoUrl(`${urlData.publicUrl}?t=${Date.now()}`);
+    setLogoUrl(`${result.url}?t=${Date.now()}`);
     setUploadingLogo(false);
   };
 
@@ -392,7 +383,7 @@ export default function OnboardingPage() {
               <div>
                 <h2 className="text-lg font-bold">Votre restaurant</h2>
                 <p className="text-sm text-muted-foreground">
-                  Comment s&apos;appelle votre etablissement ?
+                  Comment s&apos;appelle votre établissement ?
                 </p>
               </div>
 
@@ -439,7 +430,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 {slugAvailable === false && (
-                  <p className="text-xs text-red-500">Ce nom est deja pris</p>
+                  <p className="text-xs text-red-500">Ce nom est déjà pris</p>
                 )}
               </div>
 
@@ -464,7 +455,7 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold">Coordonnees</h2>
+                <h2 className="text-lg font-bold">Coordonnées</h2>
                 <p className="text-sm text-muted-foreground">
                   Ces informations seront visibles par vos clients
                 </p>
@@ -486,7 +477,7 @@ export default function OnboardingPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-sm font-medium">
-                  Telephone
+                  Téléphone
                 </Label>
                 <Input
                   id="phone"
@@ -520,93 +511,119 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="divide-y divide-border rounded-xl border border-border bg-card">
                 {DAYS.map((day) => {
                   const ranges = hours[day.key];
                   const isOpen = !!ranges && ranges.length > 0;
 
                   return (
-                    <div
-                      key={day.key}
-                      className={`rounded-xl border px-3 py-2 transition-colors ${
-                        isOpen
-                          ? "border-border bg-card"
-                          : "border-transparent bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          checked={isOpen}
-                          onCheckedChange={(v) => toggleDay(day.key, v)}
-                        />
-                        <span
-                          className={`w-16 text-sm font-medium ${
-                            !isOpen ? "text-muted-foreground" : ""
-                          }`}
-                        >
-                          {day.label}
-                        </span>
-                        {isOpen ? (
-                          <div className="flex flex-1 flex-col gap-1.5">
-                            {ranges.map((range, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-1.5"
-                              >
-                                <input
-                                  type="time"
-                                  value={range.open}
-                                  onChange={(e) =>
-                                    updateRange(
-                                      day.key,
-                                      idx,
-                                      "open",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
-                                />
-                                <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                <input
-                                  type="time"
-                                  value={range.close}
-                                  onChange={(e) =>
-                                    updateRange(
-                                      day.key,
-                                      idx,
-                                      "close",
-                                      e.target.value
-                                    )
-                                  }
-                                  min={range.open}
-                                  className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
-                                />
-                                {ranges.length > 1 && (
-                                  <button
-                                    onClick={() => removeRange(day.key, idx)}
-                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            {ranges.length < 2 && (
-                              <button
-                                onClick={() => addRange(day.key)}
-                                className="flex items-center gap-1 text-xs text-primary hover:underline"
-                              >
-                                <Plus className="h-3 w-3" />
-                                Coupure
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs italic text-muted-foreground">
-                            Ferme
+                    <div key={day.key} className="px-3 py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`h-2 w-2 rounded-full transition-colors ${
+                              isOpen ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                          />
+                          <span className="text-sm font-medium">
+                            {day.label}
                           </span>
-                        )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isOpen && (
+                            <span className="text-xs text-muted-foreground">
+                              Fermé
+                            </span>
+                          )}
+                          <Switch
+                            checked={isOpen}
+                            onCheckedChange={(v) => toggleDay(day.key, v)}
+                          />
+                        </div>
                       </div>
+
+                      {isOpen && (
+                        <div className="mt-2.5 space-y-2 pl-[1.125rem]">
+                          {ranges.map((range, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2"
+                            >
+                              <Select
+                                value={range.open}
+                                onValueChange={(v) =>
+                                  updateRange(day.key, idx, "open", v)
+                                }
+                              >
+                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  className="max-h-52"
+                                >
+                                  {TIME_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                      className="text-xs"
+                                    >
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              <span className="text-xs font-medium text-muted-foreground">
+                                à
+                              </span>
+
+                              <Select
+                                value={range.close}
+                                onValueChange={(v) =>
+                                  updateRange(day.key, idx, "close", v)
+                                }
+                              >
+                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  className="max-h-52"
+                                >
+                                  {TIME_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                      className="text-xs"
+                                    >
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {ranges.length > 1 && (
+                                <button
+                                  onClick={() => removeRange(day.key, idx)}
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {ranges.length < 2 && (
+                            <button
+                              onClick={() => addRange(day.key)}
+                              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Ajouter une coupure
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -699,7 +716,7 @@ export default function OnboardingPage() {
 
               {/* Preview */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Apercu</Label>
+                <Label className="text-sm font-medium">Aperçu</Label>
                 <div className="overflow-hidden rounded-xl border border-border">
                   <div className="border-b border-border bg-card px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -724,7 +741,7 @@ export default function OnboardingPage() {
                       <div>
                         <p className="text-xs font-semibold">Plat du jour</p>
                         <p className="text-[10px] text-muted-foreground">
-                          Delicieux plat maison
+                          Délicieux plat maison
                         </p>
                       </div>
                       <span
@@ -782,7 +799,7 @@ export default function OnboardingPage() {
                   <div>
                     <p className="text-sm font-semibold">Au comptoir</p>
                     <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                      Especes ou CB au retrait
+                      Espèces ou CB au retrait
                     </p>
                   </div>
                   {cashEnabled && (
@@ -809,9 +826,9 @@ export default function OnboardingPage() {
                     <CreditCard className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Carte bancaire</p>
+                    <p className="text-sm font-semibold">Sur l&apos;application</p>
                     <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                      Paiement en ligne securise
+                      Paiement en ligne sécurisé
                     </p>
                   </div>
                   {cardEnabled && (
@@ -822,7 +839,7 @@ export default function OnboardingPage() {
 
               {!cashEnabled && !cardEnabled && (
                 <p className="text-xs text-red-500">
-                  Selectionnez au moins un mode de paiement
+                  Sélectionnez au moins un mode de paiement
                 </p>
               )}
 
@@ -830,10 +847,10 @@ export default function OnboardingPage() {
                 <div className="flex items-start gap-2.5 rounded-xl bg-muted/50 p-3">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    Le paiement par carte necessite la configuration de votre
-                    compte avec notre partenaire de paiement securise{" "}
+                    Le paiement par carte nécessite la configuration de votre
+                    compte avec notre partenaire de paiement sécurisé{" "}
                     <span className="font-semibold text-foreground">Stripe</span>.
-                    Vous pourrez le configurer dans les reglages.
+                    Vous pourrez le configurer dans les réglages.
                   </p>
                 </div>
               )}
@@ -871,7 +888,7 @@ export default function OnboardingPage() {
                 {submitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  "Creer mon restaurant"
+                  "Créer mon restaurant"
                 )}
               </Button>
             )}

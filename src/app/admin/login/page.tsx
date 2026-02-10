@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
       toast.error("Erreur lors de l'envoi du lien");
     } else {
       setResetSent(true);
-      toast.success("Lien de reinitialisation envoye par email");
+      toast.success("Lien de réinitialisation envoyé par email");
     }
     setLoading(false);
   };
@@ -125,7 +125,7 @@ export default function AdminLoginPage() {
           disabled={loading || resetSent}
           className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
-          {resetSent ? "Lien envoye, verifiez vos emails" : "Mot de passe oublie ?"}
+          {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
         </button>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
             href="/admin/signup"
             className="font-medium text-primary hover:underline"
           >
-            Creer mon restaurant
+            Créer mon restaurant
           </Link>
         </p>
 
@@ -143,7 +143,7 @@ export default function AdminLoginPage() {
             href="/admin/chez-momo?demo=true"
             className="flex h-12 w-full items-center justify-center rounded-xl bg-amber-50 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
           >
-            Entrer en mode demo
+            Entrer en mode démo
           </Link>
         </div>
       </div>

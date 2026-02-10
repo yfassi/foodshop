@@ -23,7 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Camera, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Camera, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
 import type { Category, Product, ModifierGroup, Modifier } from "@/lib/types";
 
 interface ModifierGroupWithModifiers extends ModifierGroup {
@@ -116,12 +116,12 @@ export function ProductFormSheet({
 
     const priceInCents = Math.round(parseFloat(priceEuros) * 100);
     if (isNaN(priceInCents) || priceInCents <= 0) {
-      toast.error("Le prix doit etre superieur a 0");
+      toast.error("Le prix doit être supérieur à 0");
       return;
     }
 
     if (!categoryId) {
-      toast.error("Veuillez selectionner une categorie");
+      toast.error("Veuillez sélectionner une catégorie");
       return;
     }
 
@@ -141,11 +141,11 @@ export function ProductFormSheet({
         .eq("id", productId);
 
       if (error) {
-        toast.error("Erreur lors de la mise a jour");
+        toast.error("Erreur lors de la mise à jour");
         setSaving(false);
         return;
       }
-      toast.success("Produit mis a jour");
+      toast.success("Produit mis à jour");
     } else {
       const { data, error } = await supabase
         .from("products")
@@ -160,13 +160,13 @@ export function ProductFormSheet({
         .single();
 
       if (error || !data) {
-        toast.error("Erreur lors de la creation");
+        toast.error("Erreur lors de la création");
         setSaving(false);
         return;
       }
 
       setProductId(data.id);
-      toast.success("Produit cree");
+      toast.success("Produit créé");
     }
 
     setSaving(false);
@@ -195,7 +195,7 @@ export function ProductFormSheet({
       return;
     }
 
-    toast.success("Produit supprime");
+    toast.success("Produit supprimé");
     onSaved();
     onClose();
   };
@@ -206,49 +206,30 @@ export function ProductFormSheet({
       return;
     }
 
-    const MAX_SIZE = 5 * 1024 * 1024;
-    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Format accepte : JPG, PNG ou WebP");
-      return;
-    }
-    if (file.size > MAX_SIZE) {
-      toast.error("L'image ne doit pas depasser 5 Mo");
-      return;
-    }
-
-    const supabase = createClient();
-    const ext = file.name.split(".").pop() || "jpg";
-    const filePath = `${restaurantId}/${productId}.${ext}`;
-
     setUploadingImage(true);
 
-    const { error: uploadError } = await supabase.storage
-      .from("product-images")
-      .upload(filePath, file, { upsert: true });
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("restaurantId", restaurantId);
+    formData.append("productId", productId);
 
-    if (uploadError) {
-      toast.error("Erreur lors de l'upload");
+    const res = await fetch("/api/upload/product-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error(result.error || "Erreur lors de l'upload");
       setUploadingImage(false);
       return;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("product-images")
-      .getPublicUrl(filePath);
-
-    const newImageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-    await supabase
-      .from("products")
-      .update({ image_url: newImageUrl })
-      .eq("id", productId);
-
-    setImageUrl(newImageUrl);
+    setImageUrl(result.url);
     setUploadingImage(false);
     onSaved();
-    toast.success("Photo ajoutee");
+    toast.success("Photo ajoutée");
   };
 
   const removeImage = async () => {
@@ -267,7 +248,7 @@ export function ProductFormSheet({
 
     setImageUrl(null);
     onSaved();
-    toast.success("Photo supprimee");
+    toast.success("Photo supprimée");
   };
 
   // Modifier group handlers
@@ -309,7 +290,7 @@ export function ProductFormSheet({
       .eq("id", groupId);
 
     if (error) {
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
       return;
     }
 
@@ -373,7 +354,7 @@ export function ProductFormSheet({
       .eq("id", modifierId);
 
     if (error) {
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
       return;
     }
 
@@ -412,6 +393,81 @@ export function ProductFormSheet({
     );
   };
 
+  const duplicateModifierGroup = async (group: ModifierGroupWithModifiers) => {
+    if (!productId) return;
+
+    const supabase = createClient();
+    const { data: newGroup, error } = await supabase
+      .from("modifier_groups")
+      .insert({
+        name: `${group.name} (copie)`,
+        product_id: productId,
+        min_select: group.min_select,
+        max_select: group.max_select,
+        sort_order: modifierGroups.length,
+      })
+      .select()
+      .single<ModifierGroup>();
+
+    if (error || !newGroup) {
+      toast.error("Erreur lors de la duplication");
+      return;
+    }
+
+    let newModifiers: Modifier[] = [];
+    if (group.modifiers.length > 0) {
+      const { data: mods, error: modError } = await supabase
+        .from("modifiers")
+        .insert(
+          group.modifiers.map((m, i) => ({
+            name: m.name,
+            price_extra: m.price_extra,
+            group_id: newGroup.id,
+            sort_order: i,
+          }))
+        )
+        .select()
+        .returns<Modifier[]>();
+
+      if (!modError && mods) {
+        newModifiers = mods;
+      }
+    }
+
+    setModifierGroups((prev) => [
+      ...prev,
+      { ...newGroup, modifiers: newModifiers },
+    ]);
+    toast.success("Option dupliquée");
+  };
+
+  const duplicateModifier = async (modifier: Modifier, groupId: string) => {
+    const supabase = createClient();
+    const group = modifierGroups.find((g) => g.id === groupId);
+
+    const { data, error } = await supabase
+      .from("modifiers")
+      .insert({
+        name: `${modifier.name} (copie)`,
+        price_extra: modifier.price_extra,
+        group_id: groupId,
+        sort_order: group?.modifiers.length || 0,
+      })
+      .select()
+      .single<Modifier>();
+
+    if (error || !data) {
+      toast.error("Erreur lors de la duplication");
+      return;
+    }
+
+    setModifierGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId ? { ...g, modifiers: [...g.modifiers, data] } : g
+      )
+    );
+  };
+
   const isEditing = !!productId;
 
   return (
@@ -423,8 +479,8 @@ export function ProductFormSheet({
           </SheetTitle>
           <SheetDescription className="sr-only">
             {product
-              ? "Modifier les details du produit"
-              : "Creer un nouveau produit"}
+              ? "Modifier les détails du produit"
+              : "Créer un nouveau produit"}
           </SheetDescription>
         </SheetHeader>
 
@@ -492,7 +548,7 @@ export function ProductFormSheet({
               id="product-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Galette fraiche, viande au choix, frites..."
+              placeholder="Ex: Galette fraîche, viande au choix, frites..."
               rows={3}
               className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
             />
@@ -514,10 +570,10 @@ export function ProductFormSheet({
 
           {/* Category */}
           <div className="space-y-2">
-            <Label>Categorie</Label>
+            <Label>Catégorie</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choisir une categorie" />
+                <SelectValue placeholder="Choisir une catégorie" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((cat) => (
@@ -538,7 +594,7 @@ export function ProductFormSheet({
           {/* Save */}
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Enregistrer" : "Creer le produit"}
+            {isEditing ? "Enregistrer" : "Créer le produit"}
           </Button>
 
           {/* Modifier Groups */}
@@ -548,7 +604,7 @@ export function ProductFormSheet({
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">
-                    Groupes d&apos;options
+                    Options disponibles
                   </h3>
                   <Button
                     variant="outline"
@@ -562,7 +618,7 @@ export function ProductFormSheet({
 
                 {modifierGroups.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Aucun groupe d&apos;options. Ajoutez des groupes pour
+                    Aucune option. Ajoutez des options pour
                     proposer des choix (viande, sauce, etc.)
                   </p>
                 )}
@@ -593,6 +649,13 @@ export function ProductFormSheet({
                           }
                           className="h-8 text-sm font-medium"
                         />
+                        <button
+                          onClick={() => duplicateModifierGroup(group)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Dupliquer"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={() => deleteModifierGroup(group.id)}
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
@@ -725,6 +788,15 @@ export function ProductFormSheet({
                               className="h-7 w-20 text-xs"
                               placeholder="0.00"
                             />
+                            <button
+                              onClick={() =>
+                                duplicateModifier(modifier, group.id)
+                              }
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                              title="Dupliquer"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
                             <button
                               onClick={() =>
                                 deleteModifier(modifier.id, group.id)

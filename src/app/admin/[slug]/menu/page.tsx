@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -18,13 +18,260 @@ import {
 } from "@/components/ui/dialog";
 import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
-import { Camera, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Camera,
+  GripVertical,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { ProductFormSheet } from "@/components/admin/product-form-sheet";
 import type { Category, Product } from "@/lib/types";
+
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface CategoryWithProducts extends Category {
   products: Product[];
 }
+
+// --- Sortable category wrapper ---
+
+function SortableCategorySection({
+  category,
+  restaurantId,
+  onToggleVisibility,
+  onEdit,
+  onDelete,
+  onAddProduct,
+  onEditProduct,
+  onToggleProductAvailability,
+  onImageUploaded,
+}: {
+  category: CategoryWithProducts;
+  restaurantId: string;
+  onToggleVisibility: (id: string, visible: boolean) => void;
+  onEdit: (cat: Category) => void;
+  onDelete: (cat: CategoryWithProducts) => void;
+  onAddProduct: (categoryId: string) => void;
+  onEditProduct: (product: Product) => void;
+  onToggleProductAvailability: (id: string, available: boolean) => void;
+  onImageUploaded: (categoryId: string, url: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("restaurantId", restaurantId);
+      formData.append("categoryId", category.id);
+
+      const res = await fetch("/api/upload/category-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Erreur lors de l'upload");
+        return;
+      }
+
+      onImageUploaded(category.id, data.url);
+      toast.success("Illustration ajoutée");
+    } catch {
+      toast.error("Erreur lors de l'upload");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <section ref={setNodeRef} style={style}>
+      {/* Category header */}
+      <div className="mb-3 flex items-center gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground active:cursor-grabbing"
+          title="Glisser pour réordonner"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <Switch
+          checked={category.is_visible}
+          onCheckedChange={(checked) =>
+            onToggleVisibility(category.id, checked)
+          }
+        />
+        <h3
+          className={`text-xs font-semibold uppercase tracking-wider ${
+            category.is_visible
+              ? "text-muted-foreground"
+              : "text-muted-foreground/40 line-through"
+          }`}
+        >
+          {category.name}
+        </h3>
+        <div className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-0.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-primary"
+            title="Illustration"
+          >
+            {uploading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Camera className="h-3 w-3" />
+            )}
+          </button>
+          <button
+            onClick={() => onEdit(category)}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
+            title="Renommer"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => onDelete(category)}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-destructive"
+            title="Supprimer"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => onAddProduct(category.id)}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-primary"
+            title="Ajouter un produit"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Category illustration */}
+      {category.image_url && (
+        <div className="relative mb-3 h-28 w-full overflow-hidden rounded-xl">
+          <Image
+            src={category.image_url}
+            alt={category.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 672px) 100vw, 672px"
+          />
+        </div>
+      )}
+
+      {/* Product list */}
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {category.products.map((product) => (
+          <button
+            key={product.id}
+            onClick={() => onEditProduct(product)}
+            className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/50"
+          >
+            {product.image_url ? (
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg">
+                <Image
+                  src={product.image_url}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                />
+              </div>
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <Camera className="h-4 w-4 text-muted-foreground/50" />
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p
+                className={`text-sm font-medium ${!product.is_available ? "text-muted-foreground line-through" : ""}`}
+              >
+                {product.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {formatPrice(product.price)}
+              </p>
+            </div>
+
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            >
+              <Switch
+                checked={product.is_available}
+                onCheckedChange={(checked) =>
+                  onToggleProductAvailability(product.id, checked)
+                }
+              />
+            </div>
+          </button>
+        ))}
+
+        {category.products.length === 0 && (
+          <button
+            onClick={() => onAddProduct(category.id)}
+            className="flex w-full items-center justify-center gap-2 p-6 text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
+            <Plus className="h-4 w-4" />
+            Ajouter un produit
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// --- Main page ---
 
 export default function MenuManagementPage() {
   const params = useParams<{ slug: string }>();
@@ -46,6 +293,12 @@ export default function MenuManagementPage() {
   // Category delete confirmation
   const [deletingCategory, setDeletingCategory] =
     useState<CategoryWithProducts | null>(null);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   const fetchMenu = useCallback(async () => {
     const supabase = createClient();
@@ -96,6 +349,34 @@ export default function MenuManagementPage() {
     fetchMenu();
   }, [fetchMenu]);
 
+  // --- Drag-and-drop ---
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = categories.findIndex((c) => c.id === active.id);
+    const newIndex = categories.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(categories, oldIndex, newIndex);
+    setCategories(reordered);
+
+    // Persist new sort_order
+    const supabase = createClient();
+    const updates = reordered.map((cat, i) => ({
+      id: cat.id,
+      sort_order: i,
+    }));
+
+    for (const u of updates) {
+      await supabase
+        .from("categories")
+        .update({ sort_order: u.sort_order })
+        .eq("id", u.id);
+    }
+  };
+
   // --- Product actions ---
 
   const toggleAvailability = async (
@@ -109,7 +390,7 @@ export default function MenuManagementPage() {
       .eq("id", productId);
 
     if (error) {
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
       return;
     }
 
@@ -120,6 +401,28 @@ export default function MenuManagementPage() {
           p.id === productId ? { ...p, is_available: available } : p
         ),
       }))
+    );
+  };
+
+  const toggleCategoryVisibility = async (
+    categoryId: string,
+    visible: boolean
+  ) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("categories")
+      .update({ is_visible: visible })
+      .eq("id", categoryId);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour");
+      return;
+    }
+
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.id === categoryId ? { ...cat, is_visible: visible } : cat
+      )
     );
   };
 
@@ -162,11 +465,11 @@ export default function MenuManagementPage() {
         .eq("id", editingCategory.id);
 
       if (error) {
-        toast.error("Erreur lors de la mise a jour");
+        toast.error("Erreur lors de la mise à jour");
         setSavingCategory(false);
         return;
       }
-      toast.success("Categorie renommee");
+      toast.success("Catégorie renommée");
     } else {
       const { error } = await supabase.from("categories").insert({
         name: categoryName.trim(),
@@ -175,11 +478,11 @@ export default function MenuManagementPage() {
       });
 
       if (error) {
-        toast.error("Erreur lors de la creation");
+        toast.error("Erreur lors de la création");
         setSavingCategory(false);
         return;
       }
-      toast.success("Categorie creee");
+      toast.success("Catégorie créée");
     }
 
     setCategoryName("");
@@ -208,9 +511,17 @@ export default function MenuManagementPage() {
       return;
     }
 
-    toast.success("Categorie supprimee");
+    toast.success("Catégorie supprimée");
     setDeletingCategory(null);
     fetchMenu();
+  };
+
+  const handleCategoryImageUploaded = (categoryId: string, url: string) => {
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.id === categoryId ? { ...cat, image_url: url } : cat
+      )
+    );
   };
 
   if (loading) {
@@ -225,124 +536,52 @@ export default function MenuManagementPage() {
     <div className="px-4 py-4 md:px-6">
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Menu</h2>
+          <h2 className="text-lg font-bold">Articles</h2>
           <Button variant="outline" size="sm" onClick={openNewCategory}>
             <Plus className="mr-1 h-3.5 w-3.5" />
-            Categorie
+            Catégorie
           </Button>
         </div>
 
-        <div className="space-y-8">
-          {categories.map((category) => (
-            <section key={category.id}>
-              {/* Category header */}
-              <div className="mb-3 flex items-center gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {category.name}
-                </h3>
-                <div className="h-px flex-1 bg-border" />
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => openEditCategory(category)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
-                    title="Renommer"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => confirmDeleteCategory(category)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-destructive"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => openNewProduct(category.id)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-primary"
-                    title="Ajouter un produit"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={categories.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-8">
+              {categories.map((category) => (
+                <SortableCategorySection
+                  key={category.id}
+                  category={category}
+                  restaurantId={restaurantId!}
+                  onToggleVisibility={toggleCategoryVisibility}
+                  onEdit={openEditCategory}
+                  onDelete={confirmDeleteCategory}
+                  onAddProduct={openNewProduct}
+                  onEditProduct={openEditProduct}
+                  onToggleProductAvailability={toggleAvailability}
+                  onImageUploaded={handleCategoryImageUploaded}
+                />
+              ))}
+
+              {categories.length === 0 && (
+                <div className="py-12 text-center">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Aucune catégorie pour le moment.
+                  </p>
+                  <Button variant="outline" onClick={openNewCategory}>
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Créer une catégorie
+                  </Button>
                 </div>
-              </div>
-
-              {/* Product list */}
-              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-                {category.products.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => openEditProduct(product)}
-                    className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/50"
-                  >
-                    {/* Image */}
-                    {product.image_url ? (
-                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg">
-                        <Image
-                          src={product.image_url}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                          sizes="44px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
-                        <Camera className="h-4 w-4 text-muted-foreground/50" />
-                      </div>
-                    )}
-
-                    {/* Name + price */}
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-sm font-medium ${!product.is_available ? "text-muted-foreground line-through" : ""}`}
-                      >
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatPrice(product.price)}
-                      </p>
-                    </div>
-
-                    {/* Toggle */}
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0"
-                    >
-                      <Switch
-                        checked={product.is_available}
-                        onCheckedChange={(checked) =>
-                          toggleAvailability(product.id, checked)
-                        }
-                      />
-                    </div>
-                  </button>
-                ))}
-
-                {category.products.length === 0 && (
-                  <button
-                    onClick={() => openNewProduct(category.id)}
-                    className="flex w-full items-center justify-center gap-2 p-6 text-sm text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Ajouter un produit
-                  </button>
-                )}
-              </div>
-            </section>
-          ))}
-
-          {categories.length === 0 && (
-            <div className="py-12 text-center">
-              <p className="mb-3 text-sm text-muted-foreground">
-                Aucune categorie pour le moment.
-              </p>
-              <Button variant="outline" onClick={openNewCategory}>
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Creer une categorie
-              </Button>
+              )}
             </div>
-          )}
-        </div>
+          </SortableContext>
+        </DndContext>
       </div>
 
       {/* Product form sheet */}
@@ -363,12 +602,12 @@ export default function MenuManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? "Renommer la categorie" : "Nouvelle categorie"}
+              {editingCategory ? "Renommer la catégorie" : "Nouvelle catégorie"}
             </DialogTitle>
             <DialogDescription>
               {editingCategory
-                ? "Modifiez le nom de cette categorie."
-                : "Ajoutez une categorie pour organiser vos produits."}
+                ? "Modifiez le nom de cette catégorie."
+                : "Ajoutez une catégorie pour organiser vos produits."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -390,7 +629,7 @@ export default function MenuManagementPage() {
               {savingCategory && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {editingCategory ? "Enregistrer" : "Creer"}
+              {editingCategory ? "Enregistrer" : "Créer"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -403,12 +642,12 @@ export default function MenuManagementPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer la categorie</DialogTitle>
+            <DialogTitle>Supprimer la catégorie</DialogTitle>
             <DialogDescription>
-              La categorie &laquo;&nbsp;{deletingCategory?.name}&nbsp;&raquo;
+              La catégorie &laquo;&nbsp;{deletingCategory?.name}&nbsp;&raquo;
               contient {deletingCategory?.products.length} produit
               {(deletingCategory?.products.length || 0) > 1 ? "s" : ""} qui
-              seront aussi supprimes. Cette action est irreversible.
+              seront aussi supprimés. Cette action est irréversible.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

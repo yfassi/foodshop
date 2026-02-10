@@ -27,6 +27,7 @@ export interface Category {
   id: string;
   name: string;
   description: string | null;
+  image_url: string | null;
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;

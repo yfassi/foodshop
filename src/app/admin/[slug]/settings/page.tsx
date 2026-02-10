@@ -18,10 +18,14 @@ import {
   X,
   Palette,
   Camera,
+  QrCode,
+  Link as LinkIcon,
+  Copy,
+  Clock,
 } from "lucide-react";
 import Image from "next/image";
 import type { Restaurant } from "@/lib/types";
-import { DAYS_FR, normalizeHoursEntry } from "@/lib/constants";
+import { DAYS_FR, DAYS_FR_SHORT, normalizeHoursEntry, TIME_OPTIONS } from "@/lib/constants";
 import { FONT_OPTIONS } from "@/lib/branding";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import {
@@ -132,7 +136,7 @@ export default function SettingsPage() {
         setRestaurant((prev) =>
           prev ? { ...prev, stripe_onboarding_complete: true } : prev
         );
-        toast.success("Compte Stripe connecte avec succes !");
+        toast.success("Compte Stripe connecté avec succès !");
       }
     } catch {
       // Silent fail
@@ -206,7 +210,7 @@ export default function SettingsPage() {
       return;
     }
 
-    toast.success("Informations mises a jour");
+    toast.success("Informations mises à jour");
     setSavingRestaurant(false);
   };
 
@@ -218,7 +222,7 @@ export default function SettingsPage() {
     if (acceptOnline) methods.push("online");
 
     if (methods.length === 0) {
-      toast.error("Au moins un mode de paiement doit etre actif");
+      toast.error("Au moins un mode de paiement doit être actif");
       return;
     }
 
@@ -232,7 +236,7 @@ export default function SettingsPage() {
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
     } else {
-      toast.success("Modes de paiement mis a jour");
+      toast.success("Modes de paiement mis à jour");
     }
     setSavingPaymentMethods(false);
   };
@@ -245,7 +249,7 @@ export default function SettingsPage() {
       return;
     }
     if (newPassword.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caracteres");
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -265,7 +269,7 @@ export default function SettingsPage() {
       return;
     }
 
-    toast.success("Mot de passe modifie");
+    toast.success("Mot de passe modifié");
     setNewPassword("");
     setConfirmPassword("");
     setSavingPassword(false);
@@ -287,14 +291,13 @@ export default function SettingsPage() {
       .from("restaurants")
       .update({
         primary_color: primaryColor.trim() || null,
-        font_family: fontFamily || null,
       })
       .eq("id", restaurant!.id);
 
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
     } else {
-      toast.success("Apparence mise a jour");
+      toast.success("Apparence mise à jour");
     }
     setSavingBranding(false);
   };
@@ -309,11 +312,11 @@ export default function SettingsPage() {
     ];
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Format accepte : JPG, PNG, WebP ou SVG");
+      toast.error("Format accepté : JPG, PNG, WebP ou SVG");
       return;
     }
     if (file.size > MAX_SIZE) {
-      toast.error("Le logo ne doit pas depasser 2 Mo");
+      toast.error("Le logo ne doit pas dépasser 2 Mo");
       return;
     }
 
@@ -345,7 +348,7 @@ export default function SettingsPage() {
 
     setLogoUrl(newLogoUrl);
     setUploadingLogo(false);
-    toast.success("Logo mis a jour");
+    toast.success("Logo mis à jour");
   };
 
   const removeLogo = async () => {
@@ -363,7 +366,7 @@ export default function SettingsPage() {
       .eq("id", restaurant!.id);
 
     setLogoUrl(null);
-    toast.success("Logo supprime");
+    toast.success("Logo supprimé");
   };
 
   // --- Hours helpers ---
@@ -420,7 +423,7 @@ export default function SettingsPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "restaurant", label: "Etablissement", icon: <Store className="h-4 w-4" /> },
+    { key: "restaurant", label: "Établissement", icon: <Store className="h-4 w-4" /> },
     { key: "appearance", label: "Apparence", icon: <Palette className="h-4 w-4" /> },
     { key: "payment", label: "Paiement", icon: <CreditCard className="h-4 w-4" /> },
     { key: "account", label: "Mon compte", icon: <User className="h-4 w-4" /> },
@@ -429,7 +432,7 @@ export default function SettingsPage() {
   return (
     <div className="px-4 py-4 md:px-6">
       <div className="mx-auto max-w-lg">
-        <h2 className="mb-4 text-lg font-bold">Reglages</h2>
+        <h2 className="mb-4 text-lg font-bold">Réglages</h2>
 
         {/* Tabs */}
         <div className="mb-6 flex gap-1 rounded-lg bg-muted p-1">
@@ -449,7 +452,7 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {/* Tab: Etablissement */}
+        {/* Tab: Établissement */}
         {activeTab === "restaurant" && (
           <div className="space-y-4">
             {/* Open/Closed toggle */}
@@ -457,13 +460,62 @@ export default function SettingsPage() {
               <div>
                 <h3 className="text-sm font-semibold">Prise de commandes</h3>
                 <p className="text-xs text-muted-foreground">
-                  Activez ou desactivez les commandes
+                  Activez ou désactivez les commandes
                 </p>
               </div>
               <KitchenToggle
                 restaurantId={restaurant.id}
                 initialOpen={restaurant.is_accepting_orders}
               />
+            </div>
+
+            {/* Public link & QR code */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+                Lien de commande public
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Partagez ce lien ou imprimez le QR code pour que vos clients puissent commander.
+              </p>
+
+              <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                  <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm font-mono">
+                    {typeof window !== "undefined" ? window.location.origin : ""}
+                    /{params.slug}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const url = `${window.location.origin}/${params.slug}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Lien copié !");
+                  }}
+                >
+                  <Copy className="mr-1 h-3.5 w-3.5" />
+                  Copier
+                </Button>
+              </div>
+
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <div className="rounded-xl border border-border bg-white p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
+                    alt="QR Code"
+                    width={180}
+                    height={180}
+                    className="h-[180px] w-[180px]"
+                  />
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <QrCode className="h-3.5 w-3.5" />
+                  Scannez pour commander
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border bg-card p-4">
@@ -501,7 +553,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="r-phone">Telephone</Label>
+                  <Label htmlFor="r-phone">Téléphone</Label>
                   <Input
                     id="r-phone"
                     type="tel"
@@ -515,86 +567,129 @@ export default function SettingsPage() {
 
             {/* Opening hours */}
             <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Horaires d&apos;ouverture
-              </h3>
-              <div className="space-y-3">
+              <div className="mb-4 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Horaires d&apos;ouverture
+                </h3>
+              </div>
+              <div className="divide-y divide-border">
                 {Object.entries(DAYS_FR).map(([day, label]) => {
                   const ranges = hours[day];
                   const isOpen = !!ranges && ranges.length > 0;
+                  const shortLabel = DAYS_FR_SHORT[day];
 
                   return (
-                    <div key={day}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-20 shrink-0">
-                          <span className="text-sm font-medium">{label}</span>
-                        </div>
-                        <Switch
-                          checked={isOpen}
-                          onCheckedChange={(v) => toggleDay(day, v)}
-                        />
-                        {isOpen ? (
-                          <div className="flex flex-1 flex-col gap-1.5">
-                            {ranges.map((range, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-1.5"
-                              >
-                                <Input
-                                  type="time"
-                                  value={range.open}
-                                  onChange={(e) =>
-                                    updateRange(
-                                      day,
-                                      idx,
-                                      "open",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="h-8 w-[6.5rem] text-xs"
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  -
-                                </span>
-                                <Input
-                                  type="time"
-                                  value={range.close}
-                                  onChange={(e) =>
-                                    updateRange(
-                                      day,
-                                      idx,
-                                      "close",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="h-8 w-[6.5rem] text-xs"
-                                />
-                                {ranges.length > 1 && (
-                                  <button
-                                    onClick={() => removeRange(day, idx)}
-                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            {ranges.length < 2 && (
-                              <button
-                                onClick={() => addRange(day)}
-                                className="flex items-center gap-1 text-xs text-primary hover:underline"
-                              >
-                                <Plus className="h-3 w-3" />
-                                Coupure
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Ferme
+                    <div key={day} className="py-3 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`h-2 w-2 rounded-full transition-colors ${
+                              isOpen ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                          />
+                          <span className="text-sm font-medium sm:hidden">
+                            {shortLabel}
                           </span>
-                        )}
+                          <span className="hidden text-sm font-medium sm:inline">
+                            {label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isOpen && (
+                            <span className="text-xs text-muted-foreground">
+                              Fermé
+                            </span>
+                          )}
+                          <Switch
+                            checked={isOpen}
+                            onCheckedChange={(v) => toggleDay(day, v)}
+                          />
+                        </div>
                       </div>
+
+                      {isOpen && (
+                        <div className="mt-2.5 space-y-2 pl-[1.125rem]">
+                          {ranges.map((range, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2"
+                            >
+                              <Select
+                                value={range.open}
+                                onValueChange={(v) =>
+                                  updateRange(day, idx, "open", v)
+                                }
+                              >
+                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  className="max-h-52"
+                                >
+                                  {TIME_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                      className="text-xs"
+                                    >
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              <span className="text-xs font-medium text-muted-foreground">
+                                à
+                              </span>
+
+                              <Select
+                                value={range.close}
+                                onValueChange={(v) =>
+                                  updateRange(day, idx, "close", v)
+                                }
+                              >
+                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  className="max-h-52"
+                                >
+                                  {TIME_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                      className="text-xs"
+                                    >
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {ranges.length > 1 && (
+                                <button
+                                  onClick={() => removeRange(day, idx)}
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {ranges.length < 2 && (
+                            <button
+                              onClick={() => addRange(day)}
+                              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Ajouter une coupure
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -698,46 +793,12 @@ export default function SettingsPage() {
                     className="h-8 rounded-md px-4 text-xs font-medium leading-8 text-white"
                     style={{ backgroundColor: primaryColor }}
                   >
-                    Apercu bouton
+                    Aperçu bouton
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    Apercu de la couleur
+                    Aperçu de la couleur
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Font */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Police
-              </h3>
-              <Select value={fontFamily} onValueChange={setFontFamily}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Geist Sans (par defaut)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_OPTIONS.map((font) => (
-                    <SelectItem key={font.value} value={font.value}>
-                      <span className="flex items-center gap-2">
-                        <span>{font.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {font.category}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fontFamily && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFontFamily("")}
-                  className="mt-2 text-xs text-muted-foreground"
-                >
-                  Revenir a la police par defaut
-                </Button>
               )}
             </div>
 
@@ -761,12 +822,12 @@ export default function SettingsPage() {
             {/* Accepted payment methods */}
             <div className="rounded-xl border border-border bg-card p-4">
               <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Modes de paiement acceptes
+                Modes de paiement acceptés
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Especes / sur place</p>
+                    <p className="text-sm font-medium">Espèces / sur place</p>
                     <p className="text-xs text-muted-foreground">
                       Le client paie au comptoir
                     </p>
@@ -815,7 +876,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2 py-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="text-sm">
-                    Verification du compte Stripe...
+                    Vérification du compte Stripe...
                   </span>
                 </div>
               ) : restaurant.stripe_onboarding_complete ? (
@@ -823,7 +884,7 @@ export default function SettingsPage() {
                   <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                     Actif
                   </span>
-                  <span className="text-sm">Compte Stripe connecte</span>
+                  <span className="text-sm">Compte Stripe connecté</span>
                 </div>
               ) : restaurant.stripe_account_id ? (
                 <div className="space-y-3">
@@ -842,7 +903,7 @@ export default function SettingsPage() {
                     {stripeLoading && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Completer la configuration
+                    Compléter la configuration
                   </Button>
                 </div>
               ) : (
@@ -891,7 +952,7 @@ export default function SettingsPage() {
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min. 6 caracteres"
+                    placeholder="Min. 6 caractères"
                   />
                 </div>
                 <div className="space-y-2">
@@ -901,7 +962,7 @@ export default function SettingsPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeter le mot de passe"
+                    placeholder="Répéter le mot de passe"
                   />
                 </div>
                 <Button
@@ -925,7 +986,7 @@ export default function SettingsPage() {
               className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Deconnexion
+              Déconnexion
             </Button>
           </div>
         )}
