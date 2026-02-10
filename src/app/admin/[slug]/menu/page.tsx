@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -19,15 +19,16 @@ import {
 import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
 import {
-  Camera,
   GripVertical,
   Loader2,
   Pencil,
   Plus,
   Trash2,
+  ImageIcon,
 } from "lucide-react";
 import { ProductFormSheet } from "@/components/admin/product-form-sheet";
 import type { Category, Product } from "@/lib/types";
+import { CATEGORY_ICONS, getCategoryIcon } from "@/lib/category-icons";
 
 import {
   DndContext,
@@ -61,7 +62,6 @@ function SortableCategorySection({
   onAddProduct,
   onEditProduct,
   onToggleProductAvailability,
-  onImageUploaded,
 }: {
   category: CategoryWithProducts;
   restaurantId: string;
@@ -71,7 +71,6 @@ function SortableCategorySection({
   onAddProduct: (categoryId: string) => void;
   onEditProduct: (product: Product) => void;
   onToggleProductAvailability: (id: string, available: boolean) => void;
-  onImageUploaded: (categoryId: string, url: string) => void;
 }) {
   const {
     attributes,
@@ -88,40 +87,7 @@ function SortableCategorySection({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("restaurantId", restaurantId);
-      formData.append("categoryId", category.id);
-
-      const res = await fetch("/api/upload/category-image", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Erreur lors de l'upload");
-        return;
-      }
-
-      onImageUploaded(category.id, data.url);
-      toast.success("Illustration ajoutée");
-    } catch {
-      toast.error("Erreur lors de l'upload");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
+  const CategoryIcon = getCategoryIcon(category.icon);
 
   return (
     <section ref={setNodeRef} style={style}>
@@ -141,6 +107,7 @@ function SortableCategorySection({
             onToggleVisibility(category.id, checked)
           }
         />
+        <CategoryIcon className="h-4 w-4 text-muted-foreground" />
         <h3
           className={`text-xs font-semibold uppercase tracking-wider ${
             category.is_visible
@@ -152,25 +119,6 @@ function SortableCategorySection({
         </h3>
         <div className="h-px flex-1 bg-border" />
         <div className="flex items-center gap-0.5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-primary"
-            title="Illustration"
-          >
-            {uploading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Camera className="h-3 w-3" />
-            )}
-          </button>
           <button
             onClick={() => onEdit(category)}
             className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
@@ -195,26 +143,21 @@ function SortableCategorySection({
         </div>
       </div>
 
-      {/* Category illustration */}
-      {category.image_url && (
-        <div className="relative mb-3 h-28 w-full overflow-hidden rounded-xl">
-          <Image
-            src={category.image_url}
-            alt={category.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 672px) 100vw, 672px"
-          />
-        </div>
-      )}
-
       {/* Product list */}
       <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {category.products.map((product) => (
-          <button
+          <div
             key={product.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onEditProduct(product)}
-            className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/50"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onEditProduct(product);
+              }
+            }}
+            className="flex w-full cursor-pointer items-center gap-3 p-3 text-left transition-colors hover:bg-accent/50"
           >
             {product.image_url ? (
               <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg">
@@ -228,7 +171,7 @@ function SortableCategorySection({
               </div>
             ) : (
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <Camera className="h-4 w-4 text-muted-foreground/50" />
+                <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
               </div>
             )}
 
@@ -254,7 +197,7 @@ function SortableCategorySection({
                 }
               />
             </div>
-          </button>
+          </div>
         ))}
 
         {category.products.length === 0 && (
@@ -288,6 +231,7 @@ export default function MenuManagementPage() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
+  const [categoryIcon, setCategoryIcon] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
 
   // Category delete confirmation
@@ -443,12 +387,14 @@ export default function MenuManagementPage() {
   const openNewCategory = () => {
     setEditingCategory(null);
     setCategoryName("");
+    setCategoryIcon(null);
     setCategoryDialogOpen(true);
   };
 
   const openEditCategory = (cat: Category) => {
     setEditingCategory(cat);
     setCategoryName(cat.name);
+    setCategoryIcon(cat.icon);
     setCategoryDialogOpen(true);
   };
 
@@ -461,7 +407,7 @@ export default function MenuManagementPage() {
     if (editingCategory) {
       const { error } = await supabase
         .from("categories")
-        .update({ name: categoryName.trim() })
+        .update({ name: categoryName.trim(), icon: categoryIcon })
         .eq("id", editingCategory.id);
 
       if (error) {
@@ -473,6 +419,7 @@ export default function MenuManagementPage() {
     } else {
       const { error } = await supabase.from("categories").insert({
         name: categoryName.trim(),
+        icon: categoryIcon,
         restaurant_id: restaurantId,
         sort_order: categories.length,
       });
@@ -516,14 +463,6 @@ export default function MenuManagementPage() {
     fetchMenu();
   };
 
-  const handleCategoryImageUploaded = (categoryId: string, url: string) => {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id === categoryId ? { ...cat, image_url: url } : cat
-      )
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -564,7 +503,6 @@ export default function MenuManagementPage() {
                   onAddProduct={openNewProduct}
                   onEditProduct={openEditProduct}
                   onToggleProductAvailability={toggleAvailability}
-                  onImageUploaded={handleCategoryImageUploaded}
                 />
               ))}
 
@@ -602,24 +540,46 @@ export default function MenuManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? "Renommer la catégorie" : "Nouvelle catégorie"}
+              {editingCategory ? "Modifier la catégorie" : "Nouvelle catégorie"}
             </DialogTitle>
             <DialogDescription>
               {editingCategory
-                ? "Modifiez le nom de cette catégorie."
+                ? "Modifiez le nom et l'icône de cette catégorie."
                 : "Ajoutez une catégorie pour organiser vos produits."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="cat-name">Nom</Label>
-            <Input
-              id="cat-name"
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              placeholder="Ex: Tacos, Boissons, Desserts..."
-              onKeyDown={(e) => e.key === "Enter" && saveCategory()}
-              autoFocus
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cat-name">Nom</Label>
+              <Input
+                id="cat-name"
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+                placeholder="Ex: Tacos, Boissons, Desserts..."
+                onKeyDown={(e) => e.key === "Enter" && saveCategory()}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Icône</Label>
+              <div className="grid grid-cols-8 gap-1.5">
+                {CATEGORY_ICONS.map(({ name, label, Icon }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setCategoryIcon(categoryIcon === name ? null : name)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+                      categoryIcon === name
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                    title={label}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button

@@ -3,6 +3,16 @@
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
 
+export interface LoyaltyTier {
+  id: string;
+  points: number;
+  reward_type: "free_product" | "discount";
+  product_id?: string;
+  product_name?: string;
+  discount_amount?: number;
+  label: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -19,6 +29,8 @@ export interface Restaurant {
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
   accepted_payment_methods: AcceptedPaymentMethod[];
+  loyalty_enabled: boolean;
+  loyalty_tiers: LoyaltyTier[];
   created_at: string;
   updated_at: string;
 }
@@ -27,7 +39,7 @@ export interface Category {
   id: string;
   name: string;
   description: string | null;
-  image_url: string | null;
+  icon: string | null;
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;

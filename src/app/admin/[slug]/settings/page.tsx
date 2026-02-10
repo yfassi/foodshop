@@ -24,10 +24,12 @@ import {
   Clock,
 } from "lucide-react";
 import Image from "next/image";
-import type { Restaurant } from "@/lib/types";
+import type { Restaurant, LoyaltyTier } from "@/lib/types";
 import { DAYS_FR, DAYS_FR_SHORT, normalizeHoursEntry, TIME_OPTIONS } from "@/lib/constants";
 import { FONT_OPTIONS } from "@/lib/branding";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
+import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
+import { Gift } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -36,7 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "appearance" | "payment" | "account";
+type Tab = "restaurant" | "appearance" | "payment" | "loyalty" | "account";
 
 interface TimeRange {
   open: string;
@@ -72,6 +74,11 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [savingBranding, setSavingBranding] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Loyalty
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTier[]>([]);
+  const [savingLoyalty, setSavingLoyalty] = useState(false);
 
   // Account
   const [email, setEmail] = useState("");
@@ -114,6 +121,9 @@ export default function SettingsPage() {
         const methods: string[] = data.accepted_payment_methods || ["on_site"];
         setAcceptOnSite(methods.includes("on_site"));
         setAcceptOnline(methods.includes("online"));
+
+        setLoyaltyEnabled(data.loyalty_enabled ?? false);
+        setLoyaltyTiers(data.loyalty_tiers ?? []);
       }
 
       setLoading(false);
@@ -281,6 +291,28 @@ export default function SettingsPage() {
     router.push("/admin/login");
   };
 
+  // --- Loyalty ---
+
+  const saveLoyalty = async () => {
+    setSavingLoyalty(true);
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        loyalty_enabled: loyaltyEnabled,
+        loyalty_tiers: loyaltyTiers,
+      })
+      .eq("id", restaurant!.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Programme de fidélité mis à jour");
+    }
+    setSavingLoyalty(false);
+  };
+
   // --- Branding ---
 
   const saveBranding = async () => {
@@ -426,6 +458,7 @@ export default function SettingsPage() {
     { key: "restaurant", label: "Établissement", icon: <Store className="h-4 w-4" /> },
     { key: "appearance", label: "Apparence", icon: <Palette className="h-4 w-4" /> },
     { key: "payment", label: "Paiement", icon: <CreditCard className="h-4 w-4" /> },
+    { key: "loyalty", label: "Fidélité", icon: <Gift className="h-4 w-4" /> },
     { key: "account", label: "Mon compte", icon: <User className="h-4 w-4" /> },
   ];
 
@@ -925,6 +958,46 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab: Fidélité */}
+        {activeTab === "loyalty" && (
+          <div className="space-y-4">
+            {/* Enable toggle */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <div>
+                <h3 className="text-sm font-semibold">Programme de fidélité</h3>
+                <p className="text-xs text-muted-foreground">
+                  1 EUR dépensé = 1 point de fidélité
+                </p>
+              </div>
+              <Switch
+                checked={loyaltyEnabled}
+                onCheckedChange={setLoyaltyEnabled}
+              />
+            </div>
+
+            {loyaltyEnabled && (
+              <>
+                <LoyaltyTierBuilder
+                  restaurantId={restaurant.id}
+                  tiers={loyaltyTiers}
+                  onChange={setLoyaltyTiers}
+                />
+              </>
+            )}
+
+            <Button
+              onClick={saveLoyalty}
+              disabled={savingLoyalty}
+              className="w-full"
+            >
+              {savingLoyalty && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Enregistrer
+            </Button>
           </div>
         )}
 

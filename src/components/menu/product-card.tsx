@@ -20,9 +20,9 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
       <button
         onClick={handleClick}
         disabled={!product.is_available}
-        className="relative flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3.5 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        className="relative flex w-full items-stretch overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
           <h3 className="text-sm font-semibold leading-tight">
             {product.name}
           </h3>
@@ -31,10 +31,10 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
               {product.description}
             </p>
           )}
-          <p className="mt-2 text-sm font-bold text-primary">{formatPrice(product.price)}</p>
+          <p className="mt-1.5 text-sm font-bold text-primary">{formatPrice(product.price)}</p>
         </div>
         {product.image_url ? (
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
+          <div className="relative m-2 h-20 w-20 shrink-0 overflow-hidden rounded-lg">
             <Image
               src={product.image_url}
               alt={product.name}
@@ -47,8 +47,10 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
             </div>
           </div>
         ) : (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Plus className="h-4 w-4" />
+          <div className="flex shrink-0 items-center pr-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Plus className="h-4 w-4" />
+            </div>
           </div>
         )}
         {!product.is_available && (
