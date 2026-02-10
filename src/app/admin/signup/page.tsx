@@ -33,10 +33,17 @@ export default function AdminSignupPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
       toast.error(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // If no session returned, email confirmation is required
+    if (!data.session) {
+      toast.success("Verifiez votre boite mail pour confirmer votre compte");
       setLoading(false);
       return;
     }
