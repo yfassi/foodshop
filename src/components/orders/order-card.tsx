@@ -1,6 +1,6 @@
 "use client";
 
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, OrderView } from "@/lib/types";
 import { formatPrice, formatTime } from "@/lib/format";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
@@ -9,7 +9,12 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { CreditCard, Banknote, Wallet } from "lucide-react";
 
-export function OrderCard({ order }: { order: Order }) {
+interface OrderCardProps {
+  order: Order;
+  view?: OrderView;
+}
+
+export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   const config = ORDER_STATUS_CONFIG[order.status];
 
   const updateStatus = async (newStatus: OrderStatus) => {
@@ -24,8 +29,64 @@ export function OrderCard({ order }: { order: Order }) {
     }
   };
 
-  const displayNumber = order.display_order_number || `#${order.order_number}`;
+  const displayNumber =
+    order.display_order_number || `#${order.order_number}`;
 
+  // ─── Kitchen view ───
+  if (view === "cuisine") {
+    return (
+      <div className={`rounded-xl p-5 ${config.bgClass}`}>
+        {/* Header */}
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <p className="text-3xl font-black leading-tight">
+              {displayNumber}
+            </p>
+            <p className="text-base font-semibold">
+              {order.customer_info.name}
+            </p>
+          </div>
+          <OrderStatusBadge status={order.status} />
+        </div>
+
+        {/* Pickup time */}
+        {order.pickup_time && (
+          <p className="mb-3 text-sm font-semibold text-muted-foreground">
+            Retrait : {formatTime(order.pickup_time)}
+          </p>
+        )}
+
+        {/* Items — big and prominent */}
+        <div className="mb-4 space-y-2">
+          {order.items.map((item, i) => (
+            <div key={i}>
+              <p className="text-lg font-bold">
+                {item.quantity}x {item.product_name}
+              </p>
+              {item.modifiers.length > 0 && (
+                <p className="ml-6 text-sm font-medium text-muted-foreground">
+                  {item.modifiers.map((m) => m.modifier_name).join(", ")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Action button (kitchen stops at "ready", not "done") */}
+        {config.nextStatus && config.nextStatus !== "done" && (
+          <Button
+            onClick={() => updateStatus(config.nextStatus!)}
+            className="h-14 w-full rounded-xl text-base font-bold"
+            size="lg"
+          >
+            {config.nextLabel}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // ─── Counter view (default) ───
   const paymentIcon =
     order.payment_source === "wallet" ? (
       <>

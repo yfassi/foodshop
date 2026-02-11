@@ -5,11 +5,16 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
-import type { Order } from "@/lib/types";
-import { OrderCard } from "@/components/orders/order-card";
+import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
-import { PartyPopper, ArrowRight } from "lucide-react";
+import { CounterView, KitchenView } from "@/components/orders/order-views";
+import { PartyPopper, ArrowRight, Monitor, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const VIEW_TABS: { key: OrderView; label: string; icon: React.ReactNode }[] = [
+  { key: "comptoir", label: "Comptoir", icon: <Monitor className="h-4 w-4" /> },
+  { key: "cuisine", label: "Cuisine", icon: <ChefHat className="h-4 w-4" /> },
+];
 
 export default function AdminDashboard() {
   const params = useParams<{ slug: string }>();
@@ -20,6 +25,18 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const { playAlert } = useNewOrderAlert();
+
+  const [view, setView] = useState<OrderView>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-order-view") as OrderView) || "comptoir";
+    }
+    return "comptoir";
+  });
+
+  const handleViewChange = (newView: OrderView) => {
+    setView(newView);
+    localStorage.setItem("admin-order-view", newView);
+  };
 
   useEffect(() => {
     if (searchParams.get("welcome") === "true") {
@@ -113,6 +130,11 @@ export default function AdminDashboard() {
   const preparingOrders = orders.filter((o) => o.status === "preparing");
   const readyOrders = orders.filter((o) => o.status === "ready");
 
+  const activeOrders =
+    view === "cuisine"
+      ? [...newOrders, ...preparingOrders]
+      : orders;
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -139,93 +161,45 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {orders.length === 0 && !showWelcome ? (
+      {/* View toggle */}
+      <div className="no-scrollbar mb-4 flex gap-1">
+        {VIEW_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => handleViewChange(tab.key)}
+            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              view === tab.key
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeOrders.length === 0 && !showWelcome ? (
         <div className="flex h-64 items-center justify-center">
           <p className="text-sm text-muted-foreground">
-            Aucune commande en cours. Les nouvelles commandes apparaîtront ici
-            en temps réel.
+            {view === "cuisine"
+              ? "Aucune commande à préparer. Les nouvelles commandes apparaîtront ici."
+              : "Aucune commande en cours. Les nouvelles commandes apparaîtront ici en temps réel."}
           </p>
         </div>
-      ) : orders.length > 0 ? (
-        <>
-          {/* Mobile: stacked layout */}
-          <div className="space-y-6 lg:hidden">
-            {newOrders.length > 0 && (
-              <section>
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                  <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
-                  Nouvelles ({newOrders.length})
-                </h2>
-                <div className="space-y-3">
-                  {newOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {preparingOrders.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-sm font-semibold">
-                  En préparation ({preparingOrders.length})
-                </h2>
-                <div className="space-y-3">
-                  {preparingOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {readyOrders.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-sm font-semibold">
-                  Prêtes ({readyOrders.length})
-                </h2>
-                <div className="space-y-3">
-                  {readyOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* Desktop: 3-column kanban */}
-          <div className="hidden gap-4 lg:grid lg:grid-cols-3">
-            <section className="min-h-[200px] rounded-xl bg-red-50/50 p-4">
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
-                Nouvelles ({newOrders.length})
-              </h2>
-              <div className="space-y-3">
-                {newOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
-            </section>
-
-            <section className="min-h-[200px] rounded-xl bg-amber-50/50 p-4">
-              <h2 className="mb-3 text-sm font-semibold">
-                En préparation ({preparingOrders.length})
-              </h2>
-              <div className="space-y-3">
-                {preparingOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
-            </section>
-
-            <section className="min-h-[200px] rounded-xl bg-green-50/50 p-4">
-              <h2 className="mb-3 text-sm font-semibold">
-                Prêtes ({readyOrders.length})
-              </h2>
-              <div className="space-y-3">
-                {readyOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
-            </section>
-          </div>
-        </>
+      ) : activeOrders.length > 0 ? (
+        view === "comptoir" ? (
+          <CounterView
+            newOrders={newOrders}
+            preparingOrders={preparingOrders}
+            readyOrders={readyOrders}
+          />
+        ) : (
+          <KitchenView
+            newOrders={newOrders}
+            preparingOrders={preparingOrders}
+          />
+        )
       ) : null}
     </div>
   );
