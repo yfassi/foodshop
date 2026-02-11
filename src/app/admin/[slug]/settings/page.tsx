@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   LogOut,
@@ -22,14 +23,22 @@ import {
   Link as LinkIcon,
   Copy,
   Clock,
+  Gift,
+  ChevronRight,
+  Check,
+  Type,
 } from "lucide-react";
 import Image from "next/image";
 import type { Restaurant, LoyaltyTier } from "@/lib/types";
-import { DAYS_FR, DAYS_FR_SHORT, normalizeHoursEntry, TIME_OPTIONS } from "@/lib/constants";
+import {
+  DAYS_FR,
+  DAYS_FR_SHORT,
+  normalizeHoursEntry,
+  TIME_OPTIONS,
+} from "@/lib/constants";
 import { FONT_OPTIONS } from "@/lib/branding";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
-import { Gift } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -43,6 +52,56 @@ type Tab = "restaurant" | "appearance" | "payment" | "loyalty" | "account";
 interface TimeRange {
   open: string;
   close: string;
+}
+
+/* ─── Section wrapper ─── */
+function Section({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border border-border bg-card p-5 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        {Icon && (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold leading-tight">{title}</h3>
+          {description && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -323,6 +382,7 @@ export default function SettingsPage() {
       .from("restaurants")
       .update({
         primary_color: primaryColor.trim() || null,
+        font_family: fontFamily || null,
       })
       .eq("id", restaurant!.id);
 
@@ -419,9 +479,15 @@ export default function SettingsPage() {
     setHours((prev) => {
       const ranges = prev[day];
       if (!ranges) return prev;
-      const updated = ranges.map((r, i) =>
-        i === index ? { ...r, [field]: value } : r
-      );
+      const updated = ranges.map((r, i) => {
+        if (i !== index) return r;
+        if (field === "open") {
+          // If new open >= close, push close forward
+          return { open: value, close: value >= r.close ? value : r.close };
+        }
+        // If new close <= open, clamp to open
+        return { open: r.open, close: value <= r.open ? r.open : value };
+      });
       return { ...prev, [day]: updated };
     });
   };
@@ -455,67 +521,88 @@ export default function SettingsPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "restaurant", label: "Établissement", icon: <Store className="h-4 w-4" /> },
-    { key: "appearance", label: "Apparence", icon: <Palette className="h-4 w-4" /> },
-    { key: "payment", label: "Paiement", icon: <CreditCard className="h-4 w-4" /> },
-    { key: "loyalty", label: "Fidélité", icon: <Gift className="h-4 w-4" /> },
-    { key: "account", label: "Mon compte", icon: <User className="h-4 w-4" /> },
+    {
+      key: "restaurant",
+      label: "Établissement",
+      icon: <Store className="h-4 w-4" />,
+    },
+    {
+      key: "appearance",
+      label: "Apparence",
+      icon: <Palette className="h-4 w-4" />,
+    },
+    {
+      key: "payment",
+      label: "Paiement",
+      icon: <CreditCard className="h-4 w-4" />,
+    },
+    {
+      key: "loyalty",
+      label: "Fidélité",
+      icon: <Gift className="h-4 w-4" />,
+    },
+    {
+      key: "account",
+      label: "Compte",
+      icon: <User className="h-4 w-4" />,
+    },
   ];
 
   return (
-    <div className="px-4 py-4 md:px-6">
+    <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-lg">
-        <h2 className="mb-4 text-lg font-bold">Réglages</h2>
+        <h2 className="mb-6 text-xl font-bold">Réglages</h2>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-muted p-1">
+        {/* ─── Tabs ─── */}
+        <div className="no-scrollbar mb-8 -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.label}
             </button>
           ))}
         </div>
 
-        {/* Tab: Établissement */}
+        {/* ═══ Tab: Établissement ═══ */}
         {activeTab === "restaurant" && (
           <div className="space-y-4">
             {/* Open/Closed toggle */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <div>
-                <h3 className="text-sm font-semibold">Prise de commandes</h3>
-                <p className="text-xs text-muted-foreground">
-                  Activez ou désactivez les commandes
-                </p>
-              </div>
-              <KitchenToggle
-                restaurantId={restaurant.id}
-                initialOpen={restaurant.is_accepting_orders}
+            <Section>
+              <SectionHeader
+                title="Prise de commandes"
+                description="Activez ou désactivez les commandes en temps réel"
+                action={
+                  <KitchenToggle
+                    restaurantId={restaurant.id}
+                    initialOpen={restaurant.is_accepting_orders}
+                  />
+                }
               />
-            </div>
+            </Section>
 
             {/* Public link & QR code */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
-                Lien de commande public
-              </h3>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Partagez ce lien ou imprimez le QR code pour que vos clients puissent commander.
-              </p>
+            <Section>
+              <SectionHeader
+                icon={QrCode}
+                title="Lien de commande"
+                description="Partagez ce lien ou imprimez le QR code"
+              />
 
-              <div className="flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2">
                 <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                   <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-sm font-mono">
-                    {typeof window !== "undefined" ? window.location.origin : ""}
+                  <span className="truncate font-mono text-sm">
+                    {typeof window !== "undefined"
+                      ? window.location.origin
+                      : ""}
                     /{params.slug}
                   </span>
                 </div>
@@ -528,7 +615,7 @@ export default function SettingsPage() {
                     toast.success("Lien copié !");
                   }}
                 >
-                  <Copy className="mr-1 h-3.5 w-3.5" />
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
                   Copier
                 </Button>
               </div>
@@ -537,24 +624,30 @@ export default function SettingsPage() {
                 <div className="rounded-xl border border-border bg-white p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
                     alt="QR Code"
-                    width={180}
-                    height={180}
-                    className="h-[180px] w-[180px]"
+                    width={160}
+                    height={160}
+                    className="h-[160px] w-[160px]"
                   />
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <QrCode className="h-3.5 w-3.5" />
+                <span className="text-xs text-muted-foreground">
                   Scannez pour commander
-                </div>
+                </span>
               </div>
-            </div>
+            </Section>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="space-y-4">
+            {/* Restaurant info form */}
+            <Section>
+              <SectionHeader
+                icon={Store}
+                title="Informations"
+                description="Les informations visibles par vos clients"
+              />
+
+              <div className="mt-4 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="r-name">Nom</Label>
+                  <Label htmlFor="r-name">Nom du restaurant</Label>
                   <Input
                     id="r-name"
                     value={name}
@@ -575,38 +668,40 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="r-address">Adresse</Label>
-                  <Input
-                    id="r-address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 rue Example, 69000 Lyon"
-                  />
-                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="r-address">Adresse</Label>
+                    <Input
+                      id="r-address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="123 rue Example, 69000 Lyon"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="r-phone">Téléphone</Label>
-                  <Input
-                    id="r-phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="06 12 34 56 78"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="r-phone">Téléphone</Label>
+                    <Input
+                      id="r-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="06 12 34 56 78"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            </Section>
 
             {/* Opening hours */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-4 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Horaires d&apos;ouverture
-                </h3>
-              </div>
-              <div className="divide-y divide-border">
+            <Section>
+              <SectionHeader
+                icon={Clock}
+                title="Horaires d'ouverture"
+                description="Définissez vos jours et créneaux d'ouverture"
+              />
+
+              <div className="mt-4 divide-y divide-border">
                 {Object.entries(DAYS_FR).map(([day, label]) => {
                   const ranges = hours[day];
                   const isOpen = !!ranges && ranges.length > 0;
@@ -654,7 +749,10 @@ export default function SettingsPage() {
                                   updateRange(day, idx, "open", v)
                                 }
                               >
-                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                <SelectTrigger
+                                  className="h-9 w-[5.5rem] text-xs font-medium"
+                                  size="sm"
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent
@@ -683,14 +781,19 @@ export default function SettingsPage() {
                                   updateRange(day, idx, "close", v)
                                 }
                               >
-                                <SelectTrigger className="h-9 w-[5.5rem] text-xs font-medium" size="sm">
+                                <SelectTrigger
+                                  className="h-9 w-[5.5rem] text-xs font-medium"
+                                  size="sm"
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent
                                   position="popper"
                                   className="max-h-52"
                                 >
-                                  {TIME_OPTIONS.map((opt) => (
+                                  {TIME_OPTIONS.filter(
+                                    (opt) => opt.value >= range.open
+                                  ).map((opt) => (
                                     <SelectItem
                                       key={opt.value}
                                       value={opt.value}
@@ -727,75 +830,85 @@ export default function SettingsPage() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             <Button
               onClick={saveRestaurant}
               disabled={savingRestaurant}
               className="w-full"
             >
-              {savingRestaurant && (
+              {savingRestaurant ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
               )}
               Enregistrer
             </Button>
           </div>
         )}
 
-        {/* Tab: Apparence */}
+        {/* ═══ Tab: Apparence ═══ */}
         {activeTab === "appearance" && (
           <div className="space-y-4">
             {/* Logo */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Logo
-              </h3>
-              <div className="relative inline-block">
-                <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted transition-colors hover:border-primary">
-                  {uploadingLogo ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  ) : logoUrl ? (
-                    <Image
-                      src={logoUrl}
-                      alt="Logo"
-                      fill
-                      className="object-cover"
-                      sizes="96px"
+            <Section>
+              <SectionHeader
+                icon={Camera}
+                title="Logo"
+                description="JPG, PNG, WebP ou SVG (max 2 Mo)"
+              />
+              <div className="mt-4">
+                <div className="relative inline-block">
+                  <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary hover:bg-muted">
+                    {uploadingLogo ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    ) : logoUrl ? (
+                      <Image
+                        src={logoUrl}
+                        alt="Logo"
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <Camera className="h-5 w-5" />
+                        <span className="text-[10px] font-medium">
+                          Ajouter
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadLogo(file);
+                        e.target.value = "";
+                      }}
                     />
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                      <Camera className="h-5 w-5" />
-                      <span className="text-[10px]">Ajouter</span>
-                    </div>
+                  </label>
+                  {logoUrl && (
+                    <button
+                      onClick={removeLogo}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) uploadLogo(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                {logoUrl && (
-                  <button
-                    onClick={removeLogo}
-                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                </div>
               </div>
-            </div>
+            </Section>
 
             {/* Primary color */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Couleur principale
-              </h3>
-              <div className="flex items-center gap-3">
+            <Section>
+              <SectionHeader
+                icon={Palette}
+                title="Couleur principale"
+                description="Appliquée aux boutons et éléments d'accent"
+              />
+              <div className="mt-4 flex items-center gap-3">
                 <input
                   type="color"
                   value={primaryColor || "#d4522a"}
@@ -821,44 +934,86 @@ export default function SettingsPage() {
                 )}
               </div>
               {primaryColor && (
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-3">
                   <div
-                    className="h-8 rounded-md px-4 text-xs font-medium leading-8 text-white"
+                    className="h-8 rounded-lg px-4 text-xs font-medium leading-8 text-white"
                     style={{ backgroundColor: primaryColor }}
                   >
                     Aperçu bouton
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    Aperçu de la couleur
-                  </span>
+                  <div
+                    className="h-8 w-8 rounded-lg"
+                    style={{ backgroundColor: primaryColor }}
+                  />
                 </div>
               )}
-            </div>
+            </Section>
 
-            {/* Save */}
+            {/* Font family */}
+            <Section>
+              <SectionHeader
+                icon={Type}
+                title="Typographie"
+                description="Police utilisée sur votre page de commande"
+              />
+              <div className="mt-4">
+                <Select
+                  value={fontFamily || ""}
+                  onValueChange={setFontFamily}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Police par défaut (Inter)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_OPTIONS.map((font) => (
+                      <SelectItem key={font.value} value={font.value}>
+                        <span className="font-medium">{font.label}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {font.category}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fontFamily && (
+                  <button
+                    onClick={() => setFontFamily("")}
+                    className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Réinitialiser la police
+                  </button>
+                )}
+              </div>
+            </Section>
+
             <Button
               onClick={saveBranding}
               disabled={savingBranding}
               className="w-full"
             >
-              {savingBranding && (
+              {savingBranding ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
               )}
               Enregistrer l&apos;apparence
             </Button>
           </div>
         )}
 
-        {/* Tab: Paiement */}
+        {/* ═══ Tab: Paiement ═══ */}
         {activeTab === "payment" && (
           <div className="space-y-4">
             {/* Accepted payment methods */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Modes de paiement acceptés
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+            <Section>
+              <SectionHeader
+                icon={CreditCard}
+                title="Modes de paiement"
+                description="Choisissez les moyens de paiement acceptés"
+              />
+
+              <div className="mt-4 space-y-1">
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
                   <div>
                     <p className="text-sm font-medium">Espèces / sur place</p>
                     <p className="text-xs text-muted-foreground">
@@ -870,9 +1025,12 @@ export default function SettingsPage() {
                     onCheckedChange={setAcceptOnSite}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <Separator />
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
                   <div>
-                    <p className="text-sm font-medium">Carte bancaire en ligne</p>
+                    <p className="text-sm font-medium">
+                      Carte bancaire en ligne
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {restaurant.stripe_onboarding_complete
                         ? "Paiement en ligne via Stripe"
@@ -886,9 +1044,12 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
+
               <Button
                 onClick={savePaymentMethods}
-                disabled={savingPaymentMethods || (!acceptOnSite && !acceptOnline)}
+                disabled={
+                  savingPaymentMethods || (!acceptOnSite && !acceptOnline)
+                }
                 className="mt-4 w-full"
                 variant="outline"
               >
@@ -897,54 +1058,49 @@ export default function SettingsPage() {
                 )}
                 Enregistrer
               </Button>
-            </div>
+            </Section>
 
             {/* Stripe connection */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Compte Stripe
-              </h3>
+            <Section>
+              <SectionHeader
+                title="Compte Stripe"
+                description="Recevez les paiements en ligne et les recharges de solde"
+              />
 
-              {checkingStatus ? (
-                <div className="flex items-center gap-2 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">
-                    Vérification du compte Stripe...
-                  </span>
-                </div>
-              ) : restaurant.stripe_onboarding_complete ? (
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                    Actif
-                  </span>
-                  <span className="text-sm">Compte Stripe connecté</span>
-                </div>
-              ) : restaurant.stripe_account_id ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                      Incomplet
+              <div className="mt-4">
+                {checkingStatus ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">
+                      Vérification du compte Stripe...
                     </span>
-                    <span className="text-sm">Configuration en cours</span>
                   </div>
-                  <Button
-                    onClick={handleConnectStripe}
-                    disabled={stripeLoading}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {stripeLoading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Compléter la configuration
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm">
-                    Connectez un compte Stripe pour accepter les paiements en
-                    ligne et les recharges de solde.
-                  </p>
+                ) : restaurant.stripe_onboarding_complete ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                      <Check className="h-3 w-3" />
+                      Connecté
+                    </span>
+                  </div>
+                ) : restaurant.stripe_account_id ? (
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                      Configuration en cours
+                    </span>
+                    <Button
+                      onClick={handleConnectStripe}
+                      disabled={stripeLoading}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {stripeLoading && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Compléter la configuration
+                      <ChevronRight className="ml-auto h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
                   <Button
                     onClick={handleConnectStripe}
                     disabled={stripeLoading}
@@ -954,38 +1110,37 @@ export default function SettingsPage() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
                     Connecter Stripe
+                    <ChevronRight className="ml-auto h-4 w-4" />
                   </Button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </Section>
           </div>
         )}
 
-        {/* Tab: Fidélité */}
+        {/* ═══ Tab: Fidélité ═══ */}
         {activeTab === "loyalty" && (
           <div className="space-y-4">
-            {/* Enable toggle */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <div>
-                <h3 className="text-sm font-semibold">Programme de fidélité</h3>
-                <p className="text-xs text-muted-foreground">
-                  1 EUR dépensé = 1 point de fidélité
-                </p>
-              </div>
-              <Switch
-                checked={loyaltyEnabled}
-                onCheckedChange={setLoyaltyEnabled}
+            <Section>
+              <SectionHeader
+                icon={Gift}
+                title="Programme de fidélité"
+                description="1 EUR dépensé = 1 point de fidélité"
+                action={
+                  <Switch
+                    checked={loyaltyEnabled}
+                    onCheckedChange={setLoyaltyEnabled}
+                  />
+                }
               />
-            </div>
+            </Section>
 
             {loyaltyEnabled && (
-              <>
-                <LoyaltyTierBuilder
-                  restaurantId={restaurant.id}
-                  tiers={loyaltyTiers}
-                  onChange={setLoyaltyTiers}
-                />
-              </>
+              <LoyaltyTierBuilder
+                restaurantId={restaurant.id}
+                tiers={loyaltyTiers}
+                onChange={setLoyaltyTiers}
+              />
             )}
 
             <Button
@@ -993,31 +1148,35 @@ export default function SettingsPage() {
               disabled={savingLoyalty}
               className="w-full"
             >
-              {savingLoyalty && (
+              {savingLoyalty ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
               )}
               Enregistrer
             </Button>
           </div>
         )}
 
-        {/* Tab: Mon compte */}
+        {/* ═══ Tab: Compte ═══ */}
         {activeTab === "account" && (
           <div className="space-y-4">
             {/* Email */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Adresse e-mail
-              </h3>
-              <p className="text-sm">{email}</p>
-            </div>
+            <Section>
+              <SectionHeader
+                icon={User}
+                title="Adresse e-mail"
+              />
+              <p className="mt-3 text-sm text-muted-foreground">{email}</p>
+            </Section>
 
             {/* Password */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Changer le mot de passe
-              </h3>
-              <div className="space-y-3">
+            <Section>
+              <SectionHeader
+                title="Mot de passe"
+                description="Modifiez votre mot de passe de connexion"
+              />
+              <div className="mt-4 space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="new-pw">Nouveau mot de passe</Label>
                   <Input
@@ -1050,12 +1209,13 @@ export default function SettingsPage() {
                   Modifier le mot de passe
                 </Button>
               </div>
-            </div>
+            </Section>
 
             {/* Logout */}
+            <Separator className="my-2" />
             <Button
               onClick={handleLogout}
-              variant="outline"
+              variant="ghost"
               className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />

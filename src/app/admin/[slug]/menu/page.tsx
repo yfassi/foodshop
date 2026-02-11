@@ -307,17 +307,21 @@ export default function MenuManagementPage() {
     setCategories(reordered);
 
     // Persist new sort_order
-    const supabase = createClient();
     const updates = reordered.map((cat, i) => ({
       id: cat.id,
       sort_order: i,
     }));
 
     for (const u of updates) {
-      await supabase
-        .from("categories")
-        .update({ sort_order: u.sort_order })
-        .eq("id", u.id);
+      await fetch("/api/admin/categories", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: u.id,
+          restaurant_id: restaurantId,
+          sort_order: u.sort_order,
+        }),
+      });
     }
   };
 
@@ -327,13 +331,17 @@ export default function MenuManagementPage() {
     productId: string,
     available: boolean
   ) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("products")
-      .update({ is_available: available })
-      .eq("id", productId);
+    const res = await fetch("/api/admin/products", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: productId,
+        restaurant_id: restaurantId,
+        is_available: available,
+      }),
+    });
 
-    if (error) {
+    if (!res.ok) {
       toast.error("Erreur lors de la mise à jour");
       return;
     }
@@ -352,13 +360,17 @@ export default function MenuManagementPage() {
     categoryId: string,
     visible: boolean
   ) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("categories")
-      .update({ is_visible: visible })
-      .eq("id", categoryId);
+    const res = await fetch("/api/admin/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: categoryId,
+        restaurant_id: restaurantId,
+        is_visible: visible,
+      }),
+    });
 
-    if (error) {
+    if (!res.ok) {
       toast.error("Erreur lors de la mise à jour");
       return;
     }
@@ -402,34 +414,49 @@ export default function MenuManagementPage() {
     if (!categoryName.trim() || !restaurantId) return;
 
     setSavingCategory(true);
-    const supabase = createClient();
 
-    if (editingCategory) {
-      const { error } = await supabase
-        .from("categories")
-        .update({ name: categoryName.trim(), icon: categoryIcon })
-        .eq("id", editingCategory.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        setSavingCategory(false);
-        return;
+    try {
+      if (editingCategory) {
+        const res = await fetch("/api/admin/categories", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingCategory.id,
+            restaurant_id: restaurantId,
+            name: categoryName.trim(),
+            icon: categoryIcon,
+          }),
+        });
+        if (!res.ok) {
+          const { error } = await res.json();
+          toast.error(error || "Erreur lors de la mise à jour");
+          setSavingCategory(false);
+          return;
+        }
+        toast.success("Catégorie renommée");
+      } else {
+        const res = await fetch("/api/admin/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: categoryName.trim(),
+            icon: categoryIcon,
+            restaurant_id: restaurantId,
+            sort_order: categories.length,
+          }),
+        });
+        if (!res.ok) {
+          const { error } = await res.json();
+          toast.error(error || "Erreur lors de la création");
+          setSavingCategory(false);
+          return;
+        }
+        toast.success("Catégorie créée");
       }
-      toast.success("Catégorie renommée");
-    } else {
-      const { error } = await supabase.from("categories").insert({
-        name: categoryName.trim(),
-        icon: categoryIcon,
-        restaurant_id: restaurantId,
-        sort_order: categories.length,
-      });
-
-      if (error) {
-        toast.error("Erreur lors de la création");
-        setSavingCategory(false);
-        return;
-      }
-      toast.success("Catégorie créée");
+    } catch {
+      toast.error("Erreur réseau");
+      setSavingCategory(false);
+      return;
     }
 
     setCategoryName("");
@@ -447,13 +474,12 @@ export default function MenuManagementPage() {
   };
 
   const doDeleteCategory = async (categoryId: string) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("categories")
-      .delete()
-      .eq("id", categoryId);
+    const res = await fetch(
+      `/api/admin/categories?id=${categoryId}&restaurant_id=${restaurantId}`,
+      { method: "DELETE" }
+    );
 
-    if (error) {
+    if (!res.ok) {
       toast.error("Erreur lors de la suppression");
       return;
     }

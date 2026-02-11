@@ -81,6 +81,7 @@ export interface Modifier {
 
 export type OrderStatus = "new" | "preparing" | "ready" | "done" | "cancelled";
 export type PaymentMethod = "online" | "on_site";
+export type OrderView = "comptoir" | "cuisine";
 
 export interface OrderCustomerInfo {
   name: string;
