@@ -41,6 +41,25 @@ interface ModifierGroupWithModifiers extends ModifierGroup {
   modifiers: Modifier[];
 }
 
+interface MenuChoiceItemRow {
+  id: string;
+  group_id: string;
+  product_id: string;
+  sort_order: number;
+  created_at: string;
+}
+
+interface MenuChoiceGroupRow {
+  id: string;
+  product_id: string;
+  name: string;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  created_at: string;
+  menu_choice_items: MenuChoiceItemRow[];
+}
+
 interface ProductFormSheetProps {
   open: boolean;
   onClose: () => void;
@@ -82,6 +101,11 @@ export function ProductFormSheet({
   const [allSharedGroups, setAllSharedGroups] = useState<SharedGroupWithModifiers[]>([]);
   const [linkedSharedGroupIds, setLinkedSharedGroupIds] = useState<string[]>([]);
 
+  // Menu choice groups
+  const [menuChoiceGroups, setMenuChoiceGroups] = useState<MenuChoiceGroupRow[]>([]);
+  const [allRestaurantProducts, setAllRestaurantProducts] = useState<Product[]>([]);
+  const [expandedPicker, setExpandedPicker] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open) return;
     if (product) {
@@ -101,6 +125,8 @@ export function ProductFormSheet({
       setProductId(product.id);
       fetchModifierGroups(product.id);
       fetchSharedSections(product.id);
+      fetchMenuChoiceGroups(product.id);
+      fetchAllRestaurantProducts();
     } else {
       setName("");
       setDescription("");
@@ -115,6 +141,9 @@ export function ProductFormSheet({
       setModifierGroups([]);
       setAllSharedGroups([]);
       setLinkedSharedGroupIds([]);
+      setMenuChoiceGroups([]);
+      setAllRestaurantProducts([]);
+      setExpandedPicker(null);
     }
   }, [product, open, defaultCategoryId]);
 
@@ -168,6 +197,147 @@ export function ProductFormSheet({
       .eq("product_id", pid);
 
     setLinkedSharedGroupIds((links || []).map((l) => l.shared_group_id));
+  };
+
+  const fetchMenuChoiceGroups = async (pid: string) => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("menu_choice_groups")
+      .select("*, menu_choice_items(*)")
+      .eq("product_id", pid)
+      .order("sort_order")
+      .returns<MenuChoiceGroupRow[]>();
+
+    if (data) {
+      setMenuChoiceGroups(
+        data.map((g) => ({
+          ...g,
+          menu_choice_items: (g.menu_choice_items || []).sort(
+            (a, b) => a.sort_order - b.sort_order
+          ),
+        }))
+      );
+    }
+  };
+
+  const fetchAllRestaurantProducts = async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .in(
+        "category_id",
+        categories.map((c) => c.id)
+      )
+      .order("name")
+      .returns<Product[]>();
+
+    if (data) setAllRestaurantProducts(data);
+  };
+
+  const addMenuChoiceGroup = async () => {
+    if (!productId) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("menu_choice_groups")
+      .insert({
+        product_id: productId,
+        name: "Accompagnement",
+        min_select: 1,
+        max_select: 1,
+        sort_order: menuChoiceGroups.length,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      toast.error("Erreur lors de l'ajout du groupe");
+      return;
+    }
+
+    setMenuChoiceGroups((prev) => [
+      ...prev,
+      { ...data, menu_choice_items: [] } as MenuChoiceGroupRow,
+    ]);
+  };
+
+  const updateMenuChoiceGroup = async (
+    groupId: string,
+    updates: Partial<{ name: string; min_select: number; max_select: number }>
+  ) => {
+    const supabase = createClient();
+    await supabase
+      .from("menu_choice_groups")
+      .update(updates)
+      .eq("id", groupId);
+
+    setMenuChoiceGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, ...updates } : g))
+    );
+  };
+
+  const deleteMenuChoiceGroup = async (groupId: string) => {
+    const supabase = createClient();
+    await supabase.from("menu_choice_groups").delete().eq("id", groupId);
+    setMenuChoiceGroups((prev) => prev.filter((g) => g.id !== groupId));
+  };
+
+  const toggleMenuChoiceItem = async (
+    groupId: string,
+    choiceProductId: string
+  ) => {
+    const group = menuChoiceGroups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    const existing = group.menu_choice_items.find(
+      (i) => i.product_id === choiceProductId
+    );
+    const supabase = createClient();
+
+    if (existing) {
+      await supabase.from("menu_choice_items").delete().eq("id", existing.id);
+      setMenuChoiceGroups((prev) =>
+        prev.map((g) =>
+          g.id === groupId
+            ? {
+                ...g,
+                menu_choice_items: g.menu_choice_items.filter(
+                  (i) => i.id !== existing.id
+                ),
+              }
+            : g
+        )
+      );
+    } else {
+      const { data, error } = await supabase
+        .from("menu_choice_items")
+        .insert({
+          group_id: groupId,
+          product_id: choiceProductId,
+          sort_order: group.menu_choice_items.length,
+        })
+        .select()
+        .single();
+
+      if (error || !data) {
+        toast.error("Erreur");
+        return;
+      }
+
+      setMenuChoiceGroups((prev) =>
+        prev.map((g) =>
+          g.id === groupId
+            ? {
+                ...g,
+                menu_choice_items: [
+                  ...g.menu_choice_items,
+                  data as MenuChoiceItemRow,
+                ],
+              }
+            : g
+        )
+      );
+    }
   };
 
   const linkSharedGroup = async (groupId: string) => {
@@ -280,45 +450,67 @@ export function ProductFormSheet({
     const menuSupplement = menuEnabled
       ? Math.round(parseFloat(menuSupplementEuros || "0") * 100)
       : null;
-    const menuDesc = menuEnabled && menuDescription.trim()
-      ? menuDescription.trim()
-      : null;
+    let menuDesc: string | null = null;
+    if (menuEnabled) {
+      if (menuChoiceGroups.length > 0) {
+        menuDesc = menuChoiceGroups
+          .map((g) => {
+            const names = g.menu_choice_items
+              .map(
+                (item) =>
+                  allRestaurantProducts.find((p) => p.id === item.product_id)
+                    ?.name
+              )
+              .filter(Boolean);
+            if (names.length === 0) return g.name;
+            if (names.length <= 3) return names.join(", ");
+            return `${g.name} au choix`;
+          })
+          .join(" + ");
+      } else if (menuDescription.trim()) {
+        menuDesc = menuDescription.trim();
+      }
+    }
 
     setSaving(true);
-    const supabase = createClient();
+
+    const productData: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim() || null,
+      price: priceInCents,
+      category_id: categoryId,
+      is_available: isAvailable,
+    };
+
+    // Only include menu fields when menu is enabled (avoids error if columns don't exist yet)
+    if (menuEnabled || product?.menu_supplement != null) {
+      productData.menu_supplement = menuSupplement;
+      productData.menu_description = menuDesc;
+    }
 
     if (productId) {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: name.trim(),
-          description: description.trim() || null,
-          price: priceInCents,
-          category_id: categoryId,
-          is_available: isAvailable,
-          menu_supplement: menuSupplement,
-          menu_description: menuDesc,
-        })
-        .eq("id", productId);
+      const res = await fetch("/api/admin/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: productId,
+          restaurant_id: restaurantId,
+          ...productData,
+        }),
+      });
 
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || "Erreur lors de la mise à jour");
         setSaving(false);
         return;
       }
       toast.success("Produit mis à jour");
     } else {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("products")
-        .insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          price: priceInCents,
-          category_id: categoryId,
-          is_available: isAvailable,
-          menu_supplement: menuSupplement,
-          menu_description: menuDesc,
-        })
+        .insert(productData)
         .select("id")
         .single();
 
@@ -706,9 +898,10 @@ export function ProductFormSheet({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="overflow-y-auto sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>
+      <SheetContent className="sm:max-w-md p-0 gap-0" showCloseButton={false}>
+        {/* Fixed header */}
+        <SheetHeader className="border-b px-4 py-3 flex-row items-center justify-between">
+          <SheetTitle className="text-base">
             {product ? "Modifier le produit" : "Nouveau produit"}
           </SheetTitle>
           <SheetDescription className="sr-only">
@@ -716,15 +909,21 @@ export function ProductFormSheet({
               ? "Modifier les détails du produit"
               : "Créer un nouveau produit"}
           </SheetDescription>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </SheetHeader>
 
-        <div className="space-y-5 px-4 pb-8">
-          {/* Image */}
-          {isEditing && (
-            <div>
-              <Label className="mb-2 block text-sm">Photo</Label>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 p-4">
+            {/* Image */}
+            {isEditing && (
               <div className="relative">
-                <label className="relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted transition-colors hover:border-primary">
+                <label className="relative flex h-36 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
                   {uploadingImage ? (
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   ) : imageUrl ? (
@@ -736,9 +935,11 @@ export function ProductFormSheet({
                       sizes="400px"
                     />
                   ) : (
-                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                      <Camera className="h-6 w-6" />
-                      <span className="text-xs">Ajouter une photo</span>
+                    <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                      <Camera className="h-7 w-7" />
+                      <span className="text-xs font-medium">
+                        Ajouter une photo
+                      </span>
                     </div>
                   )}
                   <input
@@ -755,139 +956,387 @@ export function ProductFormSheet({
                 {imageUrl && (
                   <button
                     onClick={removeImage}
-                    className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
+            )}
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="product-name"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Nom
+              </Label>
+              <Input
+                id="product-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Tacos 1 Viande"
+              />
             </div>
-          )}
 
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="product-name">Nom</Label>
-            <Input
-              id="product-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Tacos 1 Viande"
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="product-description">Description</Label>
-            <textarea
-              id="product-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Galette fraîche, viande au choix, frites..."
-              rows={3}
-              className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-            />
-          </div>
-
-          {/* Price */}
-          <div className="space-y-2">
-            <Label htmlFor="product-price">Prix (EUR)</Label>
-            <Input
-              id="product-price"
-              type="number"
-              step="0.01"
-              min="0"
-              value={priceEuros}
-              onChange={(e) => setPriceEuros(e.target.value)}
-              placeholder="7.50"
-            />
-          </div>
-
-          {/* Menu option */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Proposer en Menu</Label>
-              <Switch checked={menuEnabled} onCheckedChange={setMenuEnabled} />
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="product-description"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Description
+              </Label>
+              <textarea
+                id="product-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ex: Galette fraîche, viande au choix..."
+                rows={2}
+                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full resize-none rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+              />
             </div>
-            {menuEnabled && (
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Supplement menu (EUR)
-                  </Label>
+
+            {/* Price + Category side by side */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="product-price"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Prix
+                </Label>
+                <div className="relative">
                   <Input
+                    id="product-price"
                     type="number"
                     step="0.01"
                     min="0"
-                    value={menuSupplementEuros}
-                    onChange={(e) => setMenuSupplementEuros(e.target.value)}
-                    placeholder="3.00"
+                    value={priceEuros}
+                    onChange={(e) => setPriceEuros(e.target.value)}
+                    placeholder="7.50"
+                    className="pr-8"
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Description (ex: Frites + Boisson)
-                  </Label>
-                  <Input
-                    value={menuDescription}
-                    onChange={(e) => setMenuDescription(e.target.value)}
-                    placeholder="Frites + Boisson"
-                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    €
+                  </span>
                 </div>
               </div>
-            )}
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Catégorie
+                </Label>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choisir" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          {/* Category */}
-          <div className="space-y-2">
-            <Label>Catégorie</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choisir une catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Settings card */}
+            <div className="space-y-3 rounded-xl bg-muted/40 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Disponible</Label>
+                <Switch
+                  checked={isAvailable}
+                  onCheckedChange={setIsAvailable}
+                />
+              </div>
 
-          {/* Availability */}
-          <div className="flex items-center justify-between">
-            <Label>Disponible</Label>
-            <Switch checked={isAvailable} onCheckedChange={setIsAvailable} />
-          </div>
-
-          {/* Save */}
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Enregistrer" : "Créer le produit"}
-          </Button>
-
-          {/* Options — unified shared + per-product */}
-          {isEditing && (
-            <>
               <Separator />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Proposer en Menu</Label>
+                  <Switch
+                    checked={menuEnabled}
+                    onCheckedChange={setMenuEnabled}
+                  />
+                </div>
+                {menuEnabled && (
+                  <div className="space-y-2.5 pt-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Supplément menu
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={menuSupplementEuros}
+                          onChange={(e) =>
+                            setMenuSupplementEuros(e.target.value)
+                          }
+                          placeholder="3.00"
+                          className="h-8 pr-8"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          €
+                        </span>
+                      </div>
+                    </div>
+                    {/* Dynamic menu composition */}
+                    {isEditing && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Composition du menu
+                          </Label>
+                          <button
+                            onClick={addMenuChoiceGroup}
+                            className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Groupe
+                          </button>
+                        </div>
+
+                        {menuChoiceGroups.map((group) => (
+                          <div
+                            key={group.id}
+                            className="rounded-lg border border-border p-2.5"
+                          >
+                            <div className="mb-1.5 flex items-center gap-1.5">
+                              <Input
+                                value={group.name}
+                                onChange={(e) =>
+                                  setMenuChoiceGroups((prev) =>
+                                    prev.map((g) =>
+                                      g.id === group.id
+                                        ? { ...g, name: e.target.value }
+                                        : g
+                                    )
+                                  )
+                                }
+                                onBlur={(e) =>
+                                  updateMenuChoiceGroup(group.id, {
+                                    name: e.target.value,
+                                  })
+                                }
+                                className="h-6 flex-1 text-xs font-medium"
+                              />
+                              <button
+                                onClick={() =>
+                                  deleteMenuChoiceGroup(group.id)
+                                }
+                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <span>Min</span>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={group.min_select}
+                                onChange={(e) => {
+                                  const val =
+                                    parseInt(e.target.value) || 0;
+                                  setMenuChoiceGroups((prev) =>
+                                    prev.map((g) =>
+                                      g.id === group.id
+                                        ? { ...g, min_select: val }
+                                        : g
+                                    )
+                                  );
+                                }}
+                                onBlur={(e) =>
+                                  updateMenuChoiceGroup(group.id, {
+                                    min_select:
+                                      parseInt(e.target.value) || 0,
+                                  })
+                                }
+                                className="h-5 w-12 text-center text-[11px]"
+                              />
+                              <span>Max</span>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={group.max_select}
+                                onChange={(e) => {
+                                  const val =
+                                    parseInt(e.target.value) || 1;
+                                  setMenuChoiceGroups((prev) =>
+                                    prev.map((g) =>
+                                      g.id === group.id
+                                        ? { ...g, max_select: val }
+                                        : g
+                                    )
+                                  );
+                                }}
+                                onBlur={(e) =>
+                                  updateMenuChoiceGroup(group.id, {
+                                    max_select:
+                                      parseInt(e.target.value) || 1,
+                                  })
+                                }
+                                className="h-5 w-12 text-center text-[11px]"
+                              />
+                            </div>
+
+                            {/* Selected products as chips */}
+                            {group.menu_choice_items.length > 0 && (
+                              <div className="mb-2 flex flex-wrap gap-1">
+                                {group.menu_choice_items.map((item) => {
+                                  const prod =
+                                    allRestaurantProducts.find(
+                                      (p) => p.id === item.product_id
+                                    );
+                                  return (
+                                    <span
+                                      key={item.id}
+                                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] text-primary"
+                                    >
+                                      {prod?.name || "..."}
+                                      <button
+                                        onClick={() =>
+                                          toggleMenuChoiceItem(
+                                            group.id,
+                                            item.product_id
+                                          )
+                                        }
+                                        className="hover:text-destructive"
+                                      >
+                                        <X className="h-2.5 w-2.5" />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Product picker toggle */}
+                            <button
+                              onClick={() =>
+                                setExpandedPicker(
+                                  expandedPicker === group.id
+                                    ? null
+                                    : group.id
+                                )
+                              }
+                              className="text-[11px] text-primary hover:underline"
+                            >
+                              {expandedPicker === group.id
+                                ? "Masquer"
+                                : "Sélectionner des articles"}
+                            </button>
+
+                            {/* Product picker */}
+                            {expandedPicker === group.id && (
+                              <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-border bg-background p-2">
+                                {categories
+                                  .filter((c) => c.is_visible)
+                                  .map((cat) => {
+                                    const prods =
+                                      allRestaurantProducts.filter(
+                                        (p) =>
+                                          p.category_id === cat.id &&
+                                          p.id !== productId
+                                      );
+                                    if (prods.length === 0) return null;
+                                    return (
+                                      <div
+                                        key={cat.id}
+                                        className="mb-2 last:mb-0"
+                                      >
+                                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                          {cat.name}
+                                        </p>
+                                        <div className="space-y-0.5">
+                                          {prods.map((prod) => {
+                                            const isSelected =
+                                              group.menu_choice_items.some(
+                                                (i) =>
+                                                  i.product_id ===
+                                                  prod.id
+                                              );
+                                            return (
+                                              <button
+                                                key={prod.id}
+                                                onClick={() =>
+                                                  toggleMenuChoiceItem(
+                                                    group.id,
+                                                    prod.id
+                                                  )
+                                                }
+                                                className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
+                                                  isSelected
+                                                    ? "bg-primary/10 text-primary"
+                                                    : "hover:bg-accent"
+                                                }`}
+                                              >
+                                                <span
+                                                  className={`block h-3 w-3 shrink-0 rounded-sm border transition-colors ${
+                                                    isSelected
+                                                      ? "border-primary bg-primary"
+                                                      : "border-border"
+                                                  }`}
+                                                />
+                                                <span className="flex-1 truncate">
+                                                  {prod.name}
+                                                </span>
+                                                {!prod.is_available && (
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    indispo
+                                                  </span>
+                                                )}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {menuChoiceGroups.length === 0 && (
+                          <p className="py-1 text-center text-[11px] text-muted-foreground">
+                            Ajoutez des groupes pour composer le menu
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Options — editing only */}
+            {isEditing && (
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Options</h3>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={addModifierGroup}
+                    className="h-7 text-xs"
                   >
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    Nouvelle section
+                    <Plus className="mr-1 h-3 w-3" />
+                    Ajouter
                   </Button>
                 </div>
 
-                {/* Quick-add shared sections as toggleable chips */}
+                {/* Shared sections chips */}
                 {allSharedGroups.length > 0 && (
                   <div className="mb-4">
                     <p className="mb-2 text-xs text-muted-foreground">
-                      Sections réutilisables
+                      Sections partagées
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {allSharedGroups.map((sg) => {
@@ -900,7 +1349,7 @@ export function ProductFormSheet({
                                 ? unlinkSharedGroup(sg.id)
                                 : linkSharedGroup(sg.id)
                             }
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all ${
                               isLinked
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -908,9 +1357,7 @@ export function ProductFormSheet({
                           >
                             <Layers className="h-3 w-3" />
                             {sg.name}
-                            {isLinked && (
-                              <X className="h-3 w-3 ml-0.5" />
-                            )}
+                            {isLinked && <X className="ml-0.5 h-3 w-3" />}
                           </button>
                         );
                       })}
@@ -918,44 +1365,44 @@ export function ProductFormSheet({
                   </div>
                 )}
 
-                {/* All option groups: linked shared first, then per-product */}
-                <div className="space-y-4">
-                  {/* Linked shared groups (read-only with detach option) */}
+                {/* Option groups */}
+                <div className="space-y-3">
+                  {/* Linked shared groups */}
                   {linkedSharedGroupIds.map((gid) => {
                     const group = allSharedGroups.find((g) => g.id === gid);
                     if (!group) return null;
                     return (
                       <div
                         key={`shared-${group.id}`}
-                        className="rounded-lg border border-primary/30 bg-primary/5 p-3"
+                        className="rounded-xl border border-primary/20 bg-primary/5 p-3"
                       >
                         <div className="mb-2 flex items-center gap-2">
-                          <div className="flex-1 flex items-center gap-2 min-w-0">
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
                             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                               <Layers className="h-2.5 w-2.5" />
                               Partagée
                             </span>
-                            <span className="text-sm font-medium truncate">
+                            <span className="truncate text-sm font-medium">
                               {group.name}
                             </span>
                           </div>
                           <button
                             onClick={() => detachSharedGroup(group)}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
                             title="Détacher pour personnaliser"
                           >
                             <Link2Off className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => unlinkSharedGroup(group.id)}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             title="Retirer"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
 
-                        <div className="text-xs text-muted-foreground mb-1.5">
+                        <div className="mb-2 text-xs text-muted-foreground">
                           Min {group.min_select} · Max {group.max_select}
                         </div>
 
@@ -963,10 +1410,10 @@ export function ProductFormSheet({
                           {group.shared_modifiers.map((m) => (
                             <span
                               key={m.id}
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] border ${
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${
                                 m.is_available
-                                  ? "bg-background border-border"
-                                  : "bg-muted border-border text-muted-foreground line-through opacity-60"
+                                  ? "border-border bg-background"
+                                  : "border-border bg-muted text-muted-foreground line-through opacity-60"
                               }`}
                             >
                               {m.name}
@@ -983,22 +1430,17 @@ export function ProductFormSheet({
                             </span>
                           ))}
                         </div>
-
-                        <p className="mt-2 text-[10px] text-muted-foreground italic">
-                          Détachez pour personnaliser les options de cet article
-                        </p>
                       </div>
                     );
                   })}
 
-                  {/* Per-product modifier groups (editable) */}
+                  {/* Per-product modifier groups */}
                   {modifierGroups.map((group) => (
                     <div
                       key={group.id}
-                      className="rounded-lg border border-border p-3"
+                      className="rounded-xl border border-border p-3"
                     >
-                      {/* Group header */}
-                      <div className="mb-2 flex items-start gap-2">
+                      <div className="mb-2 flex items-center gap-1.5">
                         <Input
                           value={group.name}
                           onChange={(e) => {
@@ -1015,85 +1457,77 @@ export function ProductFormSheet({
                               name: e.target.value,
                             })
                           }
-                          className="h-8 text-sm font-medium"
+                          className="h-7 flex-1 text-sm font-medium"
                         />
                         <button
                           onClick={() => duplicateModifierGroup(group)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
                           title="Dupliquer"
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => deleteModifierGroup(group.id)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
 
-                      {/* Min/Max */}
-                      <div className="mb-3 flex gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">
-                            Min
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={group.min_select}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 0;
-                              setModifierGroups((prev) =>
-                                prev.map((g) =>
-                                  g.id === group.id
-                                    ? { ...g, min_select: val }
-                                    : g
-                                )
-                              );
-                            }}
-                            onBlur={(e) =>
-                              updateModifierGroup(group.id, {
-                                min_select: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">
-                            Max
-                          </Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={group.max_select}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 1;
-                              setModifierGroups((prev) =>
-                                prev.map((g) =>
-                                  g.id === group.id
-                                    ? { ...g, max_select: val }
-                                    : g
-                                )
-                              );
-                            }}
-                            onBlur={(e) =>
-                              updateModifierGroup(group.id, {
-                                max_select: parseInt(e.target.value) || 1,
-                              })
-                            }
-                            className="h-8 text-sm"
-                          />
-                        </div>
+                      {/* Min/Max inline */}
+                      <div className="mb-2.5 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Min</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={group.min_select}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setModifierGroups((prev) =>
+                              prev.map((g) =>
+                                g.id === group.id
+                                  ? { ...g, min_select: val }
+                                  : g
+                              )
+                            );
+                          }}
+                          onBlur={(e) =>
+                            updateModifierGroup(group.id, {
+                              min_select: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-6 w-14 text-center text-xs"
+                        />
+                        <span>Max</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={group.max_select}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 1;
+                            setModifierGroups((prev) =>
+                              prev.map((g) =>
+                                g.id === group.id
+                                  ? { ...g, max_select: val }
+                                  : g
+                              )
+                            );
+                          }}
+                          onBlur={(e) =>
+                            updateModifierGroup(group.id, {
+                              max_select: parseInt(e.target.value) || 1,
+                            })
+                          }
+                          className="h-6 w-14 text-center text-xs"
+                        />
                       </div>
 
                       {/* Modifiers list */}
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         {group.modifiers.map((modifier) => (
                           <div
                             key={modifier.id}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-1.5"
                           >
                             <Input
                               value={modifier.name}
@@ -1121,41 +1555,46 @@ export function ProductFormSheet({
                               className="h-7 flex-1 text-xs"
                               placeholder="Nom"
                             />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={(modifier.price_extra / 100).toFixed(2)}
-                              onChange={(e) => {
-                                const cents = Math.round(
-                                  parseFloat(e.target.value || "0") * 100
-                                );
-                                setModifierGroups((prev) =>
-                                  prev.map((g) =>
-                                    g.id === group.id
-                                      ? {
-                                          ...g,
-                                          modifiers: g.modifiers.map((m) =>
-                                            m.id === modifier.id
-                                              ? { ...m, price_extra: cents }
-                                              : m
-                                          ),
-                                        }
-                                      : g
-                                  )
-                                );
-                              }}
-                              onBlur={(e) => {
-                                const cents = Math.round(
-                                  parseFloat(e.target.value || "0") * 100
-                                );
-                                updateModifier(modifier.id, group.id, {
-                                  price_extra: cents,
-                                });
-                              }}
-                              className="h-7 w-20 text-xs"
-                              placeholder="0.00"
-                            />
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={(modifier.price_extra / 100).toFixed(2)}
+                                onChange={(e) => {
+                                  const cents = Math.round(
+                                    parseFloat(e.target.value || "0") * 100
+                                  );
+                                  setModifierGroups((prev) =>
+                                    prev.map((g) =>
+                                      g.id === group.id
+                                        ? {
+                                            ...g,
+                                            modifiers: g.modifiers.map((m) =>
+                                              m.id === modifier.id
+                                                ? { ...m, price_extra: cents }
+                                                : m
+                                            ),
+                                          }
+                                        : g
+                                    )
+                                  );
+                                }}
+                                onBlur={(e) => {
+                                  const cents = Math.round(
+                                    parseFloat(e.target.value || "0") * 100
+                                  );
+                                  updateModifier(modifier.id, group.id, {
+                                    price_extra: cents,
+                                  });
+                                }}
+                                className="h-7 w-20 pr-5 text-xs"
+                                placeholder="0.00"
+                              />
+                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                €
+                              </span>
+                            </div>
                             <Switch
                               checked={modifier.is_available}
                               onCheckedChange={(checked) => {
@@ -1211,28 +1650,30 @@ export function ProductFormSheet({
                   ))}
                 </div>
 
-                {linkedSharedGroupIds.length === 0 && modifierGroups.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Aucune option. Activez une section réutilisable ci-dessus ou créez une nouvelle section.
-                  </p>
-                )}
+                {linkedSharedGroupIds.length === 0 &&
+                  modifierGroups.length === 0 && (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      Aucune option configurée.
+                    </p>
+                  )}
               </div>
-            </>
-          )}
+            )}
+          </div>
+        </div>
 
-          {/* Delete */}
+        {/* Sticky footer */}
+        <div className="border-t bg-background p-4">
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditing ? "Enregistrer" : "Créer le produit"}
+          </Button>
           {isEditing && (
-            <>
-              <Separator />
-              <Button
-                variant="outline"
-                onClick={handleDelete}
-                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Supprimer le produit
-              </Button>
-            </>
+            <button
+              onClick={handleDelete}
+              className="mt-2 w-full py-1 text-center text-xs text-muted-foreground transition-colors hover:text-destructive"
+            >
+              Supprimer ce produit
+            </button>
           )}
         </div>
       </SheetContent>
