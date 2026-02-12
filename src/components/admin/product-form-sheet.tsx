@@ -65,6 +65,9 @@ export function ProductFormSheet({
   const [priceEuros, setPriceEuros] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
+  const [menuEnabled, setMenuEnabled] = useState(false);
+  const [menuSupplementEuros, setMenuSupplementEuros] = useState("");
+  const [menuDescription, setMenuDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -87,6 +90,13 @@ export function ProductFormSheet({
       setPriceEuros((product.price / 100).toFixed(2));
       setCategoryId(product.category_id);
       setIsAvailable(product.is_available);
+      setMenuEnabled(product.menu_supplement !== null && product.menu_supplement !== undefined);
+      setMenuSupplementEuros(
+        product.menu_supplement != null
+          ? (product.menu_supplement / 100).toFixed(2)
+          : ""
+      );
+      setMenuDescription(product.menu_description || "");
       setImageUrl(product.image_url);
       setProductId(product.id);
       fetchModifierGroups(product.id);
@@ -97,6 +107,9 @@ export function ProductFormSheet({
       setPriceEuros("");
       setCategoryId(defaultCategoryId);
       setIsAvailable(true);
+      setMenuEnabled(false);
+      setMenuSupplementEuros("");
+      setMenuDescription("");
       setImageUrl(null);
       setProductId(null);
       setModifierGroups([]);
@@ -264,6 +277,13 @@ export function ProductFormSheet({
       return;
     }
 
+    const menuSupplement = menuEnabled
+      ? Math.round(parseFloat(menuSupplementEuros || "0") * 100)
+      : null;
+    const menuDesc = menuEnabled && menuDescription.trim()
+      ? menuDescription.trim()
+      : null;
+
     setSaving(true);
     const supabase = createClient();
 
@@ -276,6 +296,8 @@ export function ProductFormSheet({
           price: priceInCents,
           category_id: categoryId,
           is_available: isAvailable,
+          menu_supplement: menuSupplement,
+          menu_description: menuDesc,
         })
         .eq("id", productId);
 
@@ -294,6 +316,8 @@ export function ProductFormSheet({
           price: priceInCents,
           category_id: categoryId,
           is_available: isAvailable,
+          menu_supplement: menuSupplement,
+          menu_description: menuDesc,
         })
         .select("id")
         .single();
@@ -776,6 +800,41 @@ export function ProductFormSheet({
               onChange={(e) => setPriceEuros(e.target.value)}
               placeholder="7.50"
             />
+          </div>
+
+          {/* Menu option */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Proposer en Menu</Label>
+              <Switch checked={menuEnabled} onCheckedChange={setMenuEnabled} />
+            </div>
+            {menuEnabled && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Supplement menu (EUR)
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={menuSupplementEuros}
+                    onChange={(e) => setMenuSupplementEuros(e.target.value)}
+                    placeholder="3.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Description (ex: Frites + Boisson)
+                  </Label>
+                  <Input
+                    value={menuDescription}
+                    onChange={(e) => setMenuDescription(e.target.value)}
+                    placeholder="Frites + Boisson"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Category */}

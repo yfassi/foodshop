@@ -62,6 +62,9 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
             <div key={i}>
               <p className="text-lg font-bold">
                 {item.quantity}x {item.product_name}
+                {item.is_menu && (
+                  <span className="ml-1 text-sm font-semibold text-primary">(Menu)</span>
+                )}
               </p>
               {item.modifiers.length > 0 && (
                 <p className="ml-6 text-sm font-medium text-muted-foreground">
@@ -134,6 +137,9 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
           <div key={i} className="text-sm">
             <span className="font-semibold">{item.quantity}x</span>{" "}
             {item.product_name}
+            {item.is_menu && (
+              <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
+            )}
             {item.modifiers.length > 0 && (
               <span className="ml-1 text-xs text-muted-foreground">
                 ({item.modifiers.map((m) => m.modifier_name).join(", ")})

@@ -8,6 +8,7 @@ interface CheckoutItem {
   product_id: string;
   product_name: string;
   quantity: number;
+  is_menu?: boolean;
   modifiers: { modifier_id: string; group_id: string }[];
 }
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
     const productIds = items.map((i) => i.product_id);
     const { data: products } = await supabase
       .from("products")
-      .select("id, name, price, is_available")
+      .select("id, name, price, is_available, menu_supplement")
       .in("id", productIds);
 
     if (!products || products.length !== new Set(productIds).size) {
@@ -190,6 +191,18 @@ export async function POST(request: Request) {
         );
       }
 
+      // Validate menu option
+      let menuSupplement = 0;
+      if (item.is_menu) {
+        if (product.menu_supplement == null) {
+          return NextResponse.json(
+            { error: `${product.name} ne propose pas l'option menu` },
+            { status: 400 }
+          );
+        }
+        menuSupplement = product.menu_supplement;
+      }
+
       const orderModifiers: OrderItemModifier[] = [];
       let modifiersExtra = 0;
 
@@ -206,16 +219,17 @@ export async function POST(request: Request) {
         modifiersExtra += modifier.price_extra;
       }
 
-      const lineTotal = (product.price + modifiersExtra) * item.quantity;
+      const lineTotal = (product.price + menuSupplement + modifiersExtra) * item.quantity;
       totalPrice += lineTotal;
 
       orderItems.push({
         product_id: product.id,
         product_name: product.name,
         quantity: item.quantity,
-        unit_price: product.price,
+        unit_price: product.price + menuSupplement,
         modifiers: orderModifiers,
         line_total: lineTotal,
+        ...(item.is_menu && { is_menu: true, menu_supplement: menuSupplement }),
       });
     }
 
@@ -333,7 +347,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: "eur",
           product_data: {
-            name: item.product_name,
+            name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
             description:
               item.modifiers.map((m) => m.modifier_name).join(", ") ||
               undefined,

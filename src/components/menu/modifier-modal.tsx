@@ -25,6 +25,7 @@ interface ModifierModalProps {
 export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
+  const [isMenu, setIsMenu] = useState(false);
   // Track selected modifier IDs per group
   const [selections, setSelections] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
@@ -58,7 +59,11 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
         const current = prev[group.id] || [];
 
         if (group.max_select === 1) {
-          // Radio behavior: select one — scroll to next
+          if (current.includes(modifierId)) {
+            // Deselect if already selected
+            return { ...prev, [group.id]: [] };
+          }
+          // Select and scroll to next
           scrollToNextGroup(groupIndex);
           return { ...prev, [group.id]: [modifierId] };
         }
@@ -109,7 +114,8 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
     );
   }, 0);
 
-  const lineTotal = (product.price + modifiersExtra) * quantity;
+  const menuExtra = isMenu && product.menu_supplement ? product.menu_supplement : 0;
+  const lineTotal = (product.price + menuExtra + modifiersExtra) * quantity;
 
   const handleAdd = () => {
     const cartModifiers = product.modifier_groups.flatMap((group) => {
@@ -141,6 +147,8 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
       base_price: product.price,
       quantity,
       modifiers: cartModifiers,
+      is_menu: isMenu,
+      menu_supplement: product.menu_supplement ?? 0,
     });
 
     toast.success(`${product.name} ajout\u00E9 au panier`);
@@ -172,6 +180,34 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           )}
           <p className="text-sm font-semibold text-primary">{formatPrice(product.price)}</p>
         </DrawerHeader>
+
+        {product.menu_supplement !== null && product.menu_supplement !== undefined && (
+          <div className="border-b border-border px-4 py-3">
+            <button
+              onClick={() => setIsMenu(!isMenu)}
+              className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-left transition-all ${
+                isMenu
+                  ? "border-primary bg-primary/10 ring-1 ring-primary"
+                  : "border-border hover:border-primary/50 hover:bg-accent"
+              }`}
+            >
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Formule Menu</p>
+                {product.menu_description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {product.menu_description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-primary">
+                  +{formatPrice(product.menu_supplement)}
+                </span>
+                {isMenu && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            </button>
+          </div>
+        )}
 
         <div ref={scrollContainerRef} className="overflow-y-auto px-4 py-4">
           {product.modifier_groups.map((group, groupIndex) => {

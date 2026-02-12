@@ -190,6 +190,11 @@ function SortableCategorySection({
               </p>
               <p className="text-xs text-muted-foreground">
                 {formatPrice(product.price)}
+                {product.menu_supplement != null && (
+                  <span className="ml-1 text-primary">
+                    · Menu +{formatPrice(product.menu_supplement)}
+                  </span>
+                )}
               </p>
             </div>
 

@@ -55,6 +55,8 @@ export interface Product {
   category_id: string;
   is_available: boolean;
   sort_order: number;
+  menu_supplement: number | null;
+  menu_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +103,8 @@ export interface OrderItem {
   unit_price: number;
   modifiers: OrderItemModifier[];
   line_total: number;
+  is_menu?: boolean;
+  menu_supplement?: number;
 }
 
 export interface Order {
@@ -214,4 +218,6 @@ export interface CartItem {
   quantity: number;
   modifiers: CartItemModifier[];
   line_total: number;
+  is_menu: boolean;
+  menu_supplement: number;
 }

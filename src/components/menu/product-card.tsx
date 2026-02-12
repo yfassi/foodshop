@@ -31,7 +31,14 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
               {product.description}
             </p>
           )}
-          <p className="mt-1.5 text-sm font-bold text-primary">{formatPrice(product.price)}</p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <p className="text-sm font-bold text-primary">{formatPrice(product.price)}</p>
+            {product.menu_supplement != null && (
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                Menu +{formatPrice(product.menu_supplement)}
+              </span>
+            )}
+          </div>
         </div>
         {product.image_url ? (
           <div className="relative m-2 h-20 w-20 shrink-0 overflow-hidden rounded-lg">
