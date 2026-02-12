@@ -9,9 +9,11 @@ export function CartItem({ item }: { item: CartItemType }) {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
 
-  const modifiersSummary = item.modifiers
-    .map((m) => m.modifier_name)
-    .join(", ");
+  const parts = [
+    ...(item.is_menu ? ["Menu"] : []),
+    ...item.modifiers.map((m) => m.modifier_name),
+  ];
+  const modifiersSummary = parts.join(", ");
 
   return (
     <div className="flex items-start gap-3 border-b border-border py-3">

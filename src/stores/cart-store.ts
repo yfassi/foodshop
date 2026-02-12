@@ -7,10 +7,11 @@ import type { CartItem, CartItemModifier } from "@/lib/types";
 function computeLineTotal(
   basePrice: number,
   modifiers: CartItemModifier[],
-  quantity: number
+  quantity: number,
+  menuSupplement: number = 0
 ): number {
   const modifiersTotal = modifiers.reduce((sum, m) => sum + m.price_extra, 0);
-  return (basePrice + modifiersTotal) * quantity;
+  return (basePrice + menuSupplement + modifiersTotal) * quantity;
 }
 
 interface CartState {
@@ -23,6 +24,8 @@ interface CartState {
     base_price: number;
     quantity: number;
     modifiers: CartItemModifier[];
+    is_menu: boolean;
+    menu_supplement: number;
   }) => void;
   removeItem: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
@@ -42,7 +45,8 @@ export const useCartStore = create<CartState>()(
         const lineTotal = computeLineTotal(
           item.base_price,
           item.modifiers,
-          item.quantity
+          item.quantity,
+          item.is_menu ? item.menu_supplement : 0
         );
         const cartItem: CartItem = {
           ...item,
@@ -72,7 +76,8 @@ export const useCartStore = create<CartState>()(
                   line_total: computeLineTotal(
                     item.base_price,
                     item.modifiers,
-                    quantity
+                    quantity,
+                    item.is_menu ? item.menu_supplement : 0
                   ),
                 }
               : item

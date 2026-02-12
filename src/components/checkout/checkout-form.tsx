@@ -68,6 +68,7 @@ export function CheckoutForm({
             product_id: item.product_id,
             product_name: item.product_name,
             quantity: item.quantity,
+            is_menu: item.is_menu,
             modifiers: item.modifiers.map((m) => ({
               modifier_id: m.modifier_id,
               group_id: m.group_id,
@@ -119,6 +120,9 @@ export function CheckoutForm({
           <div key={item.id} className="flex justify-between py-1 text-sm">
             <span>
               {item.quantity}x {item.product_name}
+              {item.is_menu && (
+                <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
+              )}
               {item.modifiers.length > 0 && (
                 <span className="ml-1 text-xs text-muted-foreground">
                   ({item.modifiers.map((m) => m.modifier_name).join(", ")})

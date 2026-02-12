@@ -8,6 +8,7 @@ interface CheckoutItem {
   product_id: string;
   product_name: string;
   quantity: number;
+  is_menu?: boolean;
   modifiers: { modifier_id: string; group_id: string }[];
 }
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
     const productIds = items.map((i) => i.product_id);
     const { data: products } = await supabase
       .from("products")
-      .select("id, name, price, is_available")
+      .select("id, name, price, is_available, menu_supplement")
       .in("id", productIds);
 
     if (!products || products.length !== new Set(productIds).size) {
@@ -126,6 +127,21 @@ export async function POST(request: Request) {
       if (modifiers) {
         modifierMap = new Map(modifiers.map((m) => [m.id, m]));
       }
+
+      // Also check shared_modifiers for IDs not found in per-product modifiers
+      const missingModIds = allModifierIds.filter((id) => !modifierMap.has(id));
+      if (missingModIds.length > 0) {
+        const { data: sharedMods } = await supabase
+          .from("shared_modifiers")
+          .select("id, name, price_extra, group_id")
+          .in("id", missingModIds);
+
+        if (sharedMods) {
+          for (const m of sharedMods) {
+            modifierMap.set(m.id, m);
+          }
+        }
+      }
     }
 
     // Fetch modifier groups for names
@@ -135,13 +151,30 @@ export async function POST(request: Request) {
     let groupMap = new Map<string, { id: string; name: string }>();
 
     if (allGroupIds.length > 0) {
+      const uniqueGroupIds = [...new Set(allGroupIds)];
+
       const { data: groups } = await supabase
         .from("modifier_groups")
         .select("id, name")
-        .in("id", [...new Set(allGroupIds)]);
+        .in("id", uniqueGroupIds);
 
       if (groups) {
         groupMap = new Map(groups.map((g) => [g.id, g]));
+      }
+
+      // Also check shared_modifier_groups for IDs not found
+      const missingGroupIds = uniqueGroupIds.filter((id) => !groupMap.has(id));
+      if (missingGroupIds.length > 0) {
+        const { data: sharedGroups } = await supabase
+          .from("shared_modifier_groups")
+          .select("id, name")
+          .in("id", missingGroupIds);
+
+        if (sharedGroups) {
+          for (const g of sharedGroups) {
+            groupMap.set(g.id, g);
+          }
+        }
       }
     }
 
@@ -156,6 +189,18 @@ export async function POST(request: Request) {
           { error: `${product?.name || "Produit"} n'est plus disponible` },
           { status: 400 }
         );
+      }
+
+      // Validate menu option
+      let menuSupplement = 0;
+      if (item.is_menu) {
+        if (product.menu_supplement == null) {
+          return NextResponse.json(
+            { error: `${product.name} ne propose pas l'option menu` },
+            { status: 400 }
+          );
+        }
+        menuSupplement = product.menu_supplement;
       }
 
       const orderModifiers: OrderItemModifier[] = [];
@@ -174,16 +219,17 @@ export async function POST(request: Request) {
         modifiersExtra += modifier.price_extra;
       }
 
-      const lineTotal = (product.price + modifiersExtra) * item.quantity;
+      const lineTotal = (product.price + menuSupplement + modifiersExtra) * item.quantity;
       totalPrice += lineTotal;
 
       orderItems.push({
         product_id: product.id,
         product_name: product.name,
         quantity: item.quantity,
-        unit_price: product.price,
+        unit_price: product.price + menuSupplement,
         modifiers: orderModifiers,
         line_total: lineTotal,
+        ...(item.is_menu && { is_menu: true, menu_supplement: menuSupplement }),
       });
     }
 
@@ -301,7 +347,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: "eur",
           product_data: {
-            name: item.product_name,
+            name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
             description:
               item.modifiers.map((m) => m.modifier_name).join(", ") ||
               undefined,

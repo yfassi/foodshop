@@ -1,0 +1,3 @@
+ALTER TABLE products
+  ADD COLUMN menu_supplement INTEGER DEFAULT NULL,
+  ADD COLUMN menu_description TEXT DEFAULT NULL;

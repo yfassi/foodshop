@@ -23,7 +23,15 @@ import {
   Camera,
   Coins,
   ShieldCheck,
+  Copy,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { TIME_OPTIONS } from "@/lib/constants";
 import {
@@ -98,6 +106,8 @@ export default function OnboardingPage() {
 
   // Step 3 — Hours
   const [hours, setHours] = useState<HoursState>(DEFAULT_HOURS);
+  const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
+  const [copyToDays, setCopyToDays] = useState<string[]>([]);
 
   // Step 4 — Appearance
   const [primaryColor, setPrimaryColor] = useState("");
@@ -287,6 +297,26 @@ export default function OnboardingPage() {
       if (!ranges || ranges.length <= 1) return prev;
       return { ...prev, [day]: ranges.filter((_, i) => i !== index) };
     });
+  };
+
+  const openCopyDialog = (day: string) => {
+    setCopyFromDay(day);
+    setCopyToDays([]);
+  };
+
+  const applyDuplicate = () => {
+    if (!copyFromDay) return;
+    const source = hours[copyFromDay];
+    if (!source) return;
+    setHours((prev) => {
+      const next = { ...prev };
+      for (const day of copyToDays) {
+        next[day] = source.map((r) => ({ ...r }));
+      }
+      return next;
+    });
+    setCopyFromDay(null);
+    setCopyToDays([]);
   };
 
   // --- Logo upload ---
@@ -530,6 +560,15 @@ export default function OnboardingPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
+                          {isOpen && (
+                            <button
+                              onClick={() => openCopyDialog(day.key)}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                              title="Dupliquer ces horaires"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {!isOpen && (
                             <span className="text-xs text-muted-foreground">
                               Fermé
@@ -628,6 +667,79 @@ export default function OnboardingPage() {
                   );
                 })}
               </div>
+
+              <Dialog
+                open={!!copyFromDay}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setCopyFromDay(null);
+                    setCopyToDays([]);
+                  }
+                }}
+              >
+                <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>
+                      Dupliquer les horaires du{" "}
+                      {copyFromDay
+                        ? DAYS.find((d) => d.key === copyFromDay)?.label.toLowerCase()
+                        : ""}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    {DAYS.filter((d) => d.key !== copyFromDay).map((d) => (
+                      <label
+                        key={d.key}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={copyToDays.includes(d.key)}
+                          onChange={(e) => {
+                            setCopyToDays((prev) =>
+                              e.target.checked
+                                ? [...prev, d.key]
+                                : prev.filter((x) => x !== d.key)
+                            );
+                          }}
+                          className="h-4 w-4 rounded border-border text-primary accent-primary"
+                        />
+                        <span className="text-sm font-medium">{d.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        const allOtherDays = DAYS.filter(
+                          (d) => d.key !== copyFromDay
+                        ).map((d) => d.key);
+                        setCopyToDays((prev) =>
+                          prev.length === allOtherDays.length
+                            ? []
+                            : allOtherDays
+                        );
+                      }}
+                      className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                    >
+                      {copyToDays.length === DAYS.length - 1
+                        ? "Tout désélectionner"
+                        : "Tout sélectionner"}
+                    </button>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={applyDuplicate}
+                      disabled={copyToDays.length === 0}
+                      className="w-full"
+                      size="sm"
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      Appliquer
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

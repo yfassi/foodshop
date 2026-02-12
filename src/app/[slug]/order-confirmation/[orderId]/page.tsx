@@ -73,6 +73,9 @@ export default async function OrderConfirmationPage({
           <div key={i} className="flex justify-between py-1 text-sm">
             <span>
               {item.quantity}x {item.product_name}
+              {item.is_menu && (
+                <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
+              )}
               {item.modifiers.length > 0 && (
                 <span className="ml-1 text-xs text-muted-foreground">
                   ({item.modifiers.map((m) => m.modifier_name).join(", ")})

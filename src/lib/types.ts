@@ -55,6 +55,8 @@ export interface Product {
   category_id: string;
   is_available: boolean;
   sort_order: number;
+  menu_supplement: number | null;
+  menu_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +103,8 @@ export interface OrderItem {
   unit_price: number;
   modifiers: OrderItemModifier[];
   line_total: number;
+  is_menu?: boolean;
+  menu_supplement?: number;
 }
 
 export interface Order {
@@ -123,6 +127,26 @@ export interface Order {
   updated_at: string;
 }
 
+export interface SharedModifierGroup {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SharedModifier {
+  id: string;
+  group_id: string;
+  name: string;
+  price_extra: number;
+  is_available: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
 // Enriched types for frontend
 
 export interface ModifierGroupWithModifiers extends ModifierGroup {
@@ -131,6 +155,10 @@ export interface ModifierGroupWithModifiers extends ModifierGroup {
 
 export interface ProductWithModifiers extends Product {
   modifier_groups: ModifierGroupWithModifiers[];
+}
+
+export interface SharedModifierGroupWithModifiers extends SharedModifierGroup {
+  shared_modifiers: SharedModifier[];
 }
 
 export interface CategoryWithProducts extends Category {
@@ -190,4 +218,6 @@ export interface CartItem {
   quantity: number;
   modifiers: CartItemModifier[];
   line_total: number;
+  is_menu: boolean;
+  menu_supplement: number;
 }

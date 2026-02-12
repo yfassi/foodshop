@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-async function ensureBucket(supabase: ReturnType<typeof createAdminClient>) {
-  const { data } = await supabase.storage.getBucket("product-images");
-  if (!data) {
-    await supabase.storage.createBucket("product-images", { public: true });
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -31,15 +24,14 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
-    await ensureBucket(supabase);
 
     const ext = file.name.split(".").pop() || "jpg";
     const filePath = `${restaurantId}/${productId}.${ext}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const arrayBuffer = await file.arrayBuffer();
 
     const { error: uploadError } = await supabase.storage
       .from("product-images")
-      .upload(filePath, buffer, {
+      .upload(filePath, new Uint8Array(arrayBuffer), {
         contentType: file.type,
         upsert: true,
       });
@@ -55,15 +47,20 @@ export async function POST(request: Request) {
 
     const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-    // Update the product with the new image URL
-    await supabase
+    const { error: updateError } = await supabase
       .from("products")
       .update({ image_url: imageUrl })
       .eq("id", productId);
 
+    if (updateError) {
+      console.error("Product image DB update error:", updateError);
+      return NextResponse.json({ error: "Image uploadée mais erreur de sauvegarde" }, { status: 500 });
+    }
+
     return NextResponse.json({ url: imageUrl });
   } catch (err) {
     console.error("Product image upload API error:", err);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Erreur serveur";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
