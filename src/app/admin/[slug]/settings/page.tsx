@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   LogOut,
@@ -120,6 +127,8 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [hours, setHours] = useState<Record<string, TimeRange[] | null>>({});
+  const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
+  const [copyToDays, setCopyToDays] = useState<string[]>([]);
   const [savingRestaurant, setSavingRestaurant] = useState(false);
 
   // Payment methods
@@ -512,6 +521,26 @@ export default function SettingsPage() {
     });
   };
 
+  const openCopyDialog = (day: string) => {
+    setCopyFromDay(day);
+    setCopyToDays([]);
+  };
+
+  const applyDuplicate = () => {
+    if (!copyFromDay) return;
+    const source = hours[copyFromDay];
+    if (!source) return;
+    setHours((prev) => {
+      const next = { ...prev };
+      for (const day of copyToDays) {
+        next[day] = source.map((r) => ({ ...r }));
+      }
+      return next;
+    });
+    setCopyFromDay(null);
+    setCopyToDays([]);
+  };
+
   if (loading || !restaurant) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -724,6 +753,15 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
+                          {isOpen && (
+                            <button
+                              onClick={() => openCopyDialog(day)}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                              title="Dupliquer ces horaires"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {!isOpen && (
                             <span className="text-xs text-muted-foreground">
                               Fermé
@@ -830,6 +868,80 @@ export default function SettingsPage() {
                   );
                 })}
               </div>
+
+              <Dialog
+                open={!!copyFromDay}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setCopyFromDay(null);
+                    setCopyToDays([]);
+                  }
+                }}
+              >
+                <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>
+                      Dupliquer les horaires du{" "}
+                      {copyFromDay ? DAYS_FR[copyFromDay]?.toLowerCase() : ""}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    {Object.entries(DAYS_FR)
+                      .filter(([d]) => d !== copyFromDay)
+                      .map(([d, label]) => (
+                        <label
+                          key={d}
+                          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={copyToDays.includes(d)}
+                            onChange={(e) => {
+                              setCopyToDays((prev) =>
+                                e.target.checked
+                                  ? [...prev, d]
+                                  : prev.filter((x) => x !== d)
+                              );
+                            }}
+                            className="h-4 w-4 rounded border-border text-primary accent-primary"
+                          />
+                          <span className="text-sm font-medium">{label}</span>
+                        </label>
+                      ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        const allOtherDays = Object.keys(DAYS_FR).filter(
+                          (d) => d !== copyFromDay
+                        );
+                        setCopyToDays((prev) =>
+                          prev.length === allOtherDays.length
+                            ? []
+                            : allOtherDays
+                        );
+                      }}
+                      className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                    >
+                      {copyToDays.length ===
+                      Object.keys(DAYS_FR).length - 1
+                        ? "Tout désélectionner"
+                        : "Tout sélectionner"}
+                    </button>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={applyDuplicate}
+                      disabled={copyToDays.length === 0}
+                      className="w-full"
+                      size="sm"
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      Appliquer
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </Section>
 
             <Button

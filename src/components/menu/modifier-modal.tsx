@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { ProductWithModifiers, ModifierGroupWithModifiers } from "@/lib/types";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
@@ -34,13 +34,32 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
     return initial;
   });
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToNextGroup = useCallback(
+    (groupIndex: number) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const nextEl = container.querySelector(
+        `[data-group-index="${groupIndex + 1}"]`
+      );
+      if (nextEl) {
+        setTimeout(() => {
+          nextEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+      }
+    },
+    []
+  );
+
   const toggleModifier = useCallback(
-    (group: ModifierGroupWithModifiers, modifierId: string) => {
+    (group: ModifierGroupWithModifiers, modifierId: string, groupIndex: number) => {
       setSelections((prev) => {
         const current = prev[group.id] || [];
 
         if (group.max_select === 1) {
-          // Radio behavior: select one
+          // Radio behavior: select one — scroll to next
+          scrollToNextGroup(groupIndex);
           return { ...prev, [group.id]: [modifierId] };
         }
 
@@ -57,10 +76,19 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           return prev;
         }
 
-        return { ...prev, [group.id]: [...current, modifierId] };
+        const newSelected = [...current, modifierId];
+        // Scroll if we just reached min_select or max_select
+        if (
+          newSelected.length >= group.min_select &&
+          (newSelected.length >= group.max_select || group.min_select > 0)
+        ) {
+          scrollToNextGroup(groupIndex);
+        }
+
+        return { ...prev, [group.id]: newSelected };
       });
     },
-    []
+    [scrollToNextGroup]
   );
 
   // Validation
@@ -145,13 +173,13 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           <p className="text-sm font-semibold text-primary">{formatPrice(product.price)}</p>
         </DrawerHeader>
 
-        <div className="overflow-y-auto px-4 py-4">
-          {product.modifier_groups.map((group) => {
+        <div ref={scrollContainerRef} className="overflow-y-auto px-4 py-4">
+          {product.modifier_groups.map((group, groupIndex) => {
             const selected = selections[group.id] || [];
             const isRequired = group.min_select > 0;
 
             return (
-              <div key={group.id} className="mb-5">
+              <div key={group.id} data-group-index={groupIndex} className="mb-5">
                 <div className="mb-2.5 flex items-baseline justify-between">
                   <h4 className="text-sm font-semibold">
                     {group.name}
@@ -178,7 +206,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                       return (
                         <button
                           key={modifier.id}
-                          onClick={() => toggleModifier(group, modifier.id)}
+                          onClick={() => toggleModifier(group, modifier.id, groupIndex)}
                           disabled={isDisabled}
                           className={`flex items-center justify-between rounded-lg border px-3.5 py-3 text-left text-sm transition-all ${
                             isSelected

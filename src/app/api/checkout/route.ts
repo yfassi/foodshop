@@ -126,6 +126,21 @@ export async function POST(request: Request) {
       if (modifiers) {
         modifierMap = new Map(modifiers.map((m) => [m.id, m]));
       }
+
+      // Also check shared_modifiers for IDs not found in per-product modifiers
+      const missingModIds = allModifierIds.filter((id) => !modifierMap.has(id));
+      if (missingModIds.length > 0) {
+        const { data: sharedMods } = await supabase
+          .from("shared_modifiers")
+          .select("id, name, price_extra, group_id")
+          .in("id", missingModIds);
+
+        if (sharedMods) {
+          for (const m of sharedMods) {
+            modifierMap.set(m.id, m);
+          }
+        }
+      }
     }
 
     // Fetch modifier groups for names
@@ -135,13 +150,30 @@ export async function POST(request: Request) {
     let groupMap = new Map<string, { id: string; name: string }>();
 
     if (allGroupIds.length > 0) {
+      const uniqueGroupIds = [...new Set(allGroupIds)];
+
       const { data: groups } = await supabase
         .from("modifier_groups")
         .select("id, name")
-        .in("id", [...new Set(allGroupIds)]);
+        .in("id", uniqueGroupIds);
 
       if (groups) {
         groupMap = new Map(groups.map((g) => [g.id, g]));
+      }
+
+      // Also check shared_modifier_groups for IDs not found
+      const missingGroupIds = uniqueGroupIds.filter((id) => !groupMap.has(id));
+      if (missingGroupIds.length > 0) {
+        const { data: sharedGroups } = await supabase
+          .from("shared_modifier_groups")
+          .select("id, name")
+          .in("id", missingGroupIds);
+
+        if (sharedGroups) {
+          for (const g of sharedGroups) {
+            groupMap.set(g.id, g);
+          }
+        }
       }
     }
 

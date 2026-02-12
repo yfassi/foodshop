@@ -25,9 +25,16 @@ import {
   Plus,
   Trash2,
   ImageIcon,
+  X,
+  Copy,
+  Layers,
 } from "lucide-react";
 import { ProductFormSheet } from "@/components/admin/product-form-sheet";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, SharedModifierGroup, SharedModifier } from "@/lib/types";
+
+interface SharedGroupWithModifiers extends SharedModifierGroup {
+  shared_modifiers: SharedModifier[];
+}
 import { CATEGORY_ICONS, getCategoryIcon } from "@/lib/category-icons";
 
 import {
@@ -238,6 +245,14 @@ export default function MenuManagementPage() {
   const [deletingCategory, setDeletingCategory] =
     useState<CategoryWithProducts | null>(null);
 
+  // Tabs
+  type MenuTab = "articles" | "sections";
+  const [activeTab, setActiveTab] = useState<MenuTab>("articles");
+
+  // Shared sections
+  const [sharedGroups, setSharedGroups] = useState<SharedGroupWithModifiers[]>([]);
+  const [loadingSections, setLoadingSections] = useState(false);
+
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -292,6 +307,239 @@ export default function MenuManagementPage() {
   useEffect(() => {
     fetchMenu();
   }, [fetchMenu]);
+
+  // --- Shared sections ---
+
+  const fetchSharedGroups = useCallback(async () => {
+    if (!restaurantId) return;
+    setLoadingSections(true);
+    const supabase = createClient();
+    const { data: groups } = await supabase
+      .from("shared_modifier_groups")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .order("sort_order", { ascending: true })
+      .returns<SharedModifierGroup[]>();
+
+    if (!groups) {
+      setLoadingSections(false);
+      return;
+    }
+
+    const groupIds = groups.map((g) => g.id);
+    let mods: SharedModifier[] = [];
+    if (groupIds.length > 0) {
+      const { data } = await supabase
+        .from("shared_modifiers")
+        .select("*")
+        .in("group_id", groupIds)
+        .order("sort_order", { ascending: true })
+        .returns<SharedModifier[]>();
+      mods = data || [];
+    }
+
+    const modsByGroup = new Map<string, SharedModifier[]>();
+    for (const m of mods) {
+      const list = modsByGroup.get(m.group_id) || [];
+      list.push(m);
+      modsByGroup.set(m.group_id, list);
+    }
+
+    setSharedGroups(
+      groups.map((g) => ({
+        ...g,
+        shared_modifiers: modsByGroup.get(g.id) || [],
+      }))
+    );
+    setLoadingSections(false);
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (activeTab === "sections" && restaurantId) {
+      fetchSharedGroups();
+    }
+  }, [activeTab, restaurantId, fetchSharedGroups]);
+
+  const addSharedGroup = async () => {
+    if (!restaurantId) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("shared_modifier_groups")
+      .insert({
+        restaurant_id: restaurantId,
+        name: "Nouvelle section",
+        min_select: 0,
+        max_select: 1,
+        sort_order: sharedGroups.length,
+      })
+      .select()
+      .single<SharedModifierGroup>();
+
+    if (error || !data) {
+      toast.error("Erreur lors de la création");
+      return;
+    }
+    setSharedGroups((prev) => [...prev, { ...data, shared_modifiers: [] }]);
+  };
+
+  const updateSharedGroup = async (
+    groupId: string,
+    updates: Partial<SharedModifierGroup>
+  ) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("shared_modifier_groups")
+      .update(updates)
+      .eq("id", groupId);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour");
+      return;
+    }
+    setSharedGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, ...updates } : g))
+    );
+  };
+
+  const deleteSharedGroup = async (groupId: string) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("shared_modifier_groups")
+      .delete()
+      .eq("id", groupId);
+
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setSharedGroups((prev) => prev.filter((g) => g.id !== groupId));
+    toast.success("Section supprimée");
+  };
+
+  const addSharedModifier = async (groupId: string) => {
+    const supabase = createClient();
+    const group = sharedGroups.find((g) => g.id === groupId);
+    const { data, error } = await supabase
+      .from("shared_modifiers")
+      .insert({
+        group_id: groupId,
+        name: "Nouvelle option",
+        price_extra: 0,
+        sort_order: group?.shared_modifiers.length || 0,
+      })
+      .select()
+      .single<SharedModifier>();
+
+    if (error || !data) {
+      toast.error("Erreur lors de l'ajout");
+      return;
+    }
+    setSharedGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? { ...g, shared_modifiers: [...g.shared_modifiers, data] }
+          : g
+      )
+    );
+  };
+
+  const updateSharedModifier = async (
+    modifierId: string,
+    groupId: string,
+    updates: Partial<SharedModifier>
+  ) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("shared_modifiers")
+      .update(updates)
+      .eq("id", modifierId);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour");
+      return;
+    }
+    setSharedGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? {
+              ...g,
+              shared_modifiers: g.shared_modifiers.map((m) =>
+                m.id === modifierId ? { ...m, ...updates } : m
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+  const deleteSharedModifier = async (modifierId: string, groupId: string) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("shared_modifiers")
+      .delete()
+      .eq("id", modifierId);
+
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setSharedGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? {
+              ...g,
+              shared_modifiers: g.shared_modifiers.filter(
+                (m) => m.id !== modifierId
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+  const duplicateSharedGroup = async (group: SharedGroupWithModifiers) => {
+    if (!restaurantId) return;
+    const supabase = createClient();
+    const { data: newGroup, error } = await supabase
+      .from("shared_modifier_groups")
+      .insert({
+        restaurant_id: restaurantId,
+        name: `${group.name} (copie)`,
+        min_select: group.min_select,
+        max_select: group.max_select,
+        sort_order: sharedGroups.length,
+      })
+      .select()
+      .single<SharedModifierGroup>();
+
+    if (error || !newGroup) {
+      toast.error("Erreur lors de la duplication");
+      return;
+    }
+
+    let newMods: SharedModifier[] = [];
+    if (group.shared_modifiers.length > 0) {
+      const { data: mods } = await supabase
+        .from("shared_modifiers")
+        .insert(
+          group.shared_modifiers.map((m, i) => ({
+            group_id: newGroup.id,
+            name: m.name,
+            price_extra: m.price_extra,
+            sort_order: i,
+          }))
+        )
+        .select()
+        .returns<SharedModifier[]>();
+      newMods = mods || [];
+    }
+
+    setSharedGroups((prev) => [
+      ...prev,
+      { ...newGroup, shared_modifiers: newMods },
+    ]);
+    toast.success("Section dupliquée");
+  };
 
   // --- Drag-and-drop ---
 
@@ -500,6 +748,34 @@ export default function MenuManagementPage() {
   return (
     <div className="px-4 py-4 md:px-6">
       <div className="mx-auto max-w-2xl">
+        {/* Tab navigation */}
+        <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+          <button
+            onClick={() => setActiveTab("articles")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "articles"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Articles
+          </button>
+          <button
+            onClick={() => setActiveTab("sections")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "sections"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Layers className="mr-1.5 inline h-3.5 w-3.5" />
+            Sections
+          </button>
+        </div>
+
+        {/* === Articles tab === */}
+        {activeTab === "articles" && (
+          <>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-bold">Articles</h2>
           <Button variant="outline" size="sm" onClick={openNewCategory}>
@@ -546,6 +822,261 @@ export default function MenuManagementPage() {
             </div>
           </SortableContext>
         </DndContext>
+
+          </>
+        )}
+
+        {/* === Sections tab === */}
+        {activeTab === "sections" && (
+          <>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Sections partagées</h2>
+                <p className="text-xs text-muted-foreground">
+                  Créez des options réutilisables (sauces, protéines...) et
+                  attribuez-les à vos articles.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={addSharedGroup}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Section
+              </Button>
+            </div>
+
+            {loadingSections ? (
+              <div className="flex h-32 items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              </div>
+            ) : sharedGroups.length === 0 ? (
+              <div className="py-12 text-center">
+                <Layers className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Aucune section partagée.
+                </p>
+                <Button variant="outline" onClick={addSharedGroup}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Créer une section
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sharedGroups.map((group) => (
+                  <div
+                    key={group.id}
+                    className="rounded-xl border border-border bg-card p-4"
+                  >
+                    {/* Group header */}
+                    <div className="mb-3 flex items-start gap-2">
+                      <Input
+                        value={group.name}
+                        onChange={(e) =>
+                          setSharedGroups((prev) =>
+                            prev.map((g) =>
+                              g.id === group.id
+                                ? { ...g, name: e.target.value }
+                                : g
+                            )
+                          )
+                        }
+                        onBlur={(e) =>
+                          updateSharedGroup(group.id, {
+                            name: e.target.value,
+                          })
+                        }
+                        className="h-9 text-sm font-semibold"
+                        placeholder="Nom de la section"
+                      />
+                      <button
+                        onClick={() => duplicateSharedGroup(group)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                        title="Dupliquer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteSharedGroup(group.id)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Min/Max */}
+                    <div className="mb-3 flex gap-2">
+                      <div className="flex-1">
+                        <Label className="text-xs text-muted-foreground">
+                          Min
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={group.min_select}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setSharedGroups((prev) =>
+                              prev.map((g) =>
+                                g.id === group.id
+                                  ? { ...g, min_select: val }
+                                  : g
+                              )
+                            );
+                          }}
+                          onBlur={(e) =>
+                            updateSharedGroup(group.id, {
+                              min_select: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-xs text-muted-foreground">
+                          Max
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={group.max_select}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 1;
+                            setSharedGroups((prev) =>
+                              prev.map((g) =>
+                                g.id === group.id
+                                  ? { ...g, max_select: val }
+                                  : g
+                              )
+                            );
+                          }}
+                          onBlur={(e) =>
+                            updateSharedGroup(group.id, {
+                              max_select: parseInt(e.target.value) || 1,
+                            })
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Modifiers list */}
+                    <div className="space-y-1.5">
+                      {group.shared_modifiers.map((modifier) => (
+                        <div
+                          key={modifier.id}
+                          className="flex items-center gap-2"
+                        >
+                          <Input
+                            value={modifier.name}
+                            onChange={(e) => {
+                              setSharedGroups((prev) =>
+                                prev.map((g) =>
+                                  g.id === group.id
+                                    ? {
+                                        ...g,
+                                        shared_modifiers:
+                                          g.shared_modifiers.map((m) =>
+                                            m.id === modifier.id
+                                              ? { ...m, name: e.target.value }
+                                              : m
+                                          ),
+                                      }
+                                    : g
+                                )
+                              );
+                            }}
+                            onBlur={(e) =>
+                              updateSharedModifier(modifier.id, group.id, {
+                                name: e.target.value,
+                              })
+                            }
+                            className="h-7 flex-1 text-xs"
+                            placeholder="Nom"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={(modifier.price_extra / 100).toFixed(2)}
+                            onChange={(e) => {
+                              const cents = Math.round(
+                                parseFloat(e.target.value || "0") * 100
+                              );
+                              setSharedGroups((prev) =>
+                                prev.map((g) =>
+                                  g.id === group.id
+                                    ? {
+                                        ...g,
+                                        shared_modifiers:
+                                          g.shared_modifiers.map((m) =>
+                                            m.id === modifier.id
+                                              ? { ...m, price_extra: cents }
+                                              : m
+                                          ),
+                                      }
+                                    : g
+                                )
+                              );
+                            }}
+                            onBlur={(e) => {
+                              const cents = Math.round(
+                                parseFloat(e.target.value || "0") * 100
+                              );
+                              updateSharedModifier(modifier.id, group.id, {
+                                price_extra: cents,
+                              });
+                            }}
+                            className="h-7 w-20 text-xs"
+                            placeholder="0.00"
+                          />
+                          <Switch
+                            checked={modifier.is_available}
+                            onCheckedChange={(checked) => {
+                              setSharedGroups((prev) =>
+                                prev.map((g) =>
+                                  g.id === group.id
+                                    ? {
+                                        ...g,
+                                        shared_modifiers:
+                                          g.shared_modifiers.map((m) =>
+                                            m.id === modifier.id
+                                              ? { ...m, is_available: checked }
+                                              : m
+                                          ),
+                                      }
+                                    : g
+                                )
+                              );
+                              updateSharedModifier(modifier.id, group.id, {
+                                is_available: checked,
+                              });
+                            }}
+                            className="scale-75"
+                          />
+                          <button
+                            onClick={() =>
+                              deleteSharedModifier(modifier.id, group.id)
+                            }
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => addSharedModifier(group.id)}
+                      className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Ajouter une option
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Product form sheet */}
