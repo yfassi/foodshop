@@ -127,6 +127,24 @@ export interface Order {
   updated_at: string;
 }
 
+export interface MenuChoiceGroup {
+  id: string;
+  product_id: string;
+  name: string;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface MenuChoiceItem {
+  id: string;
+  group_id: string;
+  product_id: string;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface SharedModifierGroup {
   id: string;
   restaurant_id: string;
