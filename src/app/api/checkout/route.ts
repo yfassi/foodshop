@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
+import { isCurrentlyOpen } from "@/lib/constants";
 import type { OrderItem, OrderItemModifier } from "@/lib/types";
 
 interface CheckoutItem {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, is_accepting_orders, stripe_account_id, stripe_onboarding_complete")
+      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete")
       .eq("slug", restaurant_slug)
       .single();
 
@@ -58,6 +59,13 @@ export async function POST(request: Request) {
     if (!restaurant.is_accepting_orders) {
       return NextResponse.json(
         { error: "Le restaurant ne prend plus de commandes" },
+        { status: 400 }
+      );
+    }
+
+    if (!isCurrentlyOpen(restaurant.opening_hours as Record<string, unknown> | null)) {
+      return NextResponse.json(
+        { error: "Le restaurant est actuellement fermé" },
         { status: 400 }
       );
     }

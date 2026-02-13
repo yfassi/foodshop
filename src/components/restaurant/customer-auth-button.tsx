@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/format";
 import type { CustomerProfile } from "@/lib/types";
 import { TopupDrawer } from "@/components/wallet/topup-drawer";
-import { User, LogOut, Wallet } from "lucide-react";
+import { User, LogOut, Wallet, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -15,10 +15,17 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [balance, setBalance] = useState(0);
+  const [walletId, setWalletId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const fetchBalance = useCallback(async () => {
+    const res = await fetch(`/api/wallet/balance?restaurant_slug=${slug}`);
+    const data = await res.json();
+    setBalance(data.balance || 0);
+  }, [slug]);
 
   useEffect(() => {
     const load = async () => {
@@ -48,11 +55,18 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
           setProfile(customerProfile as CustomerProfile);
 
           // Fetch wallet balance
-          const res = await fetch(
-            `/api/wallet/balance?restaurant_slug=${slug}`
-          );
-          const data = await res.json();
-          setBalance(data.balance || 0);
+          await fetchBalance();
+
+          // Get wallet ID for realtime subscription
+          const { data: walletData } = await supabase
+            .from("wallets")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (walletData) {
+            setWalletId(walletData.id);
+          }
         }
       }
 
@@ -60,14 +74,42 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
     };
 
     load();
-  }, [slug]);
+  }, [slug, fetchBalance]);
+
+  // Realtime subscription for wallet balance
+  useEffect(() => {
+    if (!walletId) return;
+
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`header-wallet-${walletId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "wallets",
+          filter: `id=eq.${walletId}`,
+        },
+        (payload) => {
+          setBalance((payload.new as { balance: number }).balance);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [walletId]);
 
   // Handle wallet topup success
   useEffect(() => {
     if (searchParams.get("wallet_topup") === "success") {
       toast.success("Solde rechargé avec succès !");
+      fetchBalance();
     }
-  }, [searchParams]);
+  }, [searchParams, fetchBalance]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -114,13 +156,20 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
 
         {menuOpen && (
           <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-lg border border-border bg-card p-1 shadow-lg">
-            {/* Balance */}
-            <div className="border-b border-border px-3 py-2">
-              <p className="text-xs text-muted-foreground">Solde</p>
-              <p className="text-sm font-bold text-primary">
-                {formatPrice(balance)}
-              </p>
-            </div>
+            {/* Balance + wallet link */}
+            <Link
+              href={`/${slug}/wallet`}
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-between border-b border-border px-3 py-2 hover:bg-accent rounded-md transition-colors"
+            >
+              <div>
+                <p className="text-xs text-muted-foreground">Mon solde</p>
+                <p className="text-sm font-bold text-primary">
+                  {formatPrice(balance)}
+                </p>
+              </div>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
             <button
               onClick={() => {
                 setMenuOpen(false);

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RestaurantHeader } from "@/components/restaurant/restaurant-header";
+import { ClosedBanner } from "@/components/restaurant/closed-banner";
 import { BrandingProvider } from "@/components/branding-provider";
 import type { Restaurant } from "@/lib/types";
 
@@ -50,11 +51,10 @@ export default async function RestaurantLayout({
       className="mx-auto min-h-screen max-w-3xl bg-background shadow-sm lg:my-6 lg:rounded-2xl lg:border lg:border-border"
     >
       <RestaurantHeader restaurant={restaurant} />
-      {!restaurant.is_accepting_orders && (
-        <div className="bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
-          Le restaurant ne prend plus de commandes pour le moment.
-        </div>
-      )}
+      <ClosedBanner
+        isAcceptingOrders={restaurant.is_accepting_orders}
+        openingHours={restaurant.opening_hours as Record<string, unknown> | null}
+      />
       <main className="pb-24">{children}</main>
     </BrandingProvider>
   );

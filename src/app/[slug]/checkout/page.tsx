@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
+import { isCurrentlyOpen } from "@/lib/constants";
 import type { AcceptedPaymentMethod, CustomerProfile } from "@/lib/types";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -32,11 +33,11 @@ export default function CheckoutPage() {
       // Fetch restaurant config
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id, is_accepting_orders, stripe_onboarding_complete, accepted_payment_methods")
+        .select("id, is_accepting_orders, opening_hours, stripe_onboarding_complete, accepted_payment_methods")
         .eq("slug", slug)
         .single();
 
-      if (restaurant && !restaurant.is_accepting_orders) {
+      if (restaurant && (!restaurant.is_accepting_orders || !isCurrentlyOpen(restaurant.opening_hours as Record<string, unknown> | null))) {
         router.replace(`/${slug}`);
         return;
       }

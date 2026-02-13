@@ -118,3 +118,35 @@ export function generateTimeOptions(): { value: string; label: string }[] {
 }
 
 export const TIME_OPTIONS = generateTimeOptions();
+
+/** Check if the restaurant is currently open based on opening_hours */
+export function isCurrentlyOpen(
+  openingHours: Record<string, unknown> | null | undefined
+): boolean {
+  if (!openingHours) return true; // No hours configured → always open
+
+  const days = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  const now = new Date();
+  const todayKey = days[now.getDay()];
+  const ranges = normalizeHoursEntry(openingHours[todayKey]);
+
+  if (!ranges || ranges.length === 0) return false; // No hours today → closed
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return ranges.some((range) => {
+    const [openH, openM] = range.open.split(":").map(Number);
+    const [closeH, closeM] = range.close.split(":").map(Number);
+    const openMin = openH * 60 + openM;
+    const closeMin = closeH * 60 + closeM;
+    return currentMinutes >= openMin && currentMinutes < closeMin;
+  });
+}
