@@ -24,7 +24,7 @@ export default async function MenuPage({
   // Fetch restaurant
   const { data: restaurant } = await supabase
     .from("restaurants")
-    .select("id, is_accepting_orders")
+    .select("id, is_accepting_orders, opening_hours")
     .eq("slug", slug)
     .single();
 
@@ -181,6 +181,7 @@ export default async function MenuPage({
     <MenuGrid
       categories={menu}
       isAcceptingOrders={restaurant.is_accepting_orders}
+      openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       slug={slug}
     />
   );

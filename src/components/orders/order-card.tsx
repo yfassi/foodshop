@@ -32,6 +32,11 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   const displayNumber =
     order.display_order_number || `#${order.order_number}`;
 
+  const orderTypeLabel =
+    order.order_type === "dine_in" ? "Sur place" :
+    order.order_type === "takeaway" ? "À emporter" :
+    null;
+
   // ─── Kitchen view ───
   if (view === "cuisine") {
     return (
@@ -42,9 +47,11 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
             <p className="text-3xl font-black leading-tight">
               {displayNumber}
             </p>
-            <p className="text-base font-semibold">
-              {order.customer_info.name}
-            </p>
+            {orderTypeLabel && (
+              <span className="mt-1 inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {orderTypeLabel}
+              </span>
+            )}
           </div>
           <OrderStatusBadge status={order.status} />
         </div>
@@ -114,13 +121,17 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       <div className="mb-2 flex items-start justify-between">
         <div>
           <p className="text-2xl font-bold">{displayNumber}</p>
-          <p className="text-sm font-medium">{order.customer_info.name}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <OrderStatusBadge status={order.status} />
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             {paymentIcon}
           </div>
+          {orderTypeLabel && (
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+              {orderTypeLabel}
+            </span>
+          )}
         </div>
       </div>
 

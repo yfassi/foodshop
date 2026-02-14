@@ -4,11 +4,10 @@ import { useState } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AcceptedPaymentMethod, CustomerProfile } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag } from "lucide-react";
 
 type PaymentMethod = "online" | "on_site";
 type PaymentSource = "direct" | "wallet";
@@ -17,12 +16,14 @@ export function CheckoutForm({
   slug,
   stripeConnected,
   acceptedPaymentMethods,
+  orderTypes,
   customerProfile,
   walletBalance,
 }: {
   slug: string;
   stripeConnected: boolean;
   acceptedPaymentMethods: AcceptedPaymentMethod[];
+  orderTypes: OrderType[];
   customerProfile: CustomerProfile | null;
   walletBalance: number;
 }) {
@@ -35,12 +36,12 @@ export function CheckoutForm({
   const showWallet = !!customerProfile && walletBalance >= totalPrice();
 
   const defaultMethod: PaymentMethod = showOnSite ? "on_site" : "online";
-  const [name, setName] = useState(customerProfile?.full_name ?? "");
+  const [orderType, setOrderType] = useState<OrderType>(orderTypes[0] ?? "dine_in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
 
-  const isFormValid = name.trim().length >= 2;
+  const showOrderTypeSelector = orderTypes.length > 1;
 
   const selectWallet = () => {
     setPaymentSource("wallet");
@@ -54,7 +55,7 @@ export function CheckoutForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid || loading) return;
+    if (loading) return;
 
     setLoading(true);
 
@@ -74,7 +75,7 @@ export function CheckoutForm({
               group_id: m.group_id,
             })),
           })),
-          customer_info: { name: name.trim() },
+          order_type: orderType,
           payment_method: paymentMethod,
           payment_source: paymentSource,
         }),
@@ -138,25 +139,42 @@ export function CheckoutForm({
         </div>
       </div>
 
-      {/* Customer info */}
-      {customerProfile ? (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Commande au nom de</p>
-          <p className="text-sm font-semibold">{customerProfile.full_name}</p>
-        </div>
-      ) : (
+      {/* Order type */}
+      {showOrderTypeSelector && (
         <div>
-          <Label htmlFor="name" className="text-sm font-medium">
-            Prenom / Nom
+          <Label className="mb-2.5 block text-sm font-medium">
+            Type de commande
           </Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ali"
-            required
-            className="mt-1.5 h-12 text-base"
-          />
+          <div className="grid grid-cols-2 gap-2">
+            {orderTypes.includes("dine_in") && (
+              <button
+                type="button"
+                onClick={() => setOrderType("dine_in")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                  orderType === "dine_in"
+                    ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
+                    : "border-border hover:border-primary/50 hover:bg-accent"
+                }`}
+              >
+                <UtensilsCrossed className="h-4 w-4" />
+                Sur place
+              </button>
+            )}
+            {orderTypes.includes("takeaway") && (
+              <button
+                type="button"
+                onClick={() => setOrderType("takeaway")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                  orderType === "takeaway"
+                    ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
+                    : "border-border hover:border-primary/50 hover:bg-accent"
+                }`}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                À emporter
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -214,7 +232,7 @@ export function CheckoutForm({
       {/* Submit */}
       <Button
         type="submit"
-        disabled={!isFormValid || loading}
+        disabled={loading}
         className="h-14 w-full rounded-xl text-base font-bold"
         size="lg"
       >

@@ -138,7 +138,7 @@ export default function AdminSignupPage() {
             href="/admin/login"
             className="font-medium text-primary hover:underline"
           >
-            Se connecter
+            Connexion
           </Link>
         </p>
       </div>

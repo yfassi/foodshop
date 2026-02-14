@@ -2,6 +2,7 @@
 
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
+export type OrderType = "dine_in" | "takeaway";
 
 export interface LoyaltyTier {
   id: string;
@@ -29,6 +30,7 @@ export interface Restaurant {
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
   accepted_payment_methods: AcceptedPaymentMethod[];
+  order_types: OrderType[];
   loyalty_enabled: boolean;
   loyalty_tiers: LoyaltyTier[];
   created_at: string;
@@ -86,7 +88,7 @@ export type PaymentMethod = "online" | "on_site";
 export type OrderView = "comptoir" | "cuisine";
 
 export interface OrderCustomerInfo {
-  name: string;
+  name?: string;
   phone?: string;
 }
 
@@ -118,6 +120,7 @@ export interface Order {
   total_price: number;
   pickup_time: string | null;
   payment_method: PaymentMethod;
+  order_type: OrderType | null;
   payment_source: PaymentSource;
   customer_user_id: string | null;
   stripe_session_id: string | null;

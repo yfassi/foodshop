@@ -3,10 +3,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, full_name } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email et mot de passe requis" }, { status: 400 });
+    }
+
+    if (!full_name?.trim()) {
+      return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
     }
 
     if (password.length < 6) {
@@ -27,6 +31,21 @@ export async function POST(request: Request) {
       }
       console.error("Signup error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Create customer profile in the same request
+    const { error: profileError } = await supabase
+      .from("customer_profiles")
+      .insert({ user_id: data.user.id, full_name: full_name.trim() });
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError);
+      // Roll back: delete the auth user so the customer can retry
+      await supabase.auth.admin.deleteUser(data.user.id);
+      return NextResponse.json(
+        { error: "Erreur lors de la création du profil" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ user: { id: data.user.id, email: data.user.email } });

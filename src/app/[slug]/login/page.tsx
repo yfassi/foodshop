@@ -86,7 +86,7 @@ export default function CustomerLoginPage() {
           className="h-12 w-full font-semibold"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Se connecter
+          Connexion
         </Button>
       </form>
 

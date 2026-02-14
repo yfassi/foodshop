@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function CustomerSignupPage() {
-  const router = useRouter();
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
 
@@ -36,11 +35,11 @@ export default function CustomerSignupPage() {
 
     setLoading(true);
 
-    // Create user via API (auto-confirms email)
+    // Create user + profile via API (auto-confirms email)
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, full_name: fullName.trim() }),
     });
 
     const result = await res.json();
@@ -61,22 +60,6 @@ export default function CustomerSignupPage() {
     if (signInError) {
       toast.error(signInError.message);
       setLoading(false);
-      return;
-    }
-
-    // Create customer profile via API (uses admin client to bypass RLS)
-    const profileRes = await fetch("/api/customer/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: result.user.id, full_name: fullName.trim() }),
-    });
-
-    if (!profileRes.ok) {
-      const profileData = await profileRes.json();
-      console.error("Profile creation error:", profileData.error);
-      toast.error("Compte créé mais erreur lors de la création du profil");
-      setLoading(false);
-      router.push(`/${slug}`);
       return;
     }
 
@@ -164,7 +147,7 @@ export default function CustomerSignupPage() {
           href={`/${slug}/login`}
           className="font-medium text-primary hover:underline"
         >
-          Se connecter
+          Connexion
         </Link>
       </p>
     </div>
