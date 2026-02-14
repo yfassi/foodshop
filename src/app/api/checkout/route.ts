@@ -16,7 +16,7 @@ interface CheckoutItem {
 interface CheckoutBody {
   restaurant_slug: string;
   items: CheckoutItem[];
-  customer_info: { name: string; phone?: string };
+  order_type?: "dine_in" | "takeaway";
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
 }
@@ -27,13 +27,13 @@ export async function POST(request: Request) {
     const {
       restaurant_slug,
       items,
-      customer_info,
+      order_type,
       payment_method,
       payment_source = "direct",
     } = body;
 
     // Validate input
-    if (!restaurant_slug || !items?.length || !customer_info?.name) {
+    if (!restaurant_slug || !items?.length) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
         { status: 400 }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete")
+      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types")
       .eq("slug", restaurant_slug)
       .single();
 
@@ -76,6 +76,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Validate order type
+    const restaurantOrderTypes: string[] = (restaurant.order_types as string[]) || ["dine_in", "takeaway"];
+    const resolvedOrderType = order_type && restaurantOrderTypes.includes(order_type) ? order_type : restaurantOrderTypes[0];
 
     // Get authenticated user if any
     let customerUserId: string | null = null;
@@ -271,11 +275,12 @@ export async function POST(request: Request) {
         .from("orders")
         .insert({
           restaurant_id: restaurant.id,
-          customer_info,
+          customer_info: {},
           items: orderItems,
           status: "new",
           total_price: totalPrice,
           payment_method,
+          order_type: resolvedOrderType,
           payment_source: "wallet",
           customer_user_id: customerUserId,
           display_order_number: displayOrderNumber,
@@ -318,11 +323,12 @@ export async function POST(request: Request) {
       .from("orders")
       .insert({
         restaurant_id: restaurant.id,
-        customer_info,
+        customer_info: {},
         items: orderItems,
         status: "new",
         total_price: totalPrice,
         payment_method,
+        order_type: resolvedOrderType,
         payment_source: "direct",
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),

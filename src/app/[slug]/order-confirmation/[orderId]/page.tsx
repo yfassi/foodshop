@@ -28,6 +28,10 @@ export default async function OrderConfirmationPage({
 
   const isOnSite = order.payment_method === "on_site" && order.payment_source !== "wallet";
   const orderNumber = order.display_order_number || `#${order.order_number}`;
+  const orderTypeLabel =
+    order.order_type === "dine_in" ? "Sur place" :
+    order.order_type === "takeaway" ? "À emporter" :
+    null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 md:px-6">
@@ -45,6 +49,11 @@ export default async function OrderConfirmationPage({
           Votre numéro de commande
         </p>
         <p className="mt-1 text-4xl font-bold text-primary">{orderNumber}</p>
+        {orderTypeLabel && (
+          <span className="mt-2 inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+            {orderTypeLabel}
+          </span>
+        )}
         <p className="mt-3 text-sm text-muted-foreground">
           {isOnSite ? (
             <>

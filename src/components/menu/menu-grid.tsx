@@ -6,17 +6,28 @@ import { CategorySection } from "./category-section";
 import { FloatingCartButton } from "@/components/cart/floating-cart-button";
 import { useCartStore } from "@/stores/cart-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { isCurrentlyOpen } from "@/lib/constants";
 
 export function MenuGrid({
   categories,
   isAcceptingOrders,
+  openingHours,
   slug,
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
+  openingHours: Record<string, unknown> | null;
   slug: string;
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
+  const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
+
+  useEffect(() => {
+    const check = () => setIsOpen(isCurrentlyOpen(openingHours));
+    check();
+    const interval = setInterval(check, 60_000);
+    return () => clearInterval(interval);
+  }, [openingHours]);
   const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [activeCategoryId, setActiveCategoryId] = useState<string>(
@@ -125,7 +136,7 @@ export function MenuGrid({
       </div>
 
       {/* Floating cart button */}
-      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders} />
+      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} />
     </div>
   );
 }

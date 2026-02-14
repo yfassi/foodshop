@@ -187,7 +187,7 @@ export default function DashboardPage() {
     const map = new Map<string, { orders: number; total: number }>();
 
     for (const o of completed) {
-      const name = o.customer_info.name;
+      const name = o.customer_info.name || o.display_order_number || "Anonyme";
       const prev = map.get(name) || { orders: 0, total: 0 };
       map.set(name, {
         orders: prev.orders + 1,

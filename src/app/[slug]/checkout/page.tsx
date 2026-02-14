@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentlyOpen } from "@/lib/constants";
-import type { AcceptedPaymentMethod, CustomerProfile } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -18,6 +18,7 @@ export default function CheckoutPage() {
   const [stripeConnected, setStripeConnected] = useState(false);
   const [acceptedMethods, setAcceptedMethods] = useState<AcceptedPaymentMethod[]>(["on_site"]);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [orderTypes, setOrderTypes] = useState<OrderType[]>(["dine_in", "takeaway"]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,7 @@ export default function CheckoutPage() {
       // Fetch restaurant config
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id, is_accepting_orders, opening_hours, stripe_onboarding_complete, accepted_payment_methods")
+        .select("id, is_accepting_orders, opening_hours, stripe_onboarding_complete, accepted_payment_methods, order_types")
         .eq("slug", slug)
         .single();
 
@@ -46,6 +47,8 @@ export default function CheckoutPage() {
         setStripeConnected(restaurant.stripe_onboarding_complete === true);
         const methods = (restaurant.accepted_payment_methods as string[]) || ["on_site"];
         setAcceptedMethods(methods as AcceptedPaymentMethod[]);
+        const types = (restaurant.order_types as string[]) || ["dine_in", "takeaway"];
+        setOrderTypes(types as OrderType[]);
 
         // Fetch customer profile if logged in
         const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +108,7 @@ export default function CheckoutPage() {
           slug={slug}
           stripeConnected={stripeConnected}
           acceptedPaymentMethods={acceptedMethods}
+          orderTypes={orderTypes}
           customerProfile={customerProfile}
           walletBalance={walletBalance}
         />

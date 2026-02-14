@@ -28,6 +28,7 @@ CREATE TABLE public.restaurants (
   owner_id UUID REFERENCES auth.users(id),
   stripe_account_id TEXT,
   stripe_onboarding_complete BOOLEAN NOT NULL DEFAULT false,
+  order_types JSONB NOT NULL DEFAULT '["dine_in","takeaway"]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -114,6 +115,7 @@ CREATE TABLE public.orders (
   total_price INTEGER NOT NULL,
   pickup_time TIMESTAMPTZ,
   payment_method TEXT NOT NULL DEFAULT 'on_site',
+  order_type TEXT,
   stripe_session_id TEXT,
   stripe_payment_intent_id TEXT,
   paid BOOLEAN NOT NULL DEFAULT false,

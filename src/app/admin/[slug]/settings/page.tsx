@@ -34,9 +34,10 @@ import {
   ChevronRight,
   Check,
   Type,
+  UtensilsCrossed,
 } from "lucide-react";
 import Image from "next/image";
-import type { Restaurant, LoyaltyTier } from "@/lib/types";
+import type { Restaurant, LoyaltyTier, OrderType } from "@/lib/types";
 import {
   DAYS_FR,
   DAYS_FR_SHORT,
@@ -129,6 +130,8 @@ export default function SettingsPage() {
   const [hours, setHours] = useState<Record<string, TimeRange[] | null>>({});
   const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
+  const [orderTypeDineIn, setOrderTypeDineIn] = useState(true);
+  const [orderTypeTakeaway, setOrderTypeTakeaway] = useState(true);
   const [savingRestaurant, setSavingRestaurant] = useState(false);
 
   // Payment methods
@@ -189,6 +192,10 @@ export default function SettingsPage() {
         const methods: string[] = data.accepted_payment_methods || ["on_site"];
         setAcceptOnSite(methods.includes("on_site"));
         setAcceptOnline(methods.includes("online"));
+
+        const types: string[] = data.order_types || ["dine_in", "takeaway"];
+        setOrderTypeDineIn(types.includes("dine_in"));
+        setOrderTypeTakeaway(types.includes("takeaway"));
 
         setLoyaltyEnabled(data.loyalty_enabled ?? false);
         setLoyaltyTiers(data.loyalty_tiers ?? []);
@@ -261,6 +268,11 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!orderTypeDineIn && !orderTypeTakeaway) {
+      toast.error("Au moins un type de commande doit être actif");
+      return;
+    }
+
     setSavingRestaurant(true);
     const supabase = createClient();
 
@@ -271,6 +283,10 @@ export default function SettingsPage() {
       }
     }
 
+    const orderTypes: OrderType[] = [];
+    if (orderTypeDineIn) orderTypes.push("dine_in");
+    if (orderTypeTakeaway) orderTypes.push("takeaway");
+
     const { error } = await supabase
       .from("restaurants")
       .update({
@@ -279,6 +295,7 @@ export default function SettingsPage() {
         phone: phone.trim() || null,
         description: description.trim() || null,
         opening_hours: openingHours,
+        order_types: orderTypes,
       })
       .eq("id", restaurant!.id);
 
@@ -615,6 +632,43 @@ export default function SettingsPage() {
                   />
                 }
               />
+            </Section>
+
+            {/* Order types */}
+            <Section>
+              <SectionHeader
+                icon={UtensilsCrossed}
+                title="Types de commande"
+                description="Sur place, à emporter ou les deux"
+              />
+
+              <div className="mt-4 space-y-1">
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
+                  <div>
+                    <p className="text-sm font-medium">Sur place</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le client mange sur place
+                    </p>
+                  </div>
+                  <Switch
+                    checked={orderTypeDineIn}
+                    onCheckedChange={setOrderTypeDineIn}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
+                  <div>
+                    <p className="text-sm font-medium">À emporter</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le client emporte sa commande
+                    </p>
+                  </div>
+                  <Switch
+                    checked={orderTypeTakeaway}
+                    onCheckedChange={setOrderTypeTakeaway}
+                  />
+                </div>
+              </div>
             </Section>
 
             {/* Public link & QR code */}
