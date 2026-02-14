@@ -19,6 +19,8 @@ export interface Restaurant {
   name: string;
   slug: string;
   description: string | null;
+  restaurant_type: string | null;
+  siret: string | null;
   logo_url: string | null;
   primary_color: string | null;
   font_family: string | null;
