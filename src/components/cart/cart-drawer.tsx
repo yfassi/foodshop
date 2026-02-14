@@ -12,16 +12,21 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { CartItem } from "./cart-item";
-import { Trash2 } from "lucide-react";
+import { CartSuggestions } from "./cart-suggestions";
+import { Trash2, ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
+import type { CategoryWithProducts } from "@/lib/types";
 
 interface CartDrawerProps {
   open: boolean;
   onClose: () => void;
   slug: string;
   disabled?: boolean;
+  categories?: CategoryWithProducts[];
+  upsellThreshold?: number | null;
 }
 
-export function CartDrawer({ open, onClose, slug, disabled }: CartDrawerProps) {
+export function CartDrawer({ open, onClose, slug, disabled, categories, upsellThreshold }: CartDrawerProps) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -41,7 +46,14 @@ export function CartDrawer({ open, onClose, slug, disabled }: CartDrawerProps) {
           </DrawerTitle>
           {items.length > 0 && (
             <button
-              onClick={clearCart}
+              onClick={() => {
+                toast("Vider le panier ?", {
+                  action: {
+                    label: "Confirmer",
+                    onClick: () => clearCart(),
+                  },
+                });
+              }}
               className="flex items-center gap-1 text-xs font-medium text-destructive hover:underline"
             >
               <Trash2 className="h-3 w-3" />
@@ -56,9 +68,33 @@ export function CartDrawer({ open, onClose, slug, disabled }: CartDrawerProps) {
               Votre panier est vide.
             </p>
           ) : (
-            items.map((item) => <CartItem key={item.id} item={item} />)
+            <>
+              {items.map((item) => <CartItem key={item.id} item={item} />)}
+
+              {/* Suggestions */}
+              {categories && categories.length > 0 && (
+                <CartSuggestions categories={categories} />
+              )}
+            </>
           )}
         </div>
+
+        {/* Upsell progress bar */}
+        {items.length > 0 && upsellThreshold && upsellThreshold > 0 && totalPrice() < upsellThreshold && (
+          <div className="border-t border-border px-4 pt-3">
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                Plus que <span className="font-semibold text-primary">{formatPrice(upsellThreshold - totalPrice())}</span> pour la livraison offerte
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${Math.min(100, (totalPrice() / upsellThreshold) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {items.length > 0 && (
           <DrawerFooter className="border-t border-border pt-3">
@@ -78,6 +114,13 @@ export function CartDrawer({ open, onClose, slug, disabled }: CartDrawerProps) {
                 ? "Commandes fermees"
                 : `Commander \u2014 ${formatPrice(totalPrice())}`}
             </Button>
+            <button
+              onClick={onClose}
+              className="flex w-full items-center justify-center gap-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Continuer mes achats
+            </button>
           </DrawerFooter>
         )}
       </DrawerContent>

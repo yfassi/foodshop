@@ -22,11 +22,15 @@ export default async function MenuPage({
   const supabase = await createClient();
 
   // Fetch restaurant
-  const { data: restaurant } = await supabase
+  const { data: restaurant, error: restaurantError } = await supabase
     .from("restaurants")
-    .select("id, is_accepting_orders, opening_hours")
+    .select("*")
     .eq("slug", slug)
     .single();
+
+  if (restaurantError) {
+    console.error("[MenuPage] Restaurant fetch error:", restaurantError.message, "slug:", slug);
+  }
 
   if (!restaurant) notFound();
 
@@ -183,6 +187,7 @@ export default async function MenuPage({
       isAcceptingOrders={restaurant.is_accepting_orders}
       openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       slug={slug}
+      upsellThreshold={(restaurant.upsell_threshold as number | null) ?? null}
     />
   );
 }

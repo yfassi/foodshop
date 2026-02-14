@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Minus, Plus, Check } from "lucide-react";
+import { Minus, Plus, Check, Star } from "lucide-react";
 import { toast } from "sonner";
 
 interface ModifierModalProps {
@@ -183,12 +183,16 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
 
         {product.menu_supplement !== null && product.menu_supplement !== undefined && (
           <div className="border-b border-border px-4 py-3">
+            <div className="mb-2 flex items-center gap-1.5">
+              <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+              <span className="text-xs font-semibold text-primary">Offre recommandée</span>
+            </div>
             <button
               onClick={() => setIsMenu(!isMenu)}
-              className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-left transition-all ${
+              className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3.5 text-left transition-all ${
                 isMenu
                   ? "border-primary bg-primary/10 ring-1 ring-primary"
-                  : "border-border hover:border-primary/50 hover:bg-accent"
+                  : "border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10"
               }`}
             >
               <div className="flex-1">

@@ -35,6 +35,7 @@ import {
   Check,
   Type,
   UtensilsCrossed,
+  Target,
 } from "lucide-react";
 import Image from "next/image";
 import type { Restaurant, LoyaltyTier, OrderType } from "@/lib/types";
@@ -132,6 +133,8 @@ export default function SettingsPage() {
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
   const [orderTypeDineIn, setOrderTypeDineIn] = useState(true);
   const [orderTypeTakeaway, setOrderTypeTakeaway] = useState(true);
+  const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState("15");
+  const [upsellThresholdEuros, setUpsellThresholdEuros] = useState("");
   const [savingRestaurant, setSavingRestaurant] = useState(false);
 
   // Payment methods
@@ -196,6 +199,8 @@ export default function SettingsPage() {
         const types: string[] = data.order_types || ["dine_in", "takeaway"];
         setOrderTypeDineIn(types.includes("dine_in"));
         setOrderTypeTakeaway(types.includes("takeaway"));
+        setEstimatedPrepMinutes(String(data.estimated_prep_minutes ?? 15));
+        setUpsellThresholdEuros(data.upsell_threshold ? (data.upsell_threshold / 100).toFixed(2) : "");
 
         setLoyaltyEnabled(data.loyalty_enabled ?? false);
         setLoyaltyTiers(data.loyalty_tiers ?? []);
@@ -296,6 +301,8 @@ export default function SettingsPage() {
         description: description.trim() || null,
         opening_hours: openingHours,
         order_types: orderTypes,
+        estimated_prep_minutes: parseInt(estimatedPrepMinutes) || 15,
+        upsell_threshold: upsellThresholdEuros ? Math.round(parseFloat(upsellThresholdEuros) * 100) : null,
       })
       .eq("id", restaurant!.id);
 
@@ -668,6 +675,52 @@ export default function SettingsPage() {
                     onCheckedChange={setOrderTypeTakeaway}
                   />
                 </div>
+              </div>
+            </Section>
+
+            {/* Estimated prep time */}
+            <Section>
+              <SectionHeader
+                icon={Clock}
+                title="Temps de préparation estimé"
+                description="Affiché au client après la commande"
+              />
+              <div className="mt-4 flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={estimatedPrepMinutes}
+                  onChange={(e) => setEstimatedPrepMinutes(e.target.value)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">minutes</span>
+              </div>
+            </Section>
+
+            {/* Upsell threshold */}
+            <Section>
+              <SectionHeader
+                icon={Target}
+                title="Seuil d'incitation"
+                description="Barre de progression dans le panier pour encourager un montant minimum"
+              />
+              <div className="mt-4 flex items-center gap-3">
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={upsellThresholdEuros}
+                    onChange={(e) => setUpsellThresholdEuros(e.target.value)}
+                    placeholder="Ex: 15.00"
+                    className="w-32 pr-8"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    €
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">Laisser vide pour désactiver</span>
               </div>
             </Section>
 

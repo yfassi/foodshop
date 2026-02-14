@@ -35,9 +35,13 @@ export interface Restaurant {
   order_types: OrderType[];
   loyalty_enabled: boolean;
   loyalty_tiers: LoyaltyTier[];
+  estimated_prep_minutes: number | null;
+  upsell_threshold: number | null;
   created_at: string;
   updated_at: string;
 }
+
+export type CategoryType = "main" | "drink" | "dessert" | "side" | "other";
 
 export interface Category {
   id: string;
@@ -47,6 +51,7 @@ export interface Category {
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;
+  category_type: CategoryType;
   created_at: string;
 }
 
@@ -58,6 +63,7 @@ export interface Product {
   image_url: string | null;
   category_id: string;
   is_available: boolean;
+  is_featured: boolean;
   sort_order: number;
   menu_supplement: number | null;
   menu_description: string | null;
@@ -92,6 +98,7 @@ export type OrderView = "comptoir" | "cuisine";
 export interface OrderCustomerInfo {
   name?: string;
   phone?: string;
+  notes?: string;
 }
 
 export interface OrderItemModifier {

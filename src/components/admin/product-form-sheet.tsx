@@ -84,6 +84,7 @@ export function ProductFormSheet({
   const [priceEuros, setPriceEuros] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
+  const [isFeatured, setIsFeatured] = useState(false);
   const [menuEnabled, setMenuEnabled] = useState(false);
   const [menuSupplementEuros, setMenuSupplementEuros] = useState("");
   const [menuDescription, setMenuDescription] = useState("");
@@ -115,6 +116,7 @@ export function ProductFormSheet({
       setPriceEuros((product.price / 100).toFixed(2));
       setCategoryId(product.category_id);
       setIsAvailable(product.is_available);
+      setIsFeatured(product.is_featured ?? false);
       setMenuEnabled(product.menu_supplement !== null && product.menu_supplement !== undefined);
       setMenuSupplementEuros(
         product.menu_supplement != null
@@ -134,6 +136,7 @@ export function ProductFormSheet({
       setPriceEuros("");
       setCategoryId(defaultCategoryId);
       setIsAvailable(true);
+      setIsFeatured(false);
       setMenuEnabled(false);
       setMenuSupplementEuros("");
       setMenuDescription("");
@@ -488,6 +491,7 @@ export function ProductFormSheet({
       price: priceInCents,
       category_id: categoryId,
       is_available: isAvailable,
+      is_featured: isFeatured,
     };
 
     // Only include menu fields when menu is enabled (avoids error if columns don't exist yet)
@@ -1086,6 +1090,19 @@ export function ProductFormSheet({
                 <Switch
                   checked={isAvailable}
                   onCheckedChange={setIsAvailable}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">À la une</Label>
+                  <p className="text-[11px] text-muted-foreground">Affiché en haut du menu</p>
+                </div>
+                <Switch
+                  checked={isFeatured}
+                  onCheckedChange={setIsFeatured}
                 />
               </div>
 
