@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/admin/login") &&
     !request.nextUrl.pathname.startsWith("/admin/signup") &&
     !request.nextUrl.pathname.startsWith("/admin/onboarding") &&
+    !request.nextUrl.pathname.startsWith("/admin/reset-password") &&
     !isDemo
   ) {
     if (!user) {

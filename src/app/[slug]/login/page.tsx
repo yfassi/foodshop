@@ -18,6 +18,7 @@ export default function CustomerLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +40,27 @@ export default function CustomerLoginPage() {
 
     router.push(`/${slug}`);
     router.refresh();
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      toast.error("Entrez votre email d'abord");
+      return;
+    }
+
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/${slug}/reset-password`,
+    });
+
+    if (error) {
+      toast.error("Erreur lors de l'envoi du lien");
+    } else {
+      setResetSent(true);
+      toast.success("Lien de réinitialisation envoyé par email");
+    }
+    setLoading(false);
   };
 
   return (
@@ -89,6 +111,15 @@ export default function CustomerLoginPage() {
           Connexion
         </Button>
       </form>
+
+      <button
+        type="button"
+        onClick={handleResetPassword}
+        disabled={loading || resetSent}
+        className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+      >
+        {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+      </button>
 
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Pas encore de compte ?{" "}
