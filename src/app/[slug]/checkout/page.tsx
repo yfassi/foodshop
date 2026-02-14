@@ -6,7 +6,8 @@ import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentlyOpen } from "@/lib/constants";
-import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, OrderType, CategoryWithProducts, Category, Product, ModifierGroup, Modifier } from "@/lib/types";
+import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -20,6 +21,8 @@ export default function CheckoutPage() {
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
   const [orderTypes, setOrderTypes] = useState<OrderType[]>(["dine_in", "takeaway"]);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export default function CheckoutPage() {
       // Fetch restaurant config
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id, is_accepting_orders, opening_hours, stripe_onboarding_complete, accepted_payment_methods, order_types")
+        .select("*")
         .eq("slug", slug)
         .single();
 
@@ -49,6 +52,39 @@ export default function CheckoutPage() {
         setAcceptedMethods(methods as AcceptedPaymentMethod[]);
         const types = (restaurant.order_types as string[]) || ["dine_in", "takeaway"];
         setOrderTypes(types as OrderType[]);
+        setLoyaltyEnabled(restaurant.loyalty_enabled === true);
+
+        // Fetch categories for suggestions
+        const { data: cats } = await supabase
+          .from("categories")
+          .select("*")
+          .eq("restaurant_id", restaurant.id)
+          .eq("is_visible", true)
+          .order("sort_order")
+          .returns<Category[]>();
+
+        if (cats && cats.length > 0) {
+          const { data: prods } = await supabase
+            .from("products")
+            .select("*")
+            .in("category_id", cats.map((c) => c.id))
+            .eq("is_available", true)
+            .order("sort_order")
+            .returns<Product[]>();
+
+          if (prods) {
+            const catWithProducts: CategoryWithProducts[] = cats
+              .map((cat) => ({
+                ...cat,
+                products: (prods.filter((p) => p.category_id === cat.id) || []).map((p) => ({
+                  ...p,
+                  modifier_groups: [] as { id: string; name: string; product_id: string; min_select: number; max_select: number; sort_order: number; created_at: string; modifiers: Modifier[] }[],
+                })),
+              }))
+              .filter((cat) => cat.products.length > 0);
+            setCategories(catWithProducts);
+          }
+        }
 
         // Fetch customer profile if logged in
         const { data: { user } } = await supabase.auth.getUser();
@@ -104,6 +140,11 @@ export default function CheckoutPage() {
       <h2 className="mb-4 text-lg font-bold">Finaliser la commande</h2>
 
       <div className="mx-auto max-w-lg">
+        {/* Last-chance suggestions */}
+        {categories.length > 0 && (
+          <CartSuggestions categories={categories} label="Un petit extra ?" />
+        )}
+
         <CheckoutForm
           slug={slug}
           stripeConnected={stripeConnected}
@@ -111,6 +152,7 @@ export default function CheckoutPage() {
           orderTypes={orderTypes}
           customerProfile={customerProfile}
           walletBalance={walletBalance}
+          loyaltyEnabled={loyaltyEnabled}
         />
       </div>
     </div>

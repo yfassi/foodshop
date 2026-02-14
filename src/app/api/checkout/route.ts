@@ -19,6 +19,8 @@ interface CheckoutBody {
   order_type?: "dine_in" | "takeaway";
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
+  customer_name?: string;
+  order_notes?: string;
 }
 
 export async function POST(request: Request) {
@@ -30,6 +32,8 @@ export async function POST(request: Request) {
       order_type,
       payment_method,
       payment_source = "direct",
+      customer_name,
+      order_notes,
     } = body;
 
     // Validate input
@@ -245,6 +249,11 @@ export async function POST(request: Request) {
       });
     }
 
+    // Build customer info
+    const customerInfo: Record<string, string> = {};
+    if (customer_name) customerInfo.name = customer_name;
+    if (order_notes) customerInfo.notes = order_notes;
+
     // Generate display order number
     const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
     const { data: orderNumberResult } = await supabase.rpc(
@@ -275,7 +284,7 @@ export async function POST(request: Request) {
         .from("orders")
         .insert({
           restaurant_id: restaurant.id,
-          customer_info: {},
+          customer_info: customerInfo,
           items: orderItems,
           status: "new",
           total_price: totalPrice,
@@ -323,7 +332,7 @@ export async function POST(request: Request) {
       .from("orders")
       .insert({
         restaurant_id: restaurant.id,
-        customer_info: {},
+        customer_info: customerInfo,
         items: orderItems,
         status: "new",
         total_price: totalPrice,

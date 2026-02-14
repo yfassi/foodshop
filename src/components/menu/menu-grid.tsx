@@ -1,26 +1,33 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { CategoryWithProducts } from "@/lib/types";
+import type { CategoryWithProducts, ProductWithModifiers } from "@/lib/types";
 import { CategorySection } from "./category-section";
+import { FeaturedProducts } from "./featured-products";
 import { FloatingCartButton } from "@/components/cart/floating-cart-button";
+import { ModifierModal } from "./modifier-modal";
 import { useCartStore } from "@/stores/cart-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { isCurrentlyOpen } from "@/lib/constants";
+import { Search, X } from "lucide-react";
 
 export function MenuGrid({
   categories,
   isAcceptingOrders,
   openingHours,
   slug,
+  upsellThreshold,
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
   openingHours: Record<string, unknown> | null;
   slug: string;
+  upsellThreshold?: number | null;
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithModifiers | null>(null);
 
   useEffect(() => {
     const check = () => setIsOpen(isCurrentlyOpen(openingHours));
@@ -95,48 +102,115 @@ export function MenuGrid({
     }
   }, []);
 
+  // Filter categories/products by search query
+  const query = searchQuery.toLowerCase().trim();
+  const filteredCategories = query
+    ? categories
+        .map((cat) => ({
+          ...cat,
+          products: cat.products.filter((p) =>
+            p.name.toLowerCase().includes(query)
+          ),
+        }))
+        .filter((cat) => cat.products.length > 0)
+    : categories;
+
+  // Collect featured products (only when not searching)
+  const featuredProducts = query
+    ? []
+    : categories.flatMap((cat) =>
+        cat.products.filter((p) => p.is_featured && p.is_available)
+      );
+
   return (
     <div>
-      {/* Sticky category nav */}
+      {/* Sticky category nav + search */}
       <nav className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
-        <ScrollArea className="w-full">
-          <div className="flex gap-1.5 px-3 py-2.5">
-            {categories.map((cat) => (
+        {/* Search bar */}
+        <div className="px-3 pt-2.5">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un produit..."
+              className="h-9 w-full rounded-lg border border-border bg-muted/50 pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/50"
+            />
+            {searchQuery && (
               <button
-                key={cat.id}
-                ref={(el) => {
-                  if (el) chipRefs.current.set(cat.id, el);
-                }}
-                onClick={() => scrollToCategory(cat.id)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  activeCategoryId === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary hover:bg-primary hover:text-primary-foreground"
-                }`}
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                {cat.name}
+                <X className="h-4 w-4" />
               </button>
-            ))}
+            )}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
+
+        {/* Category chips (hidden when searching) */}
+        {!query && (
+          <ScrollArea className="w-full">
+            <div className="flex gap-1.5 px-3 py-2.5">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  ref={(el) => {
+                    if (el) chipRefs.current.set(cat.id, el);
+                  }}
+                  onClick={() => scrollToCategory(cat.id)}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    activeCategoryId === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary hover:bg-primary hover:text-primary-foreground"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        )}
       </nav>
+
+      {/* Featured products (only when not searching) */}
+      {featuredProducts.length > 0 && (
+        <FeaturedProducts
+          products={featuredProducts}
+          onProductClick={setSelectedProduct}
+        />
+      )}
 
       {/* Categories + products */}
       <div className="px-4 py-4 md:px-6">
-        {categories.map((category) => (
-          <CategorySection
-            key={category.id}
-            category={category}
-            ref={(el) => {
-              if (el) categoryRefs.current.set(category.id, el);
-            }}
-          />
-        ))}
+        {filteredCategories.length === 0 && query ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Aucun produit trouvé pour &quot;{searchQuery}&quot;
+          </p>
+        ) : (
+          filteredCategories.map((category) => (
+            <CategorySection
+              key={category.id}
+              category={category}
+              ref={(el) => {
+                if (el) categoryRefs.current.set(category.id, el);
+              }}
+            />
+          ))
+        )}
       </div>
 
       {/* Floating cart button */}
-      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} />
+      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} upsellThreshold={upsellThreshold} />
+
+      {/* Featured product modal */}
+      {selectedProduct && (
+        <ModifierModal
+          product={selectedProduct}
+          open={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   );
 }

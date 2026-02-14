@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
-import { CheckCircle, UserPlus } from "lucide-react";
+import { CheckCircle, UserPlus, ShoppingBag, MessageSquare, Clock } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
@@ -21,6 +21,15 @@ export default async function OrderConfirmationPage({
     .single<Order>();
 
   if (!order) notFound();
+
+  // Fetch estimated prep time
+  const { data: restaurant } = await supabase
+    .from("restaurants")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  const estimatedMinutes = restaurant?.estimated_prep_minutes ?? null;
 
   const {
     data: { user },
@@ -40,7 +49,11 @@ export default async function OrderConfirmationPage({
         <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
           <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
-        <h2 className="text-xl font-bold">Commande confirmée !</h2>
+        <h2 className="text-xl font-bold">
+          {order.customer_info?.name
+            ? `Merci ${order.customer_info.name} !`
+            : "Commande confirmée !"}
+        </h2>
       </div>
 
       {/* Order number + payment instruction */}
@@ -49,11 +62,19 @@ export default async function OrderConfirmationPage({
           Votre numéro de commande
         </p>
         <p className="mt-1 text-4xl font-bold text-primary">{orderNumber}</p>
-        {orderTypeLabel && (
-          <span className="mt-2 inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            {orderTypeLabel}
-          </span>
-        )}
+        <div className="mt-2 flex items-center justify-center gap-2">
+          {orderTypeLabel && (
+            <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              {orderTypeLabel}
+            </span>
+          )}
+          {estimatedMinutes && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Clock className="h-3 w-3" />
+              ~{estimatedMinutes} min
+            </span>
+          )}
+        </div>
         <p className="mt-3 text-sm text-muted-foreground">
           {isOnSite ? (
             <>
@@ -102,6 +123,28 @@ export default async function OrderConfirmationPage({
             {formatPrice(order.total_price)}
           </span>
         </div>
+      </div>
+
+      {/* Order notes */}
+      {order.customer_info?.notes && (
+        <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+            <MessageSquare className="h-3.5 w-3.5" />
+            Instructions
+          </h3>
+          <p className="text-sm">{order.customer_info.notes}</p>
+        </div>
+      )}
+
+      {/* New order button */}
+      <div className="mt-4 text-center">
+        <Link
+          href={`/${slug}`}
+          className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          <ShoppingBag className="h-4 w-4" />
+          Passer une nouvelle commande
+        </Link>
       </div>
 
       {/* Sign-up CTA for non-logged-in users */}

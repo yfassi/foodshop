@@ -17,6 +17,7 @@ function computeLineTotal(
 interface CartState {
   items: CartItem[];
   restaurantSlug: string | null;
+  lastAddedAt: number;
 
   addItem: (item: {
     product_id: string;
@@ -40,6 +41,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       restaurantSlug: null,
+      lastAddedAt: 0,
 
       addItem: (item) => {
         const lineTotal = computeLineTotal(
@@ -53,7 +55,7 @@ export const useCartStore = create<CartState>()(
           id: crypto.randomUUID(),
           line_total: lineTotal,
         };
-        set((state) => ({ items: [...state.items, cartItem] }));
+        set((state) => ({ items: [...state.items, cartItem], lastAddedAt: Date.now() }));
       },
 
       removeItem: (cartItemId) => {
