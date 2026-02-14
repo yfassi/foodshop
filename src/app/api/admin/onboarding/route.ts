@@ -6,8 +6,6 @@ interface OnboardingBody {
   name: string;
   slug: string;
   description?: string;
-  restaurant_type?: string;
-  siret?: string;
   address?: string;
   phone?: string;
   opening_hours: Record<string, { open: string; close: string }[]>;
@@ -22,7 +20,7 @@ interface OnboardingBody {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OnboardingBody;
-    const { name, slug, description, restaurant_type, siret, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url, email, password } = body;
+    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url, email, password } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -110,8 +108,6 @@ export async function POST(request: Request) {
       name,
       slug,
       description: description || null,
-      restaurant_type: restaurant_type || null,
-      siret: siret || null,
       address: address || null,
       phone: phone || null,
       logo_url: logo_url || null,
