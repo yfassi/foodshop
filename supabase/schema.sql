@@ -398,6 +398,10 @@ ALTER TABLE public.orders ADD COLUMN payment_source TEXT NOT NULL DEFAULT 'direc
 ALTER TABLE public.restaurants ADD COLUMN loyalty_enabled BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.restaurants ADD COLUMN loyalty_tiers JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+-- Restaurant: type and SIRET
+ALTER TABLE public.restaurants ADD COLUMN restaurant_type TEXT;
+ALTER TABLE public.restaurants ADD COLUMN siret TEXT;
+
 -- ============================================
 -- REALTIME
 -- ============================================

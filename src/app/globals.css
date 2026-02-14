@@ -135,4 +135,21 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  .step-enter-from-right {
+    animation: stepSlideInRight 300ms ease-out forwards;
+  }
+  .step-enter-from-left {
+    animation: stepSlideInLeft 300ms ease-out forwards;
+  }
+}
+
+@keyframes stepSlideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes stepSlideInLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

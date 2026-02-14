@@ -1,4 +1,40 @@
 import type { OrderStatus } from "./types";
+import type { LucideIcon } from "lucide-react";
+import {
+  UtensilsCrossed,
+  Hamburger,
+  Pizza,
+  Sandwich,
+  Salad,
+  Soup,
+  Flame,
+  Drumstick,
+  ChefHat,
+  Coffee,
+  Fish,
+  Croissant,
+} from "lucide-react";
+
+export interface RestaurantTypeOption {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+export const RESTAURANT_TYPES: RestaurantTypeOption[] = [
+  { value: "traditionnel", label: "Traditionnel", icon: UtensilsCrossed },
+  { value: "fast_food", label: "Fast food", icon: Hamburger },
+  { value: "pizzeria", label: "Pizzeria", icon: Pizza },
+  { value: "snack", label: "Snack", icon: Sandwich },
+  { value: "healthy", label: "Healthy", icon: Salad },
+  { value: "asiatique", label: "Asiatique", icon: Soup },
+  { value: "grill", label: "Grill", icon: Flame },
+  { value: "poulet", label: "Poulet / Broche", icon: Drumstick },
+  { value: "gastronomique", label: "Gastronomique", icon: ChefHat },
+  { value: "cafe", label: "Café / Salon de thé", icon: Coffee },
+  { value: "poisson", label: "Poissonnerie", icon: Fish },
+  { value: "boulangerie", label: "Boulangerie", icon: Croissant },
+];
 
 export const ORDER_STATUS_CONFIG: Record<
   OrderStatus,

@@ -6,6 +6,8 @@ interface OnboardingBody {
   name: string;
   slug: string;
   description?: string;
+  restaurant_type?: string;
+  siret?: string;
   address?: string;
   phone?: string;
   opening_hours: Record<string, { open: string; close: string }[]>;
@@ -13,21 +15,14 @@ interface OnboardingBody {
   primary_color?: string;
   font_family?: string;
   logo_url?: string;
+  email?: string;
+  password?: string;
 }
 
 export async function POST(request: Request) {
   try {
-    const supabaseAuth = await createClient();
-    const {
-      data: { user },
-    } = await supabaseAuth.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Non autorise" }, { status: 401 });
-    }
-
     const body = (await request.json()) as OnboardingBody;
-    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url } = body;
+    const { name, slug, description, restaurant_type, siret, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url, email, password } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -38,6 +33,50 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
+    // Determine the owner: either create a new account or use existing session
+    let ownerId: string;
+
+    if (email && password) {
+      // New account flow: create user then use their ID
+      if (password.length < 6) {
+        return NextResponse.json(
+          { error: "Le mot de passe doit contenir au moins 6 caractères" },
+          { status: 400 }
+        );
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+      if (userError) {
+        if (userError.message?.includes("already been registered")) {
+          return NextResponse.json(
+            { error: "Un compte existe déjà avec cet email" },
+            { status: 409 }
+          );
+        }
+        console.error("Signup error:", userError);
+        return NextResponse.json({ error: userError.message }, { status: 400 });
+      }
+
+      ownerId = userData.user.id;
+    } else {
+      // Existing session flow
+      const supabaseAuth = await createClient();
+      const {
+        data: { user },
+      } = await supabaseAuth.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+      }
+
+      ownerId = user.id;
+    }
+
     // Check slug uniqueness
     const { data: existing } = await supabase
       .from("restaurants")
@@ -47,7 +86,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { error: "Ce slug est deja pris" },
+        { error: "Ce slug est déjà pris" },
         { status: 409 }
       );
     }
@@ -56,12 +95,12 @@ export async function POST(request: Request) {
     const { data: owned } = await supabase
       .from("restaurants")
       .select("id")
-      .eq("owner_id", user.id)
+      .eq("owner_id", ownerId)
       .single();
 
     if (owned) {
       return NextResponse.json(
-        { error: "Vous avez deja un restaurant" },
+        { error: "Vous avez déjà un restaurant" },
         { status: 409 }
       );
     }
@@ -71,18 +110,22 @@ export async function POST(request: Request) {
       name,
       slug,
       description: description || null,
+      restaurant_type: restaurant_type || null,
+      siret: siret || null,
       address: address || null,
       phone: phone || null,
       logo_url: logo_url || null,
+      primary_color: primary_color || null,
       opening_hours,
-      owner_id: user.id,
+      accepted_payment_methods,
+      owner_id: ownerId,
       is_accepting_orders: true,
     });
 
     if (error) {
       console.error("Onboarding insert error:", error);
       return NextResponse.json(
-        { error: error.message || "Erreur lors de la creation du restaurant" },
+        { error: error.message || "Erreur lors de la création du restaurant" },
         { status: 500 }
       );
     }
