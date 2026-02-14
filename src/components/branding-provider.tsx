@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { hexToOklch, computeForeground, googleFontUrl } from "@/lib/branding";
 
 interface BrandingProviderProps {
@@ -31,6 +32,40 @@ export function BrandingProvider({
   if (fontFamily) {
     style["--font-geist-sans"] = `"${fontFamily}", system-ui, sans-serif`;
   }
+
+  // Also set CSS variables on <html> so portaled content (drawers, modals)
+  // inherits the custom colors
+  useEffect(() => {
+    const root = document.documentElement;
+    const setProps: [string, string][] = [];
+
+    if (primaryColor) {
+      const oklchColor = hexToOklch(primaryColor);
+      const foreground = computeForeground(primaryColor);
+      setProps.push(
+        ["--primary", oklchColor],
+        ["--primary-foreground", foreground],
+        ["--ring", oklchColor],
+        ["--sidebar-primary", oklchColor],
+        ["--sidebar-primary-foreground", foreground],
+        ["--chart-1", oklchColor],
+      );
+    }
+
+    if (fontFamily) {
+      setProps.push(["--font-geist-sans", `"${fontFamily}", system-ui, sans-serif`]);
+    }
+
+    for (const [prop, value] of setProps) {
+      root.style.setProperty(prop, value);
+    }
+
+    return () => {
+      for (const [prop] of setProps) {
+        root.style.removeProperty(prop);
+      }
+    };
+  }, [primaryColor, fontFamily]);
 
   return (
     <>
