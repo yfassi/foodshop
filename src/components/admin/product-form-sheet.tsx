@@ -91,6 +91,7 @@ export function ProductFormSheet({
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const [modifierGroups, setModifierGroups] = useState<
     ModifierGroupWithModifiers[]
@@ -139,11 +140,11 @@ export function ProductFormSheet({
       setImageUrl(null);
       setProductId(null);
       setModifierGroups([]);
-      setAllSharedGroups([]);
       setLinkedSharedGroupIds([]);
       setMenuChoiceGroups([]);
-      setAllRestaurantProducts([]);
       setExpandedPicker(null);
+      fetchSharedSections(null);
+      fetchAllRestaurantProducts();
     }
   }, [product, open, defaultCategoryId]);
 
@@ -168,7 +169,7 @@ export function ProductFormSheet({
     }
   };
 
-  const fetchSharedSections = async (pid: string) => {
+  const fetchSharedSections = async (pid: string | null) => {
     const supabase = createClient();
 
     // Fetch all shared groups for this restaurant
@@ -191,12 +192,16 @@ export function ProductFormSheet({
     }
 
     // Fetch which shared groups are linked to this product
-    const { data: links } = await supabase
-      .from("product_shared_groups")
-      .select("shared_group_id")
-      .eq("product_id", pid);
+    if (pid) {
+      const { data: links } = await supabase
+        .from("product_shared_groups")
+        .select("shared_group_id")
+        .eq("product_id", pid);
 
-    setLinkedSharedGroupIds((links || []).map((l) => l.shared_group_id));
+      setLinkedSharedGroupIds((links || []).map((l) => l.shared_group_id));
+    } else {
+      setLinkedSharedGroupIds([]);
+    }
   };
 
   const fetchMenuChoiceGroups = async (pid: string) => {
@@ -236,7 +241,10 @@ export function ProductFormSheet({
   };
 
   const addMenuChoiceGroup = async () => {
-    if (!productId) return;
+    if (!productId) {
+      toast.error("Enregistrez d'abord le produit");
+      return;
+    }
     const supabase = createClient();
     const { data, error } = await supabase
       .from("menu_choice_groups")
@@ -521,6 +529,8 @@ export function ProductFormSheet({
       }
 
       setProductId(data.id);
+      fetchSharedSections(data.id);
+      fetchMenuChoiceGroups(data.id);
       toast.success("Produit créé");
     }
 
@@ -921,48 +931,75 @@ export function ProductFormSheet({
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-6 p-4">
             {/* Image */}
-            {isEditing && (
-              <div className="relative">
-                <label className="relative flex h-36 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
-                  {uploadingImage ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  ) : imageUrl ? (
-                    <Image
-                      src={imageUrl}
-                      alt={name}
-                      fill
-                      className="object-cover"
-                      sizes="400px"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                      <Camera className="h-7 w-7" />
-                      <span className="text-xs font-medium">
-                        Ajouter une photo
-                      </span>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) uploadImage(file);
-                      e.target.value = "";
-                    }}
+            <div
+              className="relative"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDragging(false);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragging(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) uploadImage(file);
+              }}
+            >
+              <label
+                className={`relative flex h-36 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors ${
+                  dragging
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-muted/50 hover:border-primary/50 hover:bg-muted"
+                }`}
+              >
+                {uploadingImage ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                ) : imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={name}
+                    fill
+                    className="object-cover"
+                    sizes="400px"
                   />
-                </label>
-                {imageUrl && (
-                  <button
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                    <Camera className="h-7 w-7" />
+                    <span className="text-xs font-medium">
+                      {dragging ? "Déposez l'image" : "Ajouter une photo"}
+                    </span>
+                  </div>
                 )}
-              </div>
-            )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadImage(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {imageUrl && (
+                <button
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
 
             {/* Name */}
             <div className="space-y-1.5">
@@ -1086,8 +1123,7 @@ export function ProductFormSheet({
                       </div>
                     </div>
                     {/* Dynamic menu composition */}
-                    {isEditing && (
-                      <div className="space-y-2 pt-1">
+                    <div className="space-y-2 pt-1">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs text-muted-foreground">
                             Composition du menu
@@ -1310,15 +1346,13 @@ export function ProductFormSheet({
                           </p>
                         )}
                       </div>
-                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Options — editing only */}
-            {isEditing && (
-              <div>
+            {/* Options */}
+            <div>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Options</h3>
                   <Button
@@ -1656,8 +1690,7 @@ export function ProductFormSheet({
                       Aucune option configurée.
                     </p>
                   )}
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
