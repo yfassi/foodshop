@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Minus, Plus, Check, Star } from "lucide-react";
+import { Minus, Plus, Check, Star, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface ModifierModalProps {
@@ -26,6 +26,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [isMenu, setIsMenu] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   // Track selected modifier IDs per group
   const [selections, setSelections] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
@@ -160,7 +161,11 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="border-b border-border pb-3">
           {product.image_url && (
-            <div className="relative mx-auto mb-3 h-40 w-full overflow-hidden rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowLightbox(true)}
+              className="relative mx-auto mb-3 h-40 w-full overflow-hidden rounded-lg cursor-zoom-in"
+            >
               <Image
                 src={product.image_url}
                 alt={product.name}
@@ -168,7 +173,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                 className="object-cover"
                 sizes="(max-width: 640px) 100vw, 400px"
               />
-            </div>
+            </button>
           )}
           <DrawerTitle className="text-lg font-bold">
             {product.name}
@@ -302,6 +307,30 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           </Button>
         </DrawerFooter>
       </DrawerContent>
+
+      {showLightbox && product.image_url && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowLightbox(false)}
+        >
+          <button
+            onClick={() => setShowLightbox(false)}
+            className="absolute top-4 right-4 z-[101] flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div className="relative h-full max-h-[80vh] w-full max-w-lg">
+            <Image
+              src={product.image_url}
+              alt={product.name}
+              fill
+              className="object-contain"
+              sizes="(max-width: 640px) 100vw, 512px"
+              priority
+            />
+          </div>
+        </div>
+      )}
     </Drawer>
   );
 }
