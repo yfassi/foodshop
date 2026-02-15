@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +16,7 @@ import {
   Store,
   Clock,
   CreditCard,
-  Palette,
   Plus,
-  Camera,
   Coins,
   ShieldCheck,
   Copy,
@@ -48,7 +45,6 @@ const STEPS = [
   { label: "Restaurant", icon: Store },
   { label: "Informations", icon: Building2 },
   { label: "Horaires", icon: Clock },
-  { label: "Apparence", icon: Palette },
   { label: "Paiement", icon: CreditCard },
   { label: "Compte", icon: UserPlus },
 ];
@@ -119,16 +115,11 @@ export default function OnboardingPage() {
   const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
 
-  // Step 4 — Appearance
-  const [primaryColor, setPrimaryColor] = useState("");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-
-  // Step 5 — Payment
+  // Step 4 — Payment
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(false);
 
-  // Step 6 — Account
+  // Step 5 — Account
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -178,10 +169,8 @@ export default function OnboardingPage() {
       case 2:
         return true;
       case 3:
-        return true;
-      case 4:
         return cashEnabled || cardEnabled;
-      case 5:
+      case 4:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -243,8 +232,6 @@ export default function OnboardingPage() {
           phone: phone.trim() || undefined,
           opening_hours,
           accepted_payment_methods,
-          primary_color: primaryColor.trim() || undefined,
-          logo_url: logoUrl || undefined,
         }),
       });
 
@@ -373,35 +360,6 @@ export default function OnboardingPage() {
     });
     setCopyFromDay(null);
     setCopyToDays([]);
-  };
-
-  // --- Logo upload ---
-
-  const uploadLogo = async (file: File) => {
-    setUploadingLogo(true);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/upload/logo", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await res.json();
-
-    if (!res.ok) {
-      toast.error(result.error || "Erreur lors de l'upload");
-      setUploadingLogo(false);
-      return;
-    }
-
-    setLogoUrl(`${result.url}?t=${Date.now()}`);
-    setUploadingLogo(false);
-  };
-
-  const removeLogo = () => {
-    setLogoUrl(null);
   };
 
   if (showSuccess) {
@@ -878,144 +836,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 4: Appearance */}
+            {/* Step 4: Payment */}
             {step === 3 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold">Apparence</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Donnez une identité visuelle à votre restaurant
-                  </p>
-                </div>
-
-                {/* Logo */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Logo</Label>
-                  <div className="relative inline-block">
-                    <label className="relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted transition-colors hover:border-primary">
-                      {uploadingLogo ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      ) : logoUrl ? (
-                        <Image
-                          src={logoUrl}
-                          alt="Logo"
-                          fill
-                          className="object-cover"
-                          sizes="80px"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center gap-0.5 text-muted-foreground">
-                          <Camera className="h-4 w-4" />
-                          <span className="text-[9px]">Ajouter</span>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) uploadLogo(file);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {logoUrl && (
-                      <button
-                        onClick={removeLogo}
-                        className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Color */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Couleur principale
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={primaryColor || "#d4522a"}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="h-10 w-10 cursor-pointer rounded-lg border border-border"
-                    />
-                    <Input
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      placeholder="#d4522a"
-                      className="flex-1 font-mono text-sm"
-                      maxLength={7}
-                    />
-                    {primaryColor && (
-                      <button
-                        onClick={() => setPrimaryColor("")}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Preview */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Aperçu</Label>
-                  <div className="overflow-hidden rounded-xl border border-border">
-                    <div className="border-b border-border bg-card px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {logoUrl && (
-                          <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
-                            <Image
-                              src={logoUrl}
-                              alt="Logo"
-                              fill
-                              className="object-cover"
-                              sizes="28px"
-                            />
-                          </div>
-                        )}
-                        <span className="text-sm font-bold">
-                          {name || "Mon Restaurant"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2 p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-semibold">Plat du jour</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            Délicieux plat maison
-                          </p>
-                        </div>
-                        <span
-                          className="text-xs font-bold"
-                          style={
-                            primaryColor ? { color: primaryColor } : undefined
-                          }
-                        >
-                          12,90 &euro;
-                        </span>
-                      </div>
-                      <button
-                        className="w-full rounded-lg px-3 py-2 text-xs font-semibold text-white"
-                        style={{
-                          backgroundColor: primaryColor || "#d4522a",
-                        }}
-                      >
-                        Ajouter au panier
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Payment */}
-            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Modes de paiement</h2>
@@ -1108,8 +930,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 6: Account */}
-            {step === 5 && (
+            {/* Step 5: Account */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Créez votre compte</h2>

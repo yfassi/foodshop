@@ -16,13 +16,11 @@ export function MenuGrid({
   isAcceptingOrders,
   openingHours,
   slug,
-  upsellThreshold,
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
   openingHours: Record<string, unknown> | null;
   slug: string;
-  upsellThreshold?: number | null;
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
@@ -201,7 +199,7 @@ export function MenuGrid({
       </div>
 
       {/* Floating cart button */}
-      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} upsellThreshold={upsellThreshold} />
+      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} />
 
       {/* Featured product modal */}
       {selectedProduct && (

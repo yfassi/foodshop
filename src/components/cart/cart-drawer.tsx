@@ -23,10 +23,9 @@ interface CartDrawerProps {
   slug: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
-  upsellThreshold?: number | null;
 }
 
-export function CartDrawer({ open, onClose, slug, disabled, categories, upsellThreshold }: CartDrawerProps) {
+export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDrawerProps) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -78,23 +77,6 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, upsellTh
             </>
           )}
         </div>
-
-        {/* Upsell progress bar */}
-        {items.length > 0 && upsellThreshold && upsellThreshold > 0 && totalPrice() < upsellThreshold && (
-          <div className="border-t border-border px-4 pt-3">
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                Plus que <span className="font-semibold text-primary">{formatPrice(upsellThreshold - totalPrice())}</span> pour la livraison offerte
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${Math.min(100, (totalPrice() / upsellThreshold) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
 
         {items.length > 0 && (
           <DrawerFooter className="border-t border-border pt-3">

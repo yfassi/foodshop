@@ -8,9 +8,11 @@ import { toast } from "sonner";
 export function KitchenToggle({
   restaurantId,
   initialOpen,
+  onToggle,
 }: {
   restaurantId: string;
   initialOpen: boolean;
+  onToggle?: (checked: boolean) => void;
 }) {
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ export function KitchenToggle({
       toast.error("Erreur lors de la mise à jour");
     } else {
       setIsOpen(checked);
+      onToggle?.(checked);
       toast.success(checked ? "Commandes ouvertes" : "Commandes fermées");
     }
     setLoading(false);

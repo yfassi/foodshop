@@ -11,12 +11,10 @@ export function FloatingCartButton({
   slug,
   disabled,
   categories,
-  upsellThreshold,
 }: {
   slug: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
-  upsellThreshold?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const items = useCartStore((s) => s.items);
@@ -64,7 +62,6 @@ export function FloatingCartButton({
         slug={slug}
         disabled={disabled}
         categories={categories}
-        upsellThreshold={upsellThreshold}
       />
 
     </>

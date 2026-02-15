@@ -10,8 +10,6 @@ interface OnboardingBody {
   phone?: string;
   opening_hours: Record<string, { open: string; close: string }[]>;
   accepted_payment_methods: string[];
-  primary_color?: string;
-  font_family?: string;
   logo_url?: string;
   email?: string;
   password?: string;
@@ -20,7 +18,7 @@ interface OnboardingBody {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OnboardingBody;
-    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, primary_color, font_family, logo_url, email, password } = body;
+    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, logo_url, email, password } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -111,7 +109,6 @@ export async function POST(request: Request) {
       address: address || null,
       phone: phone || null,
       logo_url: logo_url || null,
-      primary_color: primary_color || null,
       opening_hours,
       accepted_payment_methods,
       owner_id: ownerId,

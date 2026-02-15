@@ -187,7 +187,6 @@ export default async function MenuPage({
       isAcceptingOrders={restaurant.is_accepting_orders}
       openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       slug={slug}
-      upsellThreshold={(restaurant.upsell_threshold as number | null) ?? null}
     />
   );
 }
