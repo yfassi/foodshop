@@ -4,12 +4,14 @@ import type { Order } from "@/lib/types";
 import { OrderCard } from "./order-card";
 
 interface CounterViewProps {
+  unpaidOrders: Order[];
   newOrders: Order[];
   preparingOrders: Order[];
   readyOrders: Order[];
 }
 
 export function CounterView({
+  unpaidOrders,
   newOrders,
   preparingOrders,
   readyOrders,
@@ -18,6 +20,19 @@ export function CounterView({
     <>
       {/* Mobile: stacked layout */}
       <div className="space-y-6 lg:hidden">
+        {unpaidOrders.length > 0 && (
+          <section>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-500" />
+              À encaisser ({unpaidOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {unpaidOrders.map((order) => (
+                <OrderCard key={order.id} order={order} view="comptoir" />
+              ))}
+            </div>
+          </section>
+        )}
         {newOrders.length > 0 && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -57,41 +72,57 @@ export function CounterView({
         )}
       </div>
 
-      {/* Desktop: 3-column kanban */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-3">
-        <section className="min-h-[200px] rounded-xl bg-red-50/50 p-4">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
-            Nouvelles ({newOrders.length})
-          </h2>
-          <div className="space-y-3">
-            {newOrders.map((order) => (
-              <OrderCard key={order.id} order={order} view="comptoir" />
-            ))}
-          </div>
-        </section>
+      {/* Desktop: kanban */}
+      <div className="hidden flex-col gap-4 lg:flex">
+        {unpaidOrders.length > 0 && (
+          <section className="rounded-xl bg-blue-50/50 p-4">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-500" />
+              À encaisser ({unpaidOrders.length})
+            </h2>
+            <div className="grid grid-cols-3 gap-3">
+              {unpaidOrders.map((order) => (
+                <OrderCard key={order.id} order={order} view="comptoir" />
+              ))}
+            </div>
+          </section>
+        )}
 
-        <section className="min-h-[200px] rounded-xl bg-amber-50/50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">
-            En préparation ({preparingOrders.length})
-          </h2>
-          <div className="space-y-3">
-            {preparingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} view="comptoir" />
-            ))}
-          </div>
-        </section>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="min-h-[200px] rounded-xl bg-red-50/50 p-4">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              Nouvelles ({newOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {newOrders.map((order) => (
+                <OrderCard key={order.id} order={order} view="comptoir" />
+              ))}
+            </div>
+          </section>
 
-        <section className="min-h-[200px] rounded-xl bg-green-50/50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">
-            Prêtes ({readyOrders.length})
-          </h2>
-          <div className="space-y-3">
-            {readyOrders.map((order) => (
-              <OrderCard key={order.id} order={order} view="comptoir" />
-            ))}
-          </div>
-        </section>
+          <section className="min-h-[200px] rounded-xl bg-amber-50/50 p-4">
+            <h2 className="mb-3 text-sm font-semibold">
+              En préparation ({preparingOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {preparingOrders.map((order) => (
+                <OrderCard key={order.id} order={order} view="comptoir" />
+              ))}
+            </div>
+          </section>
+
+          <section className="min-h-[200px] rounded-xl bg-green-50/50 p-4">
+            <h2 className="mb-3 text-sm font-semibold">
+              Prêtes ({readyOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {readyOrders.map((order) => (
+                <OrderCard key={order.id} order={order} view="comptoir" />
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </>
   );

@@ -126,14 +126,17 @@ export default function AdminDashboard() {
     };
   }, [restaurantId, playAlert]);
 
-  const newOrders = orders.filter((o) => o.status === "new");
-  const preparingOrders = orders.filter((o) => o.status === "preparing");
-  const readyOrders = orders.filter((o) => o.status === "ready");
+  const paidOrders = orders.filter((o) => o.paid);
+  const unpaidOrders = orders.filter((o) => !o.paid && o.payment_method === "on_site");
+
+  const newOrders = paidOrders.filter((o) => o.status === "new");
+  const preparingOrders = paidOrders.filter((o) => o.status === "preparing");
+  const readyOrders = paidOrders.filter((o) => o.status === "ready");
 
   const activeOrders =
     view === "cuisine"
       ? [...newOrders, ...preparingOrders]
-      : orders;
+      : [...unpaidOrders, ...paidOrders.filter((o) => ["new", "preparing", "ready"].includes(o.status))];
 
   if (loading) {
     return (
@@ -190,6 +193,7 @@ export default function AdminDashboard() {
       ) : activeOrders.length > 0 ? (
         view === "comptoir" ? (
           <CounterView
+            unpaidOrders={unpaidOrders}
             newOrders={newOrders}
             preparingOrders={preparingOrders}
             readyOrders={readyOrders}

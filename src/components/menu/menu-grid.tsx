@@ -10,19 +10,30 @@ import { useCartStore } from "@/stores/cart-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { Search, X } from "lucide-react";
+import { WelcomeModal } from "./welcome-modal";
+import type { OrderType } from "@/lib/types";
 
 export function MenuGrid({
   categories,
   isAcceptingOrders,
   openingHours,
   slug,
+  restaurantName,
+  logoUrl,
+  orderTypes,
+  loyaltyEnabled,
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
   openingHours: Record<string, unknown> | null;
   slug: string;
+  restaurantName: string;
+  logoUrl: string | null;
+  orderTypes: OrderType[];
+  loyaltyEnabled: boolean;
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
+  const orderType = useCartStore((s) => s.orderType);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<ProductWithModifiers | null>(null);
@@ -209,6 +220,16 @@ export function MenuGrid({
           onClose={() => setSelectedProduct(null)}
         />
       )}
+
+      {/* Welcome modal */}
+      <WelcomeModal
+        open={!orderType}
+        restaurantName={restaurantName}
+        logoUrl={logoUrl}
+        orderTypes={orderTypes}
+        loyaltyEnabled={loyaltyEnabled}
+        slug={slug}
+      />
     </div>
   );
 }
