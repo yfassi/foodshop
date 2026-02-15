@@ -187,6 +187,10 @@ export default async function MenuPage({
       isAcceptingOrders={restaurant.is_accepting_orders}
       openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       slug={slug}
+      restaurantName={restaurant.name}
+      logoUrl={restaurant.logo_url}
+      orderTypes={restaurant.order_types as ("dine_in" | "takeaway")[]}
+      loyaltyEnabled={restaurant.loyalty_enabled}
     />
   );
 }

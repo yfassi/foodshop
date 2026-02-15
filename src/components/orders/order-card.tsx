@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import type { Order, OrderStatus, OrderView } from "@/lib/types";
 import { formatPrice, formatTime } from "@/lib/format";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
@@ -9,6 +10,8 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { CreditCard, Banknote, Wallet } from "lucide-react";
 
+const EDITABLE_STATUSES: OrderStatus[] = ["new", "preparing", "ready", "done", "cancelled"];
+
 interface OrderCardProps {
   order: Order;
   view?: OrderView;
@@ -16,6 +19,19 @@ interface OrderCardProps {
 
 export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   const config = ORDER_STATUS_CONFIG[order.status];
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showStatusPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowStatusPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showStatusPicker]);
 
   const updateStatus = async (newStatus: OrderStatus) => {
     const supabase = createClient();
@@ -28,6 +44,20 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       toast.error("Erreur lors de la mise à jour");
     }
   };
+
+  const markAsPaid = async () => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("orders")
+      .update({ paid: true })
+      .eq("id", order.id);
+
+    if (error) {
+      toast.error("Erreur lors de l'encaissement");
+    }
+  };
+
+  const isUnpaidOnSite = !order.paid && order.payment_method === "on_site";
 
   const displayNumber =
     order.display_order_number || `#${order.order_number}`;
@@ -53,7 +83,27 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
               </span>
             )}
           </div>
-          <OrderStatusBadge status={order.status} />
+          <div className="relative" ref={pickerRef}>
+            <button onClick={() => setShowStatusPicker((v) => !v)}>
+              <OrderStatusBadge status={order.status} />
+            </button>
+            {showStatusPicker && (
+              <div className="absolute right-0 top-full z-10 mt-1 rounded-lg border bg-white p-1 shadow-lg">
+                {EDITABLE_STATUSES.filter((s) => s !== order.status).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      updateStatus(s);
+                      setShowStatusPicker(false);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted ${ORDER_STATUS_CONFIG[s].color}`}
+                  >
+                    {ORDER_STATUS_CONFIG[s].label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pickup time */}
@@ -123,7 +173,27 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
           <p className="text-2xl font-bold">{displayNumber}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <OrderStatusBadge status={order.status} />
+          <div className="relative" ref={pickerRef}>
+            <button onClick={() => setShowStatusPicker((v) => !v)}>
+              <OrderStatusBadge status={order.status} />
+            </button>
+            {showStatusPicker && (
+              <div className="absolute right-0 top-full z-10 mt-1 rounded-lg border bg-white p-1 shadow-lg">
+                {EDITABLE_STATUSES.filter((s) => s !== order.status).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      updateStatus(s);
+                      setShowStatusPicker(false);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted ${ORDER_STATUS_CONFIG[s].color}`}
+                  >
+                    {ORDER_STATUS_CONFIG[s].label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             {paymentIcon}
           </div>
@@ -166,7 +236,15 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       </p>
 
       {/* Action button */}
-      {config.nextStatus && (
+      {isUnpaidOnSite ? (
+        <Button
+          onClick={markAsPaid}
+          className="h-12 w-full rounded-xl bg-blue-600 font-semibold hover:bg-blue-700"
+          size="lg"
+        >
+          Encaisser
+        </Button>
+      ) : config.nextStatus ? (
         <Button
           onClick={() => updateStatus(config.nextStatus!)}
           className="h-12 w-full rounded-xl font-semibold"
@@ -174,7 +252,7 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         >
           {config.nextLabel}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

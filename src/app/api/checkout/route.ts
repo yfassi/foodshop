@@ -341,7 +341,7 @@ export async function POST(request: Request) {
         payment_source: "direct",
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),
-        paid: payment_method === "on_site",
+        paid: false,
       })
       .select("id")
       .single();

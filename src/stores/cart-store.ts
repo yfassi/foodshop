@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CartItem, CartItemModifier } from "@/lib/types";
+import type { CartItem, CartItemModifier, OrderType } from "@/lib/types";
 
 function computeLineTotal(
   basePrice: number,
@@ -30,6 +30,8 @@ interface CartState {
   }) => void;
   removeItem: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
+  orderType: OrderType | null;
+  setOrderType: (type: OrderType) => void;
   clearCart: () => void;
   setRestaurantSlug: (slug: string) => void;
   totalPrice: () => number;
@@ -42,6 +44,7 @@ export const useCartStore = create<CartState>()(
       items: [],
       restaurantSlug: null,
       lastAddedAt: 0,
+      orderType: null,
 
       addItem: (item) => {
         const lineTotal = computeLineTotal(
@@ -87,13 +90,15 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
+      setOrderType: (type) => set({ orderType: type }),
+
       clearCart: () => set({ items: [] }),
 
       setRestaurantSlug: (slug) => {
         const current = get().restaurantSlug;
         if (current && current !== slug) {
-          // Different restaurant, clear cart
-          set({ items: [], restaurantSlug: slug });
+          // Different restaurant, clear cart and order type
+          set({ items: [], restaurantSlug: slug, orderType: null });
         } else {
           set({ restaurantSlug: slug });
         }

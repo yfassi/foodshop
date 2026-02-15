@@ -34,13 +34,14 @@ export function CheckoutForm({
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
+  const storedOrderType = useCartStore((s) => s.orderType);
 
   const showOnSite = acceptedPaymentMethods.includes("on_site");
   const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
   const showWallet = !!customerProfile && walletBalance >= totalPrice();
 
   const defaultMethod: PaymentMethod = showOnSite ? "on_site" : "online";
-  const [orderType, setOrderType] = useState<OrderType>(orderTypes[0] ?? "dine_in");
+  const [orderType, setOrderType] = useState<OrderType>(storedOrderType ?? orderTypes[0] ?? "dine_in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
