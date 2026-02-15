@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
-import { CheckCircle, UserPlus, ShoppingBag, MessageSquare, Clock } from "lucide-react";
+import { CheckCircle, UserPlus, ShoppingBag, MessageSquare } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
@@ -21,15 +21,6 @@ export default async function OrderConfirmationPage({
     .single<Order>();
 
   if (!order) notFound();
-
-  // Fetch estimated prep time
-  const { data: restaurant } = await supabase
-    .from("restaurants")
-    .select("*")
-    .eq("slug", slug)
-    .single();
-
-  const estimatedMinutes = restaurant?.estimated_prep_minutes ?? null;
 
   const {
     data: { user },
@@ -66,12 +57,6 @@ export default async function OrderConfirmationPage({
           {orderTypeLabel && (
             <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
               {orderTypeLabel}
-            </span>
-          )}
-          {estimatedMinutes && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <Clock className="h-3 w-3" />
-              ~{estimatedMinutes} min
             </span>
           )}
         </div>

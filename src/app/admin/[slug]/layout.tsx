@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ClipboardList, UtensilsCrossed, Settings, Users, BarChart3 } from "lucide-react";
-import { BrandingProvider } from "@/components/branding-provider";
+
 
 export default async function AdminLayout({
   children,
@@ -24,7 +24,7 @@ export default async function AdminLayout({
     // Demo mode: skip auth, fetch restaurant by slug only
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, primary_color, font_family")
+      .select("id, name, is_accepting_orders")
       .eq("slug", slug)
       .single();
 
@@ -39,7 +39,7 @@ export default async function AdminLayout({
 
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, primary_color, font_family")
+      .select("id, name, is_accepting_orders")
       .eq("slug", slug)
       .eq("owner_id", user.id)
       .single();
@@ -49,11 +49,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <BrandingProvider
-      primaryColor={restaurant.primary_color ?? null}
-      fontFamily={restaurant.font_family ?? null}
-      className="min-h-screen bg-background"
-    >
+    <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:px-6">
         <h1 className="text-lg font-bold">{restaurant.name}</h1>
@@ -147,6 +143,6 @@ export default async function AdminLayout({
           Réglages
         </Link>
       </nav>
-    </BrandingProvider>
+    </div>
   );
 }

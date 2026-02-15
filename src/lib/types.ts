@@ -22,8 +22,6 @@ export interface Restaurant {
   restaurant_type: string | null;
   siret: string | null;
   logo_url: string | null;
-  primary_color: string | null;
-  font_family: string | null;
   address: string | null;
   phone: string | null;
   opening_hours: Record<string, { open: string; close: string }[]>;
@@ -35,8 +33,6 @@ export interface Restaurant {
   order_types: OrderType[];
   loyalty_enabled: boolean;
   loyalty_tiers: LoyaltyTier[];
-  estimated_prep_minutes: number | null;
-  upsell_threshold: number | null;
   created_at: string;
   updated_at: string;
 }

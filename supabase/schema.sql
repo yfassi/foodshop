@@ -412,11 +412,6 @@ ALTER TABLE public.categories ADD COLUMN category_type TEXT NOT NULL DEFAULT 'ot
 -- Products: featured flag for "Nos incontournables" section
 ALTER TABLE public.products ADD COLUMN is_featured BOOLEAN NOT NULL DEFAULT false;
 
--- Restaurants: estimated prep time in minutes
-ALTER TABLE public.restaurants ADD COLUMN estimated_prep_minutes INTEGER DEFAULT 15;
-
--- Restaurants: upsell threshold for progress bar (in cents)
-ALTER TABLE public.restaurants ADD COLUMN upsell_threshold INTEGER;
 
 -- ============================================
 -- REALTIME

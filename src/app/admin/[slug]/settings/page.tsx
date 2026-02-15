@@ -24,7 +24,6 @@ import {
   User,
   Plus,
   X,
-  Palette,
   Camera,
   QrCode,
   Link as LinkIcon,
@@ -32,10 +31,9 @@ import {
   Clock,
   Gift,
   ChevronRight,
+  ChevronDown,
   Check,
-  Type,
   UtensilsCrossed,
-  Target,
 } from "lucide-react";
 import Image from "next/image";
 import type { Restaurant, LoyaltyTier, OrderType } from "@/lib/types";
@@ -45,7 +43,6 @@ import {
   normalizeHoursEntry,
   TIME_OPTIONS,
 } from "@/lib/constants";
-import { FONT_OPTIONS } from "@/lib/branding";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
 import {
@@ -56,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "appearance" | "payment" | "loyalty" | "account";
+type Tab = "restaurant" | "payment" | "loyalty" | "account";
 
 interface TimeRange {
   open: string;
@@ -113,6 +110,56 @@ function SectionHeader({
   );
 }
 
+function CollapsibleSection({
+  sectionKey,
+  icon: Icon,
+  title,
+  description,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  sectionKey: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  isOpen: boolean;
+  onToggle: (key: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Section>
+      <button
+        type="button"
+        onClick={() => onToggle(sectionKey)}
+        className="flex w-full items-start justify-between gap-3"
+      >
+        <div className="flex items-start gap-3">
+          {Icon && (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <Icon className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0 text-left">
+            <h3 className="text-sm font-semibold leading-tight">{title}</h3>
+            {description && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+        <ChevronDown
+          className={`mt-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {isOpen && <div className="mt-4">{children}</div>}
+    </Section>
+  );
+}
+
 export default function SettingsPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
@@ -133,20 +180,29 @@ export default function SettingsPage() {
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
   const [orderTypeDineIn, setOrderTypeDineIn] = useState(true);
   const [orderTypeTakeaway, setOrderTypeTakeaway] = useState(true);
-  const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState("15");
-  const [upsellThresholdEuros, setUpsellThresholdEuros] = useState("");
   const [savingRestaurant, setSavingRestaurant] = useState(false);
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(false);
+
+  // Collapsible sections
+  const [openSections, setOpenSections] = useState<Set<string>>(
+    new Set(["hours"])
+  );
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Payment methods
   const [acceptOnSite, setAcceptOnSite] = useState(true);
   const [acceptOnline, setAcceptOnline] = useState(false);
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
 
-  // Branding
-  const [primaryColor, setPrimaryColor] = useState("");
-  const [fontFamily, setFontFamily] = useState("");
+  // Logo
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [savingBranding, setSavingBranding] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Loyalty
@@ -181,6 +237,7 @@ export default function SettingsPage() {
         setAddress(data.address || "");
         setPhone(data.phone || "");
         setDescription(data.description || "");
+        setIsAcceptingOrders(data.is_accepting_orders);
 
         const h: Record<string, TimeRange[] | null> = {};
         for (const day of Object.keys(DAYS_FR)) {
@@ -188,8 +245,6 @@ export default function SettingsPage() {
         }
         setHours(h);
 
-        setPrimaryColor(data.primary_color || "");
-        setFontFamily(data.font_family || "");
         setLogoUrl(data.logo_url || null);
 
         const methods: string[] = data.accepted_payment_methods || ["on_site"];
@@ -199,9 +254,6 @@ export default function SettingsPage() {
         const types: string[] = data.order_types || ["dine_in", "takeaway"];
         setOrderTypeDineIn(types.includes("dine_in"));
         setOrderTypeTakeaway(types.includes("takeaway"));
-        setEstimatedPrepMinutes(String(data.estimated_prep_minutes ?? 15));
-        setUpsellThresholdEuros(data.upsell_threshold ? (data.upsell_threshold / 100).toFixed(2) : "");
-
         setLoyaltyEnabled(data.loyalty_enabled ?? false);
         setLoyaltyTiers(data.loyalty_tiers ?? []);
       }
@@ -301,13 +353,12 @@ export default function SettingsPage() {
         description: description.trim() || null,
         opening_hours: openingHours,
         order_types: orderTypes,
-        estimated_prep_minutes: parseInt(estimatedPrepMinutes) || 15,
-        upsell_threshold: upsellThresholdEuros ? Math.round(parseFloat(upsellThresholdEuros) * 100) : null,
       })
       .eq("id", restaurant!.id);
 
     if (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      console.error("Restaurant save error:", error);
+      toast.error(error.message || "Erreur lors de la sauvegarde");
       setSavingRestaurant(false);
       return;
     }
@@ -405,27 +456,7 @@ export default function SettingsPage() {
     setSavingLoyalty(false);
   };
 
-  // --- Branding ---
-
-  const saveBranding = async () => {
-    setSavingBranding(true);
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from("restaurants")
-      .update({
-        primary_color: primaryColor.trim() || null,
-        font_family: fontFamily || null,
-      })
-      .eq("id", restaurant!.id);
-
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde");
-    } else {
-      toast.success("Apparence mise à jour");
-    }
-    setSavingBranding(false);
-  };
+  // --- Logo ---
 
   const uploadLogo = async (file: File) => {
     const MAX_SIZE = 2 * 1024 * 1024;
@@ -515,10 +546,8 @@ export default function SettingsPage() {
       const updated = ranges.map((r, i) => {
         if (i !== index) return r;
         if (field === "open") {
-          // If new open >= close, push close forward
           return { open: value, close: value >= r.close ? value : r.close };
         }
-        // If new close <= open, clamp to open
         return { open: r.open, close: value <= r.open ? r.open : value };
       });
       return { ...prev, [day]: updated };
@@ -580,11 +609,6 @@ export default function SettingsPage() {
       icon: <Store className="h-4 w-4" />,
     },
     {
-      key: "appearance",
-      label: "Apparence",
-      icon: <Palette className="h-4 w-4" />,
-    },
-    {
       key: "payment",
       label: "Paiement",
       icon: <CreditCard className="h-4 w-4" />,
@@ -627,220 +651,38 @@ export default function SettingsPage() {
         {/* ═══ Tab: Établissement ═══ */}
         {activeTab === "restaurant" && (
           <div className="space-y-4">
-            {/* Open/Closed toggle */}
+            {/* Commandes ouvertes / fermées */}
             <Section>
               <SectionHeader
-                title="Prise de commandes"
-                description="Activez ou désactivez les commandes en temps réel"
+                title={isAcceptingOrders ? "Commandes ouvertes" : "Commandes fermées"}
+                description={
+                  isAcceptingOrders
+                    ? "Les clients peuvent passer commande"
+                    : "Les commandes sont actuellement suspendues"
+                }
                 action={
                   <KitchenToggle
                     restaurantId={restaurant.id}
                     initialOpen={restaurant.is_accepting_orders}
+                    onToggle={setIsAcceptingOrders}
                   />
                 }
               />
             </Section>
 
-            {/* Order types */}
-            <Section>
-              <SectionHeader
-                icon={UtensilsCrossed}
-                title="Types de commande"
-                description="Sur place, à emporter ou les deux"
-              />
-
-              <div className="mt-4 space-y-1">
-                <div className="flex items-center justify-between rounded-lg px-1 py-3">
-                  <div>
-                    <p className="text-sm font-medium">Sur place</p>
-                    <p className="text-xs text-muted-foreground">
-                      Le client mange sur place
-                    </p>
-                  </div>
-                  <Switch
-                    checked={orderTypeDineIn}
-                    onCheckedChange={setOrderTypeDineIn}
-                  />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between rounded-lg px-1 py-3">
-                  <div>
-                    <p className="text-sm font-medium">À emporter</p>
-                    <p className="text-xs text-muted-foreground">
-                      Le client emporte sa commande
-                    </p>
-                  </div>
-                  <Switch
-                    checked={orderTypeTakeaway}
-                    onCheckedChange={setOrderTypeTakeaway}
-                  />
-                </div>
-              </div>
-            </Section>
-
-            {/* Estimated prep time */}
-            <Section>
-              <SectionHeader
-                icon={Clock}
-                title="Temps de préparation estimé"
-                description="Affiché au client après la commande"
-              />
-              <div className="mt-4 flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={estimatedPrepMinutes}
-                  onChange={(e) => setEstimatedPrepMinutes(e.target.value)}
-                  className="w-24"
-                />
-                <span className="text-sm text-muted-foreground">minutes</span>
-              </div>
-            </Section>
-
-            {/* Upsell threshold */}
-            <Section>
-              <SectionHeader
-                icon={Target}
-                title="Seuil d'incitation"
-                description="Barre de progression dans le panier pour encourager un montant minimum"
-              />
-              <div className="mt-4 flex items-center gap-3">
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={upsellThresholdEuros}
-                    onChange={(e) => setUpsellThresholdEuros(e.target.value)}
-                    placeholder="Ex: 15.00"
-                    className="w-32 pr-8"
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    €
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">Laisser vide pour désactiver</span>
-              </div>
-            </Section>
-
-            {/* Public link & QR code */}
-            <Section>
-              <SectionHeader
-                icon={QrCode}
-                title="Lien de commande"
-                description="Partagez ce lien ou imprimez le QR code"
-              />
-
-              <div className="mt-4 flex items-center gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-                  <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate font-mono text-sm">
-                    {typeof window !== "undefined"
-                      ? window.location.origin
-                      : ""}
-                    /{params.slug}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const url = `${window.location.origin}/${params.slug}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success("Lien copié !");
-                  }}
-                >
-                  <Copy className="mr-1.5 h-3.5 w-3.5" />
-                  Copier
-                </Button>
-              </div>
-
-              <div className="mt-4 flex flex-col items-center gap-2">
-                <div className="rounded-xl border border-border bg-white p-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
-                    alt="QR Code"
-                    width={160}
-                    height={160}
-                    className="h-[160px] w-[160px]"
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Scannez pour commander
-                </span>
-              </div>
-            </Section>
-
-            {/* Restaurant info form */}
-            <Section>
-              <SectionHeader
-                icon={Store}
-                title="Informations"
-                description="Les informations visibles par vos clients"
-              />
-
-              <div className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="r-name">Nom du restaurant</Label>
-                  <Input
-                    id="r-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Nom du restaurant"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="r-desc">Description</Label>
-                  <textarea
-                    id="r-desc"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Une courte description..."
-                    rows={2}
-                    className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="r-address">Adresse</Label>
-                    <Input
-                      id="r-address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="123 rue Example, 69000 Lyon"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="r-phone">Téléphone</Label>
-                    <Input
-                      id="r-phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="06 12 34 56 78"
-                    />
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            {/* Opening hours */}
-            <Section>
-              <SectionHeader
-                icon={Clock}
-                title="Horaires d'ouverture"
-                description="Définissez vos jours et créneaux d'ouverture"
-              />
-
-              <div className="mt-4 divide-y divide-border">
+            {/* Horaires d'ouverture */}
+            <CollapsibleSection
+              sectionKey="hours"
+              icon={Clock}
+              title="Horaires d'ouverture"
+              description="Définissez vos jours et créneaux d'ouverture"
+              isOpen={openSections.has("hours")}
+              onToggle={toggleSection}
+            >
+              <div className="divide-y divide-border">
                 {Object.entries(DAYS_FR).map(([day, label]) => {
                   const ranges = hours[day];
-                  const isOpen = !!ranges && ranges.length > 0;
+                  const isDayOpen = !!ranges && ranges.length > 0;
                   const shortLabel = DAYS_FR_SHORT[day];
 
                   return (
@@ -849,7 +691,7 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2.5">
                           <div
                             className={`h-2 w-2 rounded-full transition-colors ${
-                              isOpen ? "bg-green-500" : "bg-gray-300"
+                              isDayOpen ? "bg-green-500" : "bg-gray-300"
                             }`}
                           />
                           <span className="text-sm font-medium sm:hidden">
@@ -860,7 +702,7 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isOpen && (
+                          {isDayOpen && (
                             <button
                               onClick={() => openCopyDialog(day)}
                               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
@@ -869,19 +711,19 @@ export default function SettingsPage() {
                               <Copy className="h-3.5 w-3.5" />
                             </button>
                           )}
-                          {!isOpen && (
+                          {!isDayOpen && (
                             <span className="text-xs text-muted-foreground">
                               Fermé
                             </span>
                           )}
                           <Switch
-                            checked={isOpen}
+                            checked={isDayOpen}
                             onCheckedChange={(v) => toggleDay(day, v)}
                           />
                         </div>
                       </div>
 
-                      {isOpen && (
+                      {isDayOpen && (
                         <div className="mt-2.5 space-y-2 pl-[1.125rem]">
                           {ranges.map((range, idx) => (
                             <div
@@ -1049,7 +891,203 @@ export default function SettingsPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-            </Section>
+            </CollapsibleSection>
+
+            {/* Types de commande */}
+            <CollapsibleSection
+              sectionKey="order-types"
+              icon={UtensilsCrossed}
+              title="Types de commande"
+              description="Sur place, à emporter ou les deux"
+              isOpen={openSections.has("order-types")}
+              onToggle={toggleSection}
+            >
+              <div className="space-y-1">
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
+                  <div>
+                    <p className="text-sm font-medium">Sur place</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le client mange sur place
+                    </p>
+                  </div>
+                  <Switch
+                    checked={orderTypeDineIn}
+                    onCheckedChange={setOrderTypeDineIn}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between rounded-lg px-1 py-3">
+                  <div>
+                    <p className="text-sm font-medium">À emporter</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le client emporte sa commande
+                    </p>
+                  </div>
+                  <Switch
+                    checked={orderTypeTakeaway}
+                    onCheckedChange={setOrderTypeTakeaway}
+                  />
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            {/* Logo */}
+            <CollapsibleSection
+              sectionKey="logo"
+              icon={Camera}
+              title="Logo"
+              description="JPG, PNG, WebP ou SVG (max 2 Mo)"
+              isOpen={openSections.has("logo")}
+              onToggle={toggleSection}
+            >
+              <div className="relative inline-block">
+                <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary hover:bg-muted">
+                  {uploadingLogo ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : logoUrl ? (
+                    <Image
+                      src={logoUrl}
+                      alt="Logo"
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Camera className="h-5 w-5" />
+                      <span className="text-[10px] font-medium">
+                        Ajouter
+                      </span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadLogo(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {logoUrl && (
+                  <button
+                    onClick={removeLogo}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </CollapsibleSection>
+
+            {/* Lien de commande & QR code */}
+            <CollapsibleSection
+              sectionKey="link"
+              icon={QrCode}
+              title="Lien de commande"
+              description="Partagez ce lien ou imprimez le QR code"
+              isOpen={openSections.has("link")}
+              onToggle={toggleSection}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                  <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-mono text-sm">
+                    {typeof window !== "undefined"
+                      ? window.location.origin
+                      : ""}
+                    /{params.slug}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const url = `${window.location.origin}/${params.slug}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Lien copié !");
+                  }}
+                >
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copier
+                </Button>
+              </div>
+
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <div className="rounded-xl border border-border bg-white p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
+                    alt="QR Code"
+                    width={160}
+                    height={160}
+                    className="h-[160px] w-[160px]"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Scannez pour commander
+                </span>
+              </div>
+            </CollapsibleSection>
+
+            {/* Informations */}
+            <CollapsibleSection
+              sectionKey="info"
+              icon={Store}
+              title="Informations"
+              description="Les informations visibles par vos clients"
+              isOpen={openSections.has("info")}
+              onToggle={toggleSection}
+            >
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="r-name">Nom du restaurant</Label>
+                  <Input
+                    id="r-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nom du restaurant"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="r-desc">Description</Label>
+                  <textarea
+                    id="r-desc"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Une courte description..."
+                    rows={2}
+                    className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="r-address">Adresse</Label>
+                    <Input
+                      id="r-address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="123 rue Example, 69000 Lyon"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="r-phone">Téléphone</Label>
+                    <Input
+                      id="r-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="06 12 34 56 78"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
 
             <Button
               onClick={saveRestaurant}
@@ -1062,160 +1100,6 @@ export default function SettingsPage() {
                 <Check className="mr-2 h-4 w-4" />
               )}
               Enregistrer
-            </Button>
-          </div>
-        )}
-
-        {/* ═══ Tab: Apparence ═══ */}
-        {activeTab === "appearance" && (
-          <div className="space-y-4">
-            {/* Logo */}
-            <Section>
-              <SectionHeader
-                icon={Camera}
-                title="Logo"
-                description="JPG, PNG, WebP ou SVG (max 2 Mo)"
-              />
-              <div className="mt-4">
-                <div className="relative inline-block">
-                  <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary hover:bg-muted">
-                    {uploadingLogo ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    ) : logoUrl ? (
-                      <Image
-                        src={logoUrl}
-                        alt="Logo"
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                        <Camera className="h-5 w-5" />
-                        <span className="text-[10px] font-medium">
-                          Ajouter
-                        </span>
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) uploadLogo(file);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  {logoUrl && (
-                    <button
-                      onClick={removeLogo}
-                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </Section>
-
-            {/* Primary color */}
-            <Section>
-              <SectionHeader
-                icon={Palette}
-                title="Couleur principale"
-                description="Appliquée aux boutons et éléments d'accent"
-              />
-              <div className="mt-4 flex items-center gap-3">
-                <input
-                  type="color"
-                  value={primaryColor || "#d4522a"}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="h-10 w-10 cursor-pointer rounded-lg border border-border"
-                />
-                <Input
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  placeholder="#d4522a"
-                  className="flex-1 font-mono text-sm"
-                  maxLength={7}
-                />
-                {primaryColor && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPrimaryColor("")}
-                    className="text-xs text-muted-foreground"
-                  >
-                    Reset
-                  </Button>
-                )}
-              </div>
-              {primaryColor && (
-                <div className="mt-3 flex items-center gap-3">
-                  <div
-                    className="h-8 rounded-lg px-4 text-xs font-medium leading-8 text-white"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Aperçu bouton
-                  </div>
-                  <div
-                    className="h-8 w-8 rounded-lg"
-                    style={{ backgroundColor: primaryColor }}
-                  />
-                </div>
-              )}
-            </Section>
-
-            {/* Font family */}
-            <Section>
-              <SectionHeader
-                icon={Type}
-                title="Typographie"
-                description="Police utilisée sur votre page de commande"
-              />
-              <div className="mt-4">
-                <Select
-                  value={fontFamily || ""}
-                  onValueChange={setFontFamily}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Police par défaut (Inter)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FONT_OPTIONS.map((font) => (
-                      <SelectItem key={font.value} value={font.value}>
-                        <span className="font-medium">{font.label}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {font.category}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fontFamily && (
-                  <button
-                    onClick={() => setFontFamily("")}
-                    className="mt-2 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Réinitialiser la police
-                  </button>
-                )}
-              </div>
-            </Section>
-
-            <Button
-              onClick={saveBranding}
-              disabled={savingBranding}
-              className="w-full"
-            >
-              {savingBranding ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Enregistrer l&apos;apparence
             </Button>
           </div>
         )}
