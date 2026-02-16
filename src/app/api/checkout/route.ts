@@ -44,6 +44,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate string lengths to prevent abuse
+    if (customer_name && customer_name.length > 100) {
+      return NextResponse.json(
+        { error: "Nom trop long (100 caractères max)" },
+        { status: 400 }
+      );
+    }
+
+    if (order_notes && order_notes.length > 500) {
+      return NextResponse.json(
+        { error: "Notes trop longues (500 caractères max)" },
+        { status: 400 }
+      );
+    }
+
     const supabase = createAdminClient();
 
     // Fetch restaurant

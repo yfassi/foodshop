@@ -84,7 +84,7 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
             )}
           </div>
           <div className="relative" ref={pickerRef}>
-            <button onClick={() => setShowStatusPicker((v) => !v)}>
+            <button onClick={() => setShowStatusPicker((v) => !v)} aria-label="Changer le statut">
               <OrderStatusBadge status={order.status} />
             </button>
             {showStatusPicker && (
@@ -174,7 +174,7 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="relative" ref={pickerRef}>
-            <button onClick={() => setShowStatusPicker((v) => !v)}>
+            <button onClick={() => setShowStatusPicker((v) => !v)} aria-label="Changer le statut">
               <OrderStatusBadge status={order.status} />
             </button>
             {showStatusPicker && (

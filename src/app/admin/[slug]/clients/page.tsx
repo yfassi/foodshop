@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -30,19 +30,18 @@ export default function ClientsPage() {
   const [creditDescription, setCreditDescription] = useState("");
   const [crediting, setCrediting] = useState(false);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     const res = await fetch(
       `/api/admin/wallet/list?restaurant_slug=${params.slug}`
     );
     const data = await res.json();
     setClients(data.clients || []);
     setLoading(false);
-  };
+  }, [params.slug]);
 
   useEffect(() => {
     fetchClients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug]);
+  }, [fetchClients]);
 
   const handleCredit = async (e: React.FormEvent) => {
     e.preventDefault();

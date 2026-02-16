@@ -1,9 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Error: SUPABASE_SERVICE_ROLE_KEY environment variable is required");
+  process.exit(1);
+}
+
 const supabase = createClient(
-  "https://modisknrblsddpmzmhja.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZGlza25yYmxzZGRwbXptaGphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDU1Mjc1MiwiZXhwIjoyMDg2MTI4NzUyfQ.9N2M8fuwrnSyL3AHsm3JvLp8xXTRG2ahWAEHlRLC79k"
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://modisknrblsddpmzmhja.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // ============================================

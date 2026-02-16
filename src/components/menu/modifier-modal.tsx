@@ -282,6 +282,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              aria-label="Diminuer la quantité"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
             >
               <Minus className="h-4 w-4" />
@@ -291,6 +292,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
             </span>
             <button
               onClick={() => setQuantity(quantity + 1)}
+              aria-label="Augmenter la quantité"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
             >
               <Plus className="h-4 w-4" />
@@ -315,6 +317,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
         >
           <button
             onClick={() => setShowLightbox(false)}
+            aria-label="Fermer l'image"
             className="absolute top-4 right-4 z-[101] flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
           >
             <X className="h-5 w-5" />

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
+    // Verify authentication
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const restaurantId = formData.get("restaurantId") as string | null;
@@ -10,6 +18,19 @@ export async function POST(request: Request) {
 
     if (!file || !restaurantId || !productId) {
       return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
+    }
+
+    // Verify restaurant ownership
+    const supabase = createAdminClient();
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("id")
+      .eq("id", restaurantId)
+      .eq("owner_id", user.id)
+      .single();
+
+    if (!restaurant) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
 
     const MAX_SIZE = 5 * 1024 * 1024;
@@ -22,8 +43,6 @@ export async function POST(request: Request) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: "L'image ne doit pas dépasser 5 Mo" }, { status: 400 });
     }
-
-    const supabase = createAdminClient();
 
     const ext = file.name.split(".").pop() || "jpg";
     const filePath = `${restaurantId}/${productId}.${ext}`;
@@ -38,7 +57,7 @@ export async function POST(request: Request) {
 
     if (uploadError) {
       console.error("Product image upload error:", uploadError);
-      return NextResponse.json({ error: uploadError.message || "Erreur lors de l'upload" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur lors de l'upload" }, { status: 500 });
     }
 
     const { data: urlData } = supabase.storage
@@ -60,7 +79,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: imageUrl });
   } catch (err) {
     console.error("Product image upload API error:", err);
-    const message = err instanceof Error ? err.message : "Erreur serveur";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

@@ -925,6 +925,7 @@ export function ProductFormSheet({
           </SheetDescription>
           <button
             onClick={onClose}
+            aria-label="Fermer"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -998,6 +999,7 @@ export function ProductFormSheet({
               {imageUrl && (
                 <button
                   onClick={removeImage}
+                  aria-label="Supprimer l'image"
                   className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
                 >
                   <X className="h-3.5 w-3.5" />

@@ -13,6 +13,8 @@ import type {
   ModifierGroupWithModifiers,
 } from "@/lib/types";
 
+export const revalidate = 60;
+
 export default async function MenuPage({
   params,
 }: {
@@ -34,7 +36,7 @@ export default async function MenuPage({
 
   if (!restaurant) notFound();
 
-  // Fetch categories
+  // Fetch categories first (products depend on category IDs)
   const { data: categories } = await supabase
     .from("categories")
     .select("*")
@@ -43,80 +45,84 @@ export default async function MenuPage({
     .order("sort_order", { ascending: true })
     .returns<Category[]>();
 
-  // Fetch products
+  const categoryIds = (categories || []).map((c) => c.id);
+
+  // Fetch products by category IDs
   const { data: products } = await supabase
     .from("products")
     .select("*")
-    .in(
-      "category_id",
-      (categories || []).map((c) => c.id)
-    )
+    .in("category_id", categoryIds.length > 0 ? categoryIds : ["__none__"])
     .order("sort_order", { ascending: true })
     .returns<Product[]>();
 
-  // Fetch modifier groups
-  const { data: modifierGroups } = await supabase
-    .from("modifier_groups")
-    .select("*")
-    .in(
-      "product_id",
-      (products || []).map((p) => p.id)
-    )
-    .order("sort_order", { ascending: true })
-    .returns<ModifierGroup[]>();
-
-  // Fetch modifiers
-  const { data: modifiers } = await supabase
-    .from("modifiers")
-    .select("*")
-    .in(
-      "group_id",
-      (modifierGroups || []).map((mg) => mg.id)
-    )
-    .order("sort_order", { ascending: true })
-    .returns<Modifier[]>();
-
-  // Fetch shared modifier groups linked to products
   const productIds = (products || []).map((p) => p.id);
-  const { data: productSharedLinks } = await supabase
-    .from("product_shared_groups")
-    .select("product_id, shared_group_id, sort_order")
-    .in("product_id", productIds.length > 0 ? productIds : ["__none__"]);
 
+  // Fetch modifier groups, modifiers, and shared links in parallel
+  const [
+    { data: modifierGroups },
+    { data: productSharedLinks },
+  ] = await Promise.all([
+    supabase
+      .from("modifier_groups")
+      .select("*")
+      .in("product_id", productIds.length > 0 ? productIds : ["__none__"])
+      .order("sort_order", { ascending: true })
+      .returns<ModifierGroup[]>(),
+    supabase
+      .from("product_shared_groups")
+      .select("product_id, shared_group_id, sort_order")
+      .in("product_id", productIds.length > 0 ? productIds : ["__none__"]),
+  ]);
+
+  const groupIds = (modifierGroups || []).map((mg) => mg.id);
   const sharedGroupIds = [
     ...new Set((productSharedLinks || []).map((l) => l.shared_group_id)),
   ];
 
-  let sharedGroupsMap = new Map<string, SharedModifierGroup>();
-  let sharedModifiersByGroup = new Map<string, SharedModifier[]>();
-
-  if (sharedGroupIds.length > 0) {
-    const { data: sharedGroups } = await supabase
-      .from("shared_modifier_groups")
+  // Fetch modifiers, shared groups, and shared modifiers in parallel
+  const [
+    { data: modifiers },
+    { data: sharedGroups },
+    { data: sharedMods },
+  ] = await Promise.all([
+    supabase
+      .from("modifiers")
       .select("*")
-      .in("id", sharedGroupIds)
+      .in("group_id", groupIds.length > 0 ? groupIds : ["__none__"])
       .order("sort_order", { ascending: true })
-      .returns<SharedModifierGroup[]>();
+      .returns<Modifier[]>(),
+    sharedGroupIds.length > 0
+      ? supabase
+          .from("shared_modifier_groups")
+          .select("*")
+          .in("id", sharedGroupIds)
+          .order("sort_order", { ascending: true })
+          .returns<SharedModifierGroup[]>()
+      : Promise.resolve({ data: [] as SharedModifierGroup[] }),
+    sharedGroupIds.length > 0
+      ? supabase
+          .from("shared_modifiers")
+          .select("*")
+          .in("group_id", sharedGroupIds)
+          .order("sort_order", { ascending: true })
+          .returns<SharedModifier[]>()
+      : Promise.resolve({ data: [] as SharedModifier[] }),
+  ]);
 
-    for (const g of sharedGroups || []) {
-      sharedGroupsMap.set(g.id, g);
-    }
-
-    const { data: sharedMods } = await supabase
-      .from("shared_modifiers")
-      .select("*")
-      .in("group_id", sharedGroupIds)
-      .order("sort_order", { ascending: true })
-      .returns<SharedModifier[]>();
-
-    for (const m of sharedMods || []) {
-      const list = sharedModifiersByGroup.get(m.group_id) || [];
-      list.push(m);
-      sharedModifiersByGroup.set(m.group_id, list);
-    }
+  // Build shared groups map
+  const sharedGroupsMap = new Map<string, SharedModifierGroup>();
+  for (const g of sharedGroups || []) {
+    sharedGroupsMap.set(g.id, g);
   }
 
-  // Build shared groups per product (converted to ModifierGroupWithModifiers format)
+  const sharedModifiersByGroup = new Map<string, SharedModifier[]>();
+  for (const m of sharedMods || []) {
+    const list = sharedModifiersByGroup.get(m.group_id) || [];
+    list.push(m);
+    sharedModifiersByGroup.set(m.group_id, list);
+  }
+
+  // Build shared groups per product
   const sharedGroupsByProduct = new Map<string, ModifierGroupWithModifiers[]>();
   for (const link of productSharedLinks || []) {
     const group = sharedGroupsMap.get(link.shared_group_id);

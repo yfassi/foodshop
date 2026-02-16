@@ -15,13 +15,14 @@ export default async function AdminLayout({
   const { slug } = await params;
   const headersList = await headers();
   const currentUrl = headersList.get("x-url") || "";
-  const isDemo = currentUrl.includes("demo=true");
+  const isDemo =
+    process.env.NODE_ENV !== "production" && currentUrl.includes("demo=true");
   const supabase = await createClient();
 
   let restaurant;
 
   if (isDemo) {
-    // Demo mode: skip auth, fetch restaurant by slug only
+    // Demo mode (dev only): skip auth, fetch restaurant by slug only
     const { data } = await supabase
       .from("restaurants")
       .select("id, name, is_accepting_orders")

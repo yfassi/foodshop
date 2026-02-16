@@ -61,6 +61,7 @@ export function RestaurantHeader({
         <div className="mt-1.5">
           <button
             onClick={() => setShowHours(!showHours)}
+            aria-expanded={showHours}
             className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <span>Voir plus</span>
