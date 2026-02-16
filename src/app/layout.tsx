@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -13,6 +13,13 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: "FoodShop - Commandez en ligne",
