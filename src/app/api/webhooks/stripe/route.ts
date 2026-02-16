@@ -43,6 +43,18 @@ export async function POST(request: Request) {
       const amount = parseInt(session.metadata?.amount || "0", 10);
 
       if (userId && restaurantId && amount > 0) {
+        // Idempotency check: verify this session hasn't already been processed
+        const { data: existingTx } = await supabase
+          .from("wallet_transactions")
+          .select("id")
+          .eq("stripe_session_id", session.id)
+          .single();
+
+        if (existingTx) {
+          // Already processed, return success
+          return NextResponse.json({ received: true });
+        }
+
         // Get or create wallet
         const { data: existingWallet } = await supabase
           .from("wallets")
@@ -52,23 +64,16 @@ export async function POST(request: Request) {
           .single();
 
         let walletId: string;
-        let newBalance: number;
 
         if (existingWallet) {
           walletId = existingWallet.id;
-          newBalance = existingWallet.balance + amount;
-          await supabase
-            .from("wallets")
-            .update({ balance: newBalance })
-            .eq("id", walletId);
         } else {
-          newBalance = amount;
           const { data: newWallet } = await supabase
             .from("wallets")
             .insert({
               user_id: userId,
               restaurant_id: restaurantId,
-              balance: amount,
+              balance: 0,
             })
             .select("id")
             .single();
@@ -77,12 +82,12 @@ export async function POST(request: Request) {
         }
 
         if (walletId) {
-          await supabase.from("wallet_transactions").insert({
-            wallet_id: walletId,
-            type: "topup_stripe",
-            amount,
-            balance_after: newBalance,
-            stripe_session_id: session.id,
+          // Use atomic credit function
+          await supabase.rpc("credit_wallet_balance", {
+            p_wallet_id: walletId,
+            p_amount: amount,
+            p_type: "topup_stripe",
+            p_stripe_session_id: session.id,
           });
         }
       }

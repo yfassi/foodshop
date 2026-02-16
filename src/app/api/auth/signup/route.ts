@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Un compte existe deja avec cet email" }, { status: 409 });
       }
       console.error("Signup error:", error);
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 400 });
     }
 
     // Create customer profile in the same request
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       // Roll back: delete the auth user so the customer can retry
       await supabase.auth.admin.deleteUser(data.user.id);
       return NextResponse.json(
-        { error: `Erreur lors de la création du profil: ${profileError.message}` },
+        { error: "Erreur lors de la création du profil" },
         { status: 500 }
       );
     }

@@ -62,23 +62,16 @@ export async function POST(request: Request) {
       .single();
 
     let walletId: string;
-    let newBalance: number;
 
     if (existingWallet) {
       walletId = existingWallet.id;
-      newBalance = existingWallet.balance + amount;
-      await adminSupabase
-        .from("wallets")
-        .update({ balance: newBalance })
-        .eq("id", walletId);
     } else {
-      newBalance = amount;
       const { data: newWallet, error: walletError } = await adminSupabase
         .from("wallets")
         .insert({
           user_id: customer.id,
           restaurant_id: restaurant.id,
-          balance: amount,
+          balance: 0,
         })
         .select("id")
         .single();
@@ -92,15 +85,25 @@ export async function POST(request: Request) {
       walletId = newWallet.id;
     }
 
-    // Record transaction
-    await adminSupabase.from("wallet_transactions").insert({
-      wallet_id: walletId,
-      type: "topup_admin",
-      amount,
-      balance_after: newBalance,
-      description: description || "Credit manuel par le restaurant",
-      created_by: user.id,
-    });
+    // Use atomic credit function
+    const { data: newBalance, error: creditError } = await adminSupabase.rpc(
+      "credit_wallet_balance",
+      {
+        p_wallet_id: walletId,
+        p_amount: amount,
+        p_type: "topup_admin",
+        p_description: description || "Credit manuel par le restaurant",
+        p_created_by: user.id,
+      }
+    );
+
+    if (creditError) {
+      console.error("Wallet credit error:", creditError);
+      return NextResponse.json(
+        { error: "Erreur lors du crédit" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true, balance: newBalance });
   } catch (err) {

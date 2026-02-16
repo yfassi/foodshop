@@ -145,11 +145,13 @@ export function MenuGrid({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher un produit..."
+              aria-label="Rechercher un produit"
               className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:bg-muted/70"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
+                aria-label="Effacer la recherche"
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />

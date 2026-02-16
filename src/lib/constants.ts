@@ -1,40 +1,4 @@
 import type { OrderStatus } from "./types";
-import type { LucideIcon } from "lucide-react";
-import {
-  UtensilsCrossed,
-  Hamburger,
-  Pizza,
-  Sandwich,
-  Salad,
-  Soup,
-  Flame,
-  Drumstick,
-  ChefHat,
-  Coffee,
-  Fish,
-  Croissant,
-} from "lucide-react";
-
-export interface RestaurantTypeOption {
-  value: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-export const RESTAURANT_TYPES: RestaurantTypeOption[] = [
-  { value: "traditionnel", label: "Traditionnel", icon: UtensilsCrossed },
-  { value: "fast_food", label: "Fast food", icon: Hamburger },
-  { value: "pizzeria", label: "Pizzeria", icon: Pizza },
-  { value: "snack", label: "Snack", icon: Sandwich },
-  { value: "healthy", label: "Healthy", icon: Salad },
-  { value: "asiatique", label: "Asiatique", icon: Soup },
-  { value: "grill", label: "Grill", icon: Flame },
-  { value: "poulet", label: "Poulet / Broche", icon: Drumstick },
-  { value: "gastronomique", label: "Gastronomique", icon: ChefHat },
-  { value: "cafe", label: "Café / Salon de thé", icon: Coffee },
-  { value: "poisson", label: "Poissonnerie", icon: Fish },
-  { value: "boulangerie", label: "Boulangerie", icon: Croissant },
-];
 
 export const ORDER_STATUS_CONFIG: Record<
   OrderStatus,
@@ -72,42 +36,6 @@ export const ORDER_STATUS_CONFIG: Record<
     bgClass: "bg-gray-50 border border-gray-200",
   },
 };
-
-export function generatePickupTimeSlots(
-  ranges: { open: string; close: string }[]
-): string[] {
-  const now = new Date();
-  const slots: string[] = [];
-
-  for (const range of ranges) {
-    const [openH, openM] = range.open.split(":").map(Number);
-    const [closeH, closeM] = range.close.split(":").map(Number);
-
-    const rangeStart = new Date(now);
-    rangeStart.setHours(openH, openM, 0, 0);
-
-    const end = new Date(now);
-    end.setHours(closeH, closeM, 0, 0);
-
-    if (end <= now) continue;
-
-    // Start from now + 15 minutes, rounded to next 15-min slot
-    const earliest = new Date(now.getTime() + 15 * 60 * 1000);
-    earliest.setMinutes(Math.ceil(earliest.getMinutes() / 15) * 15, 0, 0);
-
-    const start = earliest > rangeStart ? earliest : rangeStart;
-
-    const current = new Date(start);
-    while (current <= end) {
-      const h = current.getHours().toString().padStart(2, "0");
-      const m = current.getMinutes().toString().padStart(2, "0");
-      slots.push(`${h}:${m}`);
-      current.setMinutes(current.getMinutes() + 15);
-    }
-  }
-
-  return slots;
-}
 
 /** Normalize opening_hours entry: handles both old {open,close} and new [{open,close}] formats */
 export function normalizeHoursEntry(

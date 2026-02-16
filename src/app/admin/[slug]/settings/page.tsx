@@ -286,7 +286,7 @@ export default function SettingsPage() {
 
   // --- Stripe ---
 
-  const checkStripeStatus = async () => {
+  const checkStripeStatus = useCallback(async () => {
     setCheckingStatus(true);
     try {
       const res = await fetch("/api/stripe/connect/status", {
@@ -305,7 +305,7 @@ export default function SettingsPage() {
       // Silent fail
     }
     setCheckingStatus(false);
-  };
+  }, [params.slug]);
 
   useEffect(() => {
     if (
@@ -317,10 +317,9 @@ export default function SettingsPage() {
       router.replace(`/admin/${params.slug}/settings`);
       checkStripeStatus();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurant, searchParams]);
+  }, [restaurant, searchParams, router, params.slug, checkStripeStatus]);
 
-  const fetchStripeData = async () => {
+  const fetchStripeData = useCallback(async () => {
     setStripeDataLoading(true);
     try {
       const res = await fetch("/api/stripe/connect/dashboard", {
@@ -336,14 +335,13 @@ export default function SettingsPage() {
       // Silent fail
     }
     setStripeDataLoading(false);
-  };
+  }, [params.slug]);
 
   useEffect(() => {
     if (restaurant?.stripe_onboarding_complete && activeTab === "payment") {
       fetchStripeData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurant?.stripe_onboarding_complete, activeTab]);
+  }, [restaurant?.stripe_onboarding_complete, activeTab, fetchStripeData]);
 
   const handleConnectStripe = async () => {
     setStripeLoading(true);

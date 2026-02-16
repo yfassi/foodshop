@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentlyOpen } from "@/lib/constants";
-import type { AcceptedPaymentMethod, CustomerProfile, OrderType, CategoryWithProducts, Category, Product, ModifierGroup, Modifier } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, OrderType, CategoryWithProducts, Category, Product, Modifier } from "@/lib/types";
 import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";

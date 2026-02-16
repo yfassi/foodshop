@@ -57,11 +57,14 @@ export async function GET(request: Request) {
       (profiles || []).map((p) => [p.user_id, p.full_name])
     );
 
-    // Get emails from auth
-    const { data: usersData } = await adminSupabase.auth.admin.listUsers();
-    const emailMap = new Map(
-      (usersData?.users || []).map((u) => [u.id, u.email])
-    );
+    // Get emails from auth (fetch only the users we need)
+    const emailMap = new Map<string, string>();
+    for (const userId of userIds) {
+      const { data: userData } = await adminSupabase.auth.admin.getUserById(userId);
+      if (userData?.user?.email) {
+        emailMap.set(userId, userData.user.email);
+      }
+    }
 
     const clients = wallets.map((w) => ({
       wallet_id: w.id,

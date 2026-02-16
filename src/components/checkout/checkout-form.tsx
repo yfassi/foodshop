@@ -110,19 +110,20 @@ export function CheckoutForm({
     }
   };
 
+  const total = totalPrice();
   const isWalletSelected = paymentSource === "wallet";
-  const walletCoversAll = walletBalance >= totalPrice();
-  const remainder = totalPrice() - walletBalance;
+  const walletCoversAll = walletBalance >= total;
+  const remainder = total - walletBalance;
 
   const buttonLabel = loading
     ? null
     : isWalletSelected
       ? walletCoversAll
-        ? `Payer avec le solde \u2014 ${formatPrice(totalPrice())}`
+        ? `Payer avec le solde \u2014 ${formatPrice(total)}`
         : `Payer ${formatPrice(remainder)} en ligne`
       : paymentMethod === "online"
-        ? `Payer en ligne \u2014 ${formatPrice(totalPrice())}`
-        : `Confirmer la commande \u2014 ${formatPrice(totalPrice())}`;
+        ? `Payer en ligne \u2014 ${formatPrice(total)}`
+        : `Confirmer la commande \u2014 ${formatPrice(total)}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

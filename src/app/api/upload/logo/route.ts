@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 async function ensureBucket(supabase: ReturnType<typeof createAdminClient>) {
   const { data } = await supabase.storage.getBucket("restaurant-logos");
@@ -10,6 +11,13 @@ async function ensureBucket(supabase: ReturnType<typeof createAdminClient>) {
 
 export async function POST(request: Request) {
   try {
+    // Verify authentication
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -46,7 +54,7 @@ export async function POST(request: Request) {
 
     if (uploadError) {
       console.error("Logo upload error:", uploadError);
-      return NextResponse.json({ error: uploadError.message || "Erreur lors de l'upload" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur lors de l'upload" }, { status: 500 });
     }
 
     const { data: urlData } = supabase.storage

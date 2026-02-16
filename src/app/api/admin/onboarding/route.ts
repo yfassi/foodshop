@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           );
         }
         console.error("Signup error:", userError);
-        return NextResponse.json({ error: userError.message }, { status: 400 });
+        return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 400 });
       }
 
       ownerId = userData.user.id;
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Onboarding insert error:", error);
       return NextResponse.json(
-        { error: error.message || "Erreur lors de la création du restaurant" },
+        { error: "Erreur lors de la création du restaurant" },
         { status: 500 }
       );
     }

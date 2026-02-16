@@ -29,8 +29,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect admin routes (except login and demo mode)
-  const isDemo = request.nextUrl.searchParams.get("demo") === "true";
+  // Protect admin routes (except login; demo mode only in dev)
+  const isDemo =
+    process.env.NODE_ENV !== "production" &&
+    request.nextUrl.searchParams.get("demo") === "true";
   if (
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login") &&
