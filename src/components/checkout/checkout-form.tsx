@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Gift } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Gift, type LucideIcon } from "lucide-react";
+
+const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
+  dine_in: { label: "Sur place", icon: UtensilsCrossed },
+  takeaway: { label: "À emporter", icon: ShoppingBag },
+};
 
 type PaymentMethod = "online" | "on_site";
 type PaymentSource = "direct" | "wallet";
@@ -36,7 +41,7 @@ export function CheckoutForm({
 
   const showOnSite = acceptedPaymentMethods.includes("on_site");
   const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
-  const showWallet = !!customerProfile && walletBalance >= totalPrice();
+  const showWallet = !!customerProfile && walletBalance > 0;
 
   const defaultMethod: PaymentMethod = showOnSite ? "on_site" : "online";
   const [orderType, setOrderType] = useState<OrderType>(storedOrderType ?? orderTypes[0] ?? "dine_in");
@@ -106,11 +111,15 @@ export function CheckoutForm({
   };
 
   const isWalletSelected = paymentSource === "wallet";
+  const walletCoversAll = walletBalance >= totalPrice();
+  const remainder = totalPrice() - walletBalance;
 
   const buttonLabel = loading
     ? null
     : isWalletSelected
-      ? `Payer avec le solde \u2014 ${formatPrice(totalPrice())}`
+      ? walletCoversAll
+        ? `Payer avec le solde \u2014 ${formatPrice(totalPrice())}`
+        : `Payer ${formatPrice(remainder)} en ligne`
       : paymentMethod === "online"
         ? `Payer en ligne \u2014 ${formatPrice(totalPrice())}`
         : `Confirmer la commande \u2014 ${formatPrice(totalPrice())}`;
@@ -118,7 +127,7 @@ export function CheckoutForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Order summary */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl bg-muted/30 p-4">
         <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Votre commande</h3>
         {items.map((item) => (
           <div key={item.id} className="flex justify-between py-1 text-sm">
@@ -136,7 +145,7 @@ export function CheckoutForm({
             <span className="font-semibold">{formatPrice(item.line_total)}</span>
           </div>
         ))}
-        <div className="mt-3 flex justify-between border-t border-border pt-3">
+        <div className="mt-3 flex justify-between border-t border-border/50 pt-3">
           <span className="font-semibold">Total</span>
           <span className="text-lg font-bold text-primary">{formatPrice(totalPrice())}</span>
         </div>
@@ -149,34 +158,26 @@ export function CheckoutForm({
             Type de commande
           </Label>
           <div className="grid grid-cols-2 gap-2">
-            {orderTypes.includes("dine_in") && (
-              <button
-                type="button"
-                onClick={() => setOrderType("dine_in")}
-                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-                  orderType === "dine_in"
-                    ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                    : "border-border hover:border-primary/50 hover:bg-accent"
-                }`}
-              >
-                <UtensilsCrossed className="h-4 w-4" />
-                Sur place
-              </button>
-            )}
-            {orderTypes.includes("takeaway") && (
-              <button
-                type="button"
-                onClick={() => setOrderType("takeaway")}
-                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-                  orderType === "takeaway"
-                    ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                    : "border-border hover:border-primary/50 hover:bg-accent"
-                }`}
-              >
-                <ShoppingBag className="h-4 w-4" />
-                À emporter
-              </button>
-            )}
+            {orderTypes.map((type) => {
+              const config = ORDER_TYPE_CONFIG[type];
+              if (!config) return null;
+              const Icon = config.icon;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setOrderType(type)}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+                    orderType === type
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border active:bg-accent"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {config.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -191,10 +192,10 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={() => selectDirect("on_site")}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                 !isWalletSelected && paymentMethod === "on_site"
-                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                  : "border-border hover:border-primary/50 hover:bg-accent"
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border active:bg-accent"
               }`}
             >
               <Banknote className="h-4 w-4" />
@@ -205,10 +206,10 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={() => selectDirect("online")}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                 !isWalletSelected && paymentMethod === "online"
-                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                  : "border-border hover:border-primary/50 hover:bg-accent"
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border active:bg-accent"
               }`}
             >
               <CreditCard className="h-4 w-4" />
@@ -219,10 +220,10 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={selectWallet}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                 isWalletSelected
-                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                  : "border-border hover:border-primary/50 hover:bg-accent"
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border active:bg-accent"
               }`}
             >
               <Wallet className="h-4 w-4" />
@@ -232,9 +233,22 @@ export function CheckoutForm({
         </div>
       </div>
 
+      {/* Partial wallet info */}
+      {isWalletSelected && !walletCoversAll && (
+        <div className="flex items-start gap-3 rounded-xl bg-muted/50 px-4 py-3">
+          <Wallet className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <p className="text-sm">
+            Votre solde de <span className="font-semibold text-primary">{formatPrice(walletBalance)}</span> sera
+            déduit. Vous paierez le reste de{" "}
+            <span className="font-semibold text-primary">{formatPrice(remainder)}</span> en
+            ligne à l&apos;étape suivante.
+          </p>
+        </div>
+      )}
+
       {/* Loyalty info */}
       {loyaltyEnabled && (
-        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
           <Gift className="h-5 w-5 shrink-0 text-primary" />
           <p className="text-sm">
             {customerProfile ? (

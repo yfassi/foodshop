@@ -501,12 +501,12 @@ export default function OnboardingPage() {
                         <Check className="h-4 w-4 text-green-500" />
                       )}
                       {!slugChecking && slugAvailable === false && (
-                        <X className="h-4 w-4 text-red-500" />
+                        <X className="h-4 w-4 text-orange-500" />
                       )}
                     </div>
                   </div>
                   {slugAvailable === false && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-orange-500">
                       Ce nom est déjà pris
                     </p>
                   )}
@@ -909,7 +909,7 @@ export default function OnboardingPage() {
                 </div>
 
                 {!cashEnabled && !cardEnabled && (
-                  <p className="text-xs text-red-500">
+                  <p className="text-xs text-orange-500">
                     Sélectionnez au moins un mode de paiement
                   </p>
                 )}
@@ -985,7 +985,7 @@ export default function OnboardingPage() {
                     className="h-12"
                   />
                   {confirmPassword && password !== confirmPassword && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-orange-500">
                       Les mots de passe ne correspondent pas
                     </p>
                   )}

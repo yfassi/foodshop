@@ -40,7 +40,7 @@ export function KitchenToggle({
     <div className="flex items-center gap-2">
       <span
         className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-          isOpen ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+          isOpen ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
         }`}
       >
         {isOpen ? "Ouvert" : "Fermé"}

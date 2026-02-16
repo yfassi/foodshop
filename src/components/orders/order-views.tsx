@@ -36,7 +36,7 @@ export function CounterView({
         {newOrders.length > 0 && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-orange-500" />
               Nouvelles ({newOrders.length})
             </h2>
             <div className="space-y-3">
@@ -89,9 +89,9 @@ export function CounterView({
         )}
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <section className="min-h-[200px] rounded-xl bg-red-50/50 p-4">
+          <section className="min-h-[200px] rounded-xl bg-orange-50/50 p-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-orange-500" />
               Nouvelles ({newOrders.length})
             </h2>
             <div className="space-y-3">
@@ -144,7 +144,7 @@ export function KitchenView({
         {newOrders.length > 0 && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
-              <span className="h-3 w-3 animate-pulse rounded-full bg-red-500" />
+              <span className="h-3 w-3 animate-pulse rounded-full bg-orange-500" />
               À préparer ({newOrders.length})
             </h2>
             <div className="space-y-3">
@@ -170,9 +170,9 @@ export function KitchenView({
 
       {/* Desktop: 2-column kanban */}
       <div className="hidden gap-4 lg:grid lg:grid-cols-2">
-        <section className="min-h-[200px] rounded-xl bg-red-50/50 p-4">
+        <section className="min-h-[200px] rounded-xl bg-orange-50/50 p-4">
           <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
-            <span className="h-3 w-3 animate-pulse rounded-full bg-red-500" />
+            <span className="h-3 w-3 animate-pulse rounded-full bg-orange-500" />
             À préparer ({newOrders.length})
           </h2>
           <div className="space-y-3">

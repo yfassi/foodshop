@@ -14,7 +14,12 @@ import {
   DrawerDescription,
   DrawerFooter,
 } from "@/components/ui/drawer";
-import { UtensilsCrossed, ShoppingBag, Gift, LogIn, UserPlus } from "lucide-react";
+import { UtensilsCrossed, ShoppingBag, Gift, LogIn, UserPlus, type LucideIcon } from "lucide-react";
+
+const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
+  dine_in: { label: "Sur place", icon: UtensilsCrossed },
+  takeaway: { label: "À emporter", icon: ShoppingBag },
+};
 
 interface WelcomeModalProps {
   open: boolean;
@@ -76,38 +81,33 @@ export function WelcomeModal({
           {/* Order type selection */}
           {showSelector && (
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setSelected("dine_in")}
-                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
-                  selected === "dine_in"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <UtensilsCrossed className={`h-7 w-7 ${selected === "dine_in" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-semibold ${selected === "dine_in" ? "text-primary" : ""}`}>
-                  Sur place
-                </span>
-              </button>
-              <button
-                onClick={() => setSelected("takeaway")}
-                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
-                  selected === "takeaway"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <ShoppingBag className={`h-7 w-7 ${selected === "takeaway" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-semibold ${selected === "takeaway" ? "text-primary" : ""}`}>
-                  À emporter
-                </span>
-              </button>
+              {orderTypes.map((type) => {
+                const config = ORDER_TYPE_CONFIG[type];
+                if (!config) return null;
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSelected(type)}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-colors ${
+                      selected === type
+                        ? "border-primary bg-primary/5"
+                        : "border-border active:bg-accent/50"
+                    }`}
+                  >
+                    <Icon className={`h-7 w-7 ${selected === type ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className={`text-sm font-semibold ${selected === type ? "text-primary" : ""}`}>
+                      {config.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {/* Loyalty / auth prompt */}
           {loyaltyEnabled && (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="rounded-xl bg-muted/50 p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Gift className="h-5 w-5 text-primary" />
                 <p className="text-sm font-medium">
@@ -136,10 +136,10 @@ export function WelcomeModal({
           <Button
             onClick={handleConfirm}
             disabled={!selected}
-            className="h-12 w-full rounded-xl text-base font-semibold"
+            className="h-14 w-full rounded-xl text-base font-bold"
             size="lg"
           >
-            Commander
+            {loyaltyEnabled ? "Commander sans me connecter" : "Commander"}
           </Button>
         </DrawerFooter>
       </DrawerContent>

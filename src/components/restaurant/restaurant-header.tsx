@@ -37,7 +37,7 @@ export function RestaurantHeader({
   const todayName = DAYS_FR[getTodayKey()];
 
   return (
-    <header className="border-b border-border bg-card px-4 py-5">
+    <header className="border-b border-border bg-background px-4 py-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           {restaurant.logo_url && (
@@ -51,7 +51,7 @@ export function RestaurantHeader({
               />
             </div>
           )}
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight">
             {restaurant.name}
           </h1>
         </div>

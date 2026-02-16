@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CartItem } from "./cart-item";
 import { CartSuggestions } from "./cart-suggestions";
-import { Trash2, ChevronLeft } from "lucide-react";
+import { Trash2, ChevronLeft, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { CategoryWithProducts } from "@/lib/types";
 
@@ -38,8 +38,8 @@ export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDr
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[85vh]">
-        <DrawerHeader className="flex items-center justify-between border-b border-border pb-3">
+      <DrawerContent className="max-h-[90vh]">
+        <DrawerHeader className="flex items-center justify-between pb-3">
           <DrawerTitle className="text-lg font-bold">
             Mon panier
           </DrawerTitle>
@@ -63,9 +63,12 @@ export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDr
 
         <div className="overflow-y-auto px-4">
           {items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Votre panier est vide.
-            </p>
+            <div className="flex flex-col items-center py-12">
+              <ShoppingBag className="mb-2 h-6 w-6 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                Votre panier est vide.
+              </p>
+            </div>
           ) : (
             <>
               {items.map((item) => <CartItem key={item.id} item={item} />)}
@@ -98,7 +101,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDr
             </Button>
             <button
               onClick={onClose}
-              className="flex w-full items-center justify-center gap-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="flex w-full items-center justify-center gap-1 py-2 text-sm text-muted-foreground transition-colors active:text-foreground"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Continuer mes achats

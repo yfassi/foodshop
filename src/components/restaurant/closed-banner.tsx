@@ -24,7 +24,7 @@ export function ClosedBanner({
   // Manual override: owner turned off orders
   if (!isAcceptingOrders) {
     return (
-      <div className="bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
+      <div className="bg-orange-50 px-4 py-3 text-center text-sm font-medium text-orange-600">
         Le restaurant ne prend plus de commandes pour le moment.
       </div>
     );

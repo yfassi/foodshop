@@ -464,7 +464,7 @@ export default function DashboardPage() {
               {analysis.peakHours.length > 0 && (
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
-                    <Sun className="h-4 w-4 text-yellow-500" />
+                    <Sun className="h-4 w-4 text-orange-500" />
                     <h4 className="text-sm font-semibold">Heures de pointe</h4>
                   </div>
                   <div className="space-y-2">
@@ -505,14 +505,14 @@ export default function DashboardPage() {
             {analysis.bestClients.length > 0 && (
               <div className="mt-4 rounded-xl bg-muted/50 p-4">
                 <div className="mb-3 flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  <Trophy className="h-4 w-4 text-orange-500" />
                   <h4 className="text-sm font-semibold">Meilleurs clients</h4>
                 </div>
                 <div className="space-y-2">
                   {analysis.bestClients.map((c, i) => (
                     <div key={c.name} className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100 text-[10px] font-bold text-yellow-600">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600">
                           {i + 1}
                         </span>
                         <span className="font-medium">{c.name}</span>

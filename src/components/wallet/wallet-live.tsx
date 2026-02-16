@@ -35,7 +35,7 @@ const TX_CONFIG: Record<
   payment: {
     label: "Paiement",
     icon: ArrowUpRight,
-    colorClass: "text-red-600 bg-red-50",
+    colorClass: "text-orange-600 bg-orange-50",
     sign: "-",
   },
   refund: {
@@ -209,7 +209,7 @@ export function WalletLive({
                       className={`text-sm font-bold ${
                         config.sign === "+"
                           ? "text-green-600"
-                          : "text-red-600"
+                          : "text-orange-600"
                       }`}
                     >
                       {config.sign}

@@ -59,7 +59,7 @@ export function TopupDrawer({
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[85vh]">
-        <DrawerHeader className="border-b border-border pb-3">
+        <DrawerHeader className="pb-3">
           <DrawerTitle className="text-lg font-bold">
             Recharger mon solde
           </DrawerTitle>
@@ -74,10 +74,10 @@ export function TopupDrawer({
               <button
                 key={amount}
                 onClick={() => setSelectedAmount(amount)}
-                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
                   selectedAmount === amount
-                    ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                    : "border-border hover:border-primary/50 hover:bg-accent"
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border active:bg-accent"
                 }`}
               >
                 {formatPrice(amount)}
