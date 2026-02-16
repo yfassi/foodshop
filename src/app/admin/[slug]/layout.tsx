@@ -57,13 +57,6 @@ export default async function AdminLayout({
           {/* Desktop nav (hidden on mobile) */}
           <nav className="hidden items-center gap-1 md:flex">
             <Link
-              href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
               href={`/admin/${slug}${isDemo ? "?demo=true" : ""}`}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
             >
@@ -76,6 +69,13 @@ export default async function AdminLayout({
             >
               <UtensilsCrossed className="h-4 w-4" />
               Articles
+            </Link>
+            <Link
+              href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Tableau de bord
             </Link>
             <Link
               href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
@@ -108,13 +108,6 @@ export default async function AdminLayout({
       {/* Bottom nav (mobile only) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-card/95 backdrop-blur-sm md:hidden">
         <Link
-          href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <BarChart3 className="h-5 w-5" />
-          Stats
-        </Link>
-        <Link
           href={`/admin/${slug}${isDemo ? "?demo=true" : ""}`}
           className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
         >
@@ -126,7 +119,14 @@ export default async function AdminLayout({
           className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <UtensilsCrossed className="h-5 w-5" />
-          Menu
+          Articles
+        </Link>
+        <Link
+          href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
+          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          <BarChart3 className="h-5 w-5" />
+          Stats
         </Link>
         <Link
           href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
