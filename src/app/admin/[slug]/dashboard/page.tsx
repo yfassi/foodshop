@@ -13,6 +13,12 @@ import {
   XCircle,
   Clock,
   Users,
+  Sparkles,
+  Flame,
+  AlertTriangle,
+  Trophy,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   BarChart,
@@ -113,13 +119,13 @@ export default function DashboardPage() {
 
   /* ─── Computed metrics ─── */
   const metrics = useMemo(() => {
-    const completed = orders.filter((o) => o.status === "done");
+    const valid = orders.filter((o) => o.status !== "cancelled");
     const cancelled = orders.filter((o) => o.status === "cancelled");
-    const revenue = completed.reduce((sum, o) => sum + o.total_price, 0);
-    const avg = completed.length > 0 ? Math.round(revenue / completed.length) : 0;
+    const revenue = valid.reduce((sum, o) => sum + o.total_price, 0);
+    const avg = valid.length > 0 ? Math.round(revenue / valid.length) : 0;
 
     return {
-      totalOrders: completed.length,
+      totalOrders: valid.length,
       revenue,
       avg,
       cancelled: cancelled.length,
@@ -151,7 +157,7 @@ export default function DashboardPage() {
   const dailyData = useMemo(() => {
     if (period === "today") return [];
 
-    const completed = orders.filter((o) => o.status === "done");
+    const completed = orders.filter((o) => o.status !== "cancelled");
     const byDay: Record<string, number> = {};
 
     const days = period === "7days" ? 7 : 30;
@@ -183,7 +189,7 @@ export default function DashboardPage() {
 
   /* ─── Top clients ─── */
   const topClients = useMemo(() => {
-    const completed = orders.filter((o) => o.status === "done");
+    const completed = orders.filter((o) => o.status !== "cancelled");
     const map = new Map<string, { orders: number; total: number }>();
 
     for (const o of completed) {
@@ -199,6 +205,57 @@ export default function DashboardPage() {
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
+  }, [orders]);
+
+  /* ─── AI Analysis ─── */
+  const analysis = useMemo(() => {
+    const valid = orders.filter((o) => o.status !== "cancelled");
+    if (valid.length === 0) return null;
+
+    // Product popularity
+    const productCounts = new Map<string, { name: string; qty: number; revenue: number }>();
+    for (const o of valid) {
+      for (const item of o.items) {
+        const prev = productCounts.get(item.product_id) || { name: item.product_name, qty: 0, revenue: 0 };
+        productCounts.set(item.product_id, {
+          name: item.product_name,
+          qty: prev.qty + item.quantity,
+          revenue: prev.revenue + item.line_total,
+        });
+      }
+    }
+    const sortedProducts = Array.from(productCounts.values()).sort((a, b) => b.qty - a.qty);
+    const topProducts = sortedProducts.slice(0, 5);
+    const bottomProducts = sortedProducts.length > 2
+      ? sortedProducts.slice(-3).reverse()
+      : [];
+
+    // Peak & slow hours
+    const hourCounts: Record<number, number> = {};
+    for (let h = 8; h <= 23; h++) hourCounts[h] = 0;
+    for (const o of valid) {
+      const h = new Date(o.created_at).getHours();
+      if (h >= 8 && h <= 23) hourCounts[h]++;
+    }
+    const hourEntries = Object.entries(hourCounts)
+      .map(([h, c]) => ({ hour: Number(h), count: c }))
+      .filter((e) => e.count > 0);
+    const peakHours = [...hourEntries].sort((a, b) => b.count - a.count).slice(0, 3);
+    const slowHours = [...hourEntries].sort((a, b) => a.count - b.count).slice(0, 3);
+
+    // Best clients
+    const clientMap = new Map<string, { orders: number; total: number }>();
+    for (const o of valid) {
+      const name = o.customer_info.name || o.display_order_number || "Anonyme";
+      const prev = clientMap.get(name) || { orders: 0, total: 0 };
+      clientMap.set(name, { orders: prev.orders + 1, total: prev.total + o.total_price });
+    }
+    const bestClients = Array.from(clientMap.entries())
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    return { topProducts, bottomProducts, peakHours, slowHours, bestClients };
   }, [orders]);
 
   if (loading) {
@@ -346,6 +403,131 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ─── Analyse IA ─── */}
+        {analysis && (
+          <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+            <div className="mb-5 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="text-base font-bold">Analyse IA</h3>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Top products */}
+              {analysis.topProducts.length > 0 && (
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-orange-500" />
+                    <h4 className="text-sm font-semibold">Articles populaires</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.topProducts.map((p, i) => (
+                      <div key={p.name} className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600">
+                            {i + 1}
+                          </span>
+                          <span className="font-medium">{p.name}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {p.qty} vendu{p.qty > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Least popular products */}
+              {analysis.bottomProducts.length > 0 && (
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <h4 className="text-sm font-semibold">À surveiller</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.bottomProducts.map((p) => (
+                      <div key={p.name} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {p.qty} vendu{p.qty > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Peak hours */}
+              {analysis.peakHours.length > 0 && (
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Sun className="h-4 w-4 text-yellow-500" />
+                    <h4 className="text-sm font-semibold">Heures de pointe</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.peakHours.map((h) => (
+                      <div key={h.hour} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{h.hour}h – {h.hour + 1}h</span>
+                        <span className="text-xs text-muted-foreground">
+                          {h.count} commande{h.count > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Slow hours */}
+              {analysis.slowHours.length > 0 && (
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Moon className="h-4 w-4 text-blue-400" />
+                    <h4 className="text-sm font-semibold">Heures creuses</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.slowHours.map((h) => (
+                      <div key={h.hour} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{h.hour}h – {h.hour + 1}h</span>
+                        <span className="text-xs text-muted-foreground">
+                          {h.count} commande{h.count > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Best clients inside analysis */}
+            {analysis.bestClients.length > 0 && (
+              <div className="mt-4 rounded-xl bg-muted/50 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  <h4 className="text-sm font-semibold">Meilleurs clients</h4>
+                </div>
+                <div className="space-y-2">
+                  {analysis.bestClients.map((c, i) => (
+                    <div key={c.name} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100 text-[10px] font-bold text-yellow-600">
+                          {i + 1}
+                        </span>
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({c.orders} cmd{c.orders > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold">{formatPrice(c.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ─── Top clients ─── */}
         {topClients.length > 0 && (

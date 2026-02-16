@@ -158,7 +158,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className="max-h-[95vh]">
         <DrawerHeader className="border-b border-border pb-3">
           {product.image_url && (
             <button

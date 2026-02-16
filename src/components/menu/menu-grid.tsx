@@ -34,6 +34,7 @@ export function MenuGrid({
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
   const orderType = useCartStore((s) => s.orderType);
+  const [hydrated, setHydrated] = useState(false);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<ProductWithModifiers | null>(null);
@@ -53,6 +54,7 @@ export function MenuGrid({
 
   useEffect(() => {
     setRestaurantSlug(slug);
+    setHydrated(true);
   }, [slug, setRestaurantSlug]);
 
   // IntersectionObserver to track which category section is in view
@@ -223,7 +225,7 @@ export function MenuGrid({
 
       {/* Welcome modal */}
       <WelcomeModal
-        open={!orderType}
+        open={hydrated && !orderType}
         restaurantName={restaurantName}
         logoUrl={logoUrl}
         orderTypes={orderTypes}

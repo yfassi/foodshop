@@ -5,11 +5,9 @@ import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, MessageSquare, Gift } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Gift } from "lucide-react";
 
 type PaymentMethod = "online" | "on_site";
 type PaymentSource = "direct" | "wallet";
@@ -45,8 +43,6 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
-  const [customerName, setCustomerName] = useState(customerProfile?.full_name ?? "");
-  const [orderNotes, setOrderNotes] = useState("");
 
   const showOrderTypeSelector = orderTypes.length > 1;
 
@@ -85,8 +81,6 @@ export function CheckoutForm({
           order_type: orderType,
           payment_method: paymentMethod,
           payment_source: paymentSource,
-          customer_name: customerName.trim() || undefined,
-          order_notes: orderNotes.trim() || undefined,
         }),
       });
 
@@ -146,37 +140,6 @@ export function CheckoutForm({
           <span className="font-semibold">Total</span>
           <span className="text-lg font-bold text-primary">{formatPrice(totalPrice())}</span>
         </div>
-      </div>
-
-      {/* Customer name */}
-      <div>
-        <Label htmlFor="customer-name" className="mb-2.5 block text-sm font-medium">
-          Votre prénom
-        </Label>
-        <Input
-          id="customer-name"
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Prénom (optionnel)"
-          className="rounded-xl"
-          maxLength={50}
-        />
-      </div>
-
-      {/* Order notes */}
-      <div>
-        <Label htmlFor="order-notes" className="mb-2.5 flex items-center gap-1.5 text-sm font-medium">
-          <MessageSquare className="h-3.5 w-3.5" />
-          Instructions spéciales
-        </Label>
-        <Textarea
-          id="order-notes"
-          value={orderNotes}
-          onChange={(e) => setOrderNotes(e.target.value)}
-          placeholder="Allergies, préférences, instructions particulières..."
-          className="min-h-[80px] resize-none rounded-xl"
-          maxLength={200}
-        />
       </div>
 
       {/* Order type */}
