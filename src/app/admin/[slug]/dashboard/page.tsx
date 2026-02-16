@@ -269,7 +269,7 @@ export default function DashboardPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-4xl">
-        <h2 className="mb-6 text-xl font-bold">Dashboard</h2>
+        <h2 className="mb-6 text-xl font-bold">Tableau de bord</h2>
 
         {/* ─── Period toggle ─── */}
         <div className="no-scrollbar mb-6 flex gap-1">
