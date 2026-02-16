@@ -16,8 +16,8 @@ export const CategorySection = forwardRef<
   return (
     <section ref={ref} className="mb-6 scroll-mt-14">
       <div className="mb-3 flex items-center gap-2">
-        <Icon className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-bold tracking-tight">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-base font-semibold tracking-tight">
           {category.name}
         </h2>
       </div>

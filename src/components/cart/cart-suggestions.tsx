@@ -72,13 +72,13 @@ export function CartSuggestions({ categories, label = "Compléter votre repas" }
   return (
     <div className="py-3">
       <p className="mb-2.5 text-xs font-semibold text-muted-foreground">{label}</p>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
         {suggestions.map((product) => (
           <button
             key={product.id}
             onClick={() => handleQuickAdd(product)}
             disabled={product.hasRequiredModifiers}
-            className="flex shrink-0 items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2 text-left transition-all hover:border-primary/50 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex shrink-0 items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors active:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {product.image_url && (
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
@@ -96,7 +96,7 @@ export function CartSuggestions({ categories, label = "Compléter votre repas" }
               <p className="text-xs font-semibold text-primary">{formatPrice(product.price)}</p>
             </div>
             {!product.hasRequiredModifiers && (
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Plus className="h-3 w-3" />
               </div>
             )}

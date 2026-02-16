@@ -158,8 +158,8 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[95vh]">
-        <DrawerHeader className="border-b border-border pb-3">
+      <DrawerContent className="max-h-[92vh]">
+        <DrawerHeader className="pb-3">
           {product.image_url && (
             <button
               type="button"
@@ -194,10 +194,10 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
             </div>
             <button
               onClick={() => setIsMenu(!isMenu)}
-              className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3.5 text-left transition-all ${
+              className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-left transition-colors ${
                 isMenu
-                  ? "border-primary bg-primary/10 ring-1 ring-primary"
-                  : "border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10"
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-muted/30 active:bg-muted/50"
               }`}
             >
               <div className="flex-1">
@@ -218,7 +218,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           </div>
         )}
 
-        <div ref={scrollContainerRef} className="overflow-y-auto px-4 py-4">
+        <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {product.modifier_groups.map((group, groupIndex) => {
             const selected = selections[group.id] || [];
             const isRequired = group.min_select > 0;
@@ -253,10 +253,10 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                           key={modifier.id}
                           onClick={() => toggleModifier(group, modifier.id, groupIndex)}
                           disabled={isDisabled}
-                          className={`flex items-center justify-between rounded-lg border px-3.5 py-3 text-left text-sm transition-all ${
+                          className={`flex items-center justify-between rounded-lg border px-3.5 py-3 text-left text-sm transition-colors ${
                             isSelected
-                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
-                              : "border-border hover:border-primary/50 hover:bg-accent"
+                              ? "border-primary bg-primary/5 text-foreground"
+                              : "border-border active:bg-accent"
                           } ${isDisabled ? "cursor-not-allowed opacity-40" : ""}`}
                         >
                           <span className="font-medium">{modifier.name}</span>
@@ -282,7 +282,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-lg font-medium transition-colors hover:bg-accent"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
             >
               <Minus className="h-4 w-4" />
             </button>
@@ -291,7 +291,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
             </span>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-lg font-medium transition-colors hover:bg-accent"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
             >
               <Plus className="h-4 w-4" />
             </button>

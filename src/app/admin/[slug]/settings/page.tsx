@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -34,8 +34,11 @@ import {
   ChevronDown,
   Check,
   UtensilsCrossed,
+  ExternalLink,
+  Wallet,
 } from "lucide-react";
 import Image from "next/image";
+import { formatPrice } from "@/lib/format";
 import type { Restaurant, LoyaltyTier, OrderType } from "@/lib/types";
 import {
   DAYS_FR,
@@ -54,6 +57,21 @@ import {
 } from "@/components/ui/select";
 
 type Tab = "restaurant" | "payment" | "loyalty" | "account";
+
+interface StripePayment {
+  id: string;
+  amount: number;
+  status: string;
+  created: number;
+  description: string | null;
+  paid: boolean;
+}
+
+interface StripeData {
+  balance: { available: number; pending: number; currency: string };
+  payments: StripePayment[];
+  dashboard_url: string;
+}
 
 interface TimeRange {
   open: string;
@@ -180,7 +198,6 @@ export default function SettingsPage() {
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
   const [orderTypeDineIn, setOrderTypeDineIn] = useState(true);
   const [orderTypeTakeaway, setOrderTypeTakeaway] = useState(true);
-  const [savingRestaurant, setSavingRestaurant] = useState(false);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(false);
 
   // Collapsible sections
@@ -199,7 +216,6 @@ export default function SettingsPage() {
   // Payment methods
   const [acceptOnSite, setAcceptOnSite] = useState(true);
   const [acceptOnline, setAcceptOnline] = useState(false);
-  const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
 
   // Logo
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -208,7 +224,10 @@ export default function SettingsPage() {
   // Loyalty
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTier[]>([]);
-  const [savingLoyalty, setSavingLoyalty] = useState(false);
+
+  // Stripe data
+  const [stripeData, setStripeData] = useState<StripeData | null>(null);
+  const [stripeDataLoading, setStripeDataLoading] = useState(false);
 
   // Account
   const [email, setEmail] = useState("");
@@ -259,6 +278,8 @@ export default function SettingsPage() {
       }
 
       setLoading(false);
+      // Mark loaded so auto-save effects don't trigger on initial hydration
+      setTimeout(() => { hasLoaded.current = true; }, 0);
     };
     load();
   }, [params.slug]);
@@ -292,10 +313,37 @@ export default function SettingsPage() {
       (searchParams.get("stripe_return") === "true" ||
         searchParams.get("stripe_refresh") === "true")
     ) {
+      // Clear query params to prevent re-triggering
+      router.replace(`/admin/${params.slug}/settings`);
       checkStripeStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant, searchParams]);
+
+  const fetchStripeData = async () => {
+    setStripeDataLoading(true);
+    try {
+      const res = await fetch("/api/stripe/connect/dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restaurant_slug: params.slug }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStripeData(data);
+      }
+    } catch {
+      // Silent fail
+    }
+    setStripeDataLoading(false);
+  };
+
+  useEffect(() => {
+    if (restaurant?.stripe_onboarding_complete && activeTab === "payment") {
+      fetchStripeData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant?.stripe_onboarding_complete, activeTab]);
 
   const handleConnectStripe = async () => {
     setStripeLoading(true);
@@ -317,29 +365,24 @@ export default function SettingsPage() {
     setStripeLoading(false);
   };
 
-  // --- Restaurant save ---
+  // --- Auto-save ---
 
-  const saveRestaurant = async () => {
-    if (!name.trim()) {
-      toast.error("Le nom est requis");
-      return;
-    }
+  const hasLoaded = useRef(false);
+  const restaurantTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paymentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    if (!orderTypeDineIn && !orderTypeTakeaway) {
-      toast.error("Au moins un type de commande doit être actif");
-      return;
-    }
+  const autoSaveRestaurant = useCallback(async () => {
+    if (!restaurant || !name.trim()) return;
+    if (!orderTypeDineIn && !orderTypeTakeaway) return;
 
-    setSavingRestaurant(true);
     const supabase = createClient();
-
     const openingHours: Record<string, TimeRange[]> = {};
     for (const [day, ranges] of Object.entries(hours)) {
       if (ranges && ranges.length > 0) {
         openingHours[day] = ranges;
       }
     }
-
     const orderTypes: OrderType[] = [];
     if (orderTypeDineIn) orderTypes.push("dine_in");
     if (orderTypeTakeaway) orderTypes.push("takeaway");
@@ -354,45 +397,76 @@ export default function SettingsPage() {
         opening_hours: openingHours,
         order_types: orderTypes,
       })
-      .eq("id", restaurant!.id);
-
-    if (error) {
-      console.error("Restaurant save error:", error);
-      toast.error(error.message || "Erreur lors de la sauvegarde");
-      setSavingRestaurant(false);
-      return;
-    }
-
-    toast.success("Informations mises à jour");
-    setSavingRestaurant(false);
-  };
-
-  // --- Payment methods ---
-
-  const savePaymentMethods = async () => {
-    const methods: string[] = [];
-    if (acceptOnSite) methods.push("on_site");
-    if (acceptOnline) methods.push("online");
-
-    if (methods.length === 0) {
-      toast.error("Au moins un mode de paiement doit être actif");
-      return;
-    }
-
-    setSavingPaymentMethods(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("restaurants")
-      .update({ accepted_payment_methods: methods })
-      .eq("id", restaurant!.id);
+      .eq("id", restaurant.id);
 
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
     } else {
-      toast.success("Modes de paiement mis à jour");
+      toast.success("Enregistré");
     }
-    setSavingPaymentMethods(false);
-  };
+  }, [restaurant, name, address, phone, description, hours, orderTypeDineIn, orderTypeTakeaway]);
+
+  const autoSavePaymentMethods = useCallback(async () => {
+    if (!restaurant) return;
+    const methods: string[] = [];
+    if (acceptOnSite) methods.push("on_site");
+    if (acceptOnline) methods.push("online");
+    if (methods.length === 0) return;
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ accepted_payment_methods: methods })
+      .eq("id", restaurant.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [restaurant, acceptOnSite, acceptOnline]);
+
+  const autoSaveLoyalty = useCallback(async () => {
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        loyalty_enabled: loyaltyEnabled,
+        loyalty_tiers: loyaltyTiers,
+      })
+      .eq("id", restaurant.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [restaurant, loyaltyEnabled, loyaltyTiers]);
+
+  // Auto-save restaurant settings (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (restaurantTimerRef.current) clearTimeout(restaurantTimerRef.current);
+    restaurantTimerRef.current = setTimeout(autoSaveRestaurant, 1000);
+    return () => { if (restaurantTimerRef.current) clearTimeout(restaurantTimerRef.current); };
+  }, [autoSaveRestaurant]);
+
+  // Auto-save payment methods (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (paymentTimerRef.current) clearTimeout(paymentTimerRef.current);
+    paymentTimerRef.current = setTimeout(autoSavePaymentMethods, 500);
+    return () => { if (paymentTimerRef.current) clearTimeout(paymentTimerRef.current); };
+  }, [autoSavePaymentMethods]);
+
+  // Auto-save loyalty (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (loyaltyTimerRef.current) clearTimeout(loyaltyTimerRef.current);
+    loyaltyTimerRef.current = setTimeout(autoSaveLoyalty, 800);
+    return () => { if (loyaltyTimerRef.current) clearTimeout(loyaltyTimerRef.current); };
+  }, [autoSaveLoyalty]);
 
   // --- Account ---
 
@@ -432,28 +506,6 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/admin/login");
-  };
-
-  // --- Loyalty ---
-
-  const saveLoyalty = async () => {
-    setSavingLoyalty(true);
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from("restaurants")
-      .update({
-        loyalty_enabled: loyaltyEnabled,
-        loyalty_tiers: loyaltyTiers,
-      })
-      .eq("id", restaurant!.id);
-
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde");
-    } else {
-      toast.success("Programme de fidélité mis à jour");
-    }
-    setSavingLoyalty(false);
   };
 
   // --- Logo ---
@@ -1089,18 +1141,6 @@ export default function SettingsPage() {
               </div>
             </CollapsibleSection>
 
-            <Button
-              onClick={saveRestaurant}
-              disabled={savingRestaurant}
-              className="w-full"
-            >
-              {savingRestaurant ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Enregistrer
-            </Button>
           </div>
         )}
 
@@ -1148,19 +1188,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={savePaymentMethods}
-                disabled={
-                  savingPaymentMethods || (!acceptOnSite && !acceptOnline)
-                }
-                className="mt-4 w-full"
-                variant="outline"
-              >
-                {savingPaymentMethods && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Enregistrer
-              </Button>
             </Section>
 
             {/* Stripe connection */}
@@ -1179,11 +1206,24 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 ) : restaurant.stripe_onboarding_complete ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
-                      <Check className="h-3 w-3" />
-                      Connecté
-                    </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                        <Check className="h-3 w-3" />
+                        Connecté
+                      </span>
+                      {stripeData?.dashboard_url && (
+                        <a
+                          href={stripeData.dashboard_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                        >
+                          Tableau de bord Stripe
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 ) : restaurant.stripe_account_id ? (
                   <div className="space-y-3">
@@ -1218,6 +1258,99 @@ export default function SettingsPage() {
                 )}
               </div>
             </Section>
+
+            {/* Stripe balance & payments */}
+            {restaurant.stripe_onboarding_complete && (
+              <>
+                <Section>
+                  <SectionHeader
+                    icon={Wallet}
+                    title="Solde Stripe"
+                    description="Votre solde disponible et en attente"
+                  />
+                  <div className="mt-4">
+                    {stripeDataLoading ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Chargement...</span>
+                      </div>
+                    ) : stripeData ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-border bg-muted/50 p-3">
+                          <p className="text-xs text-muted-foreground">Disponible</p>
+                          <p className="mt-1 text-lg font-bold text-green-600">
+                            {formatPrice(stripeData.balance.available)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-muted/50 p-3">
+                          <p className="text-xs text-muted-foreground">En attente</p>
+                          <p className="mt-1 text-lg font-bold text-amber-600">
+                            {formatPrice(stripeData.balance.pending)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </Section>
+
+                <Section>
+                  <SectionHeader
+                    icon={CreditCard}
+                    title="Derniers paiements"
+                    description="Les 20 derniers paiements reçus"
+                  />
+                  <div className="mt-4">
+                    {stripeDataLoading ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Chargement...</span>
+                      </div>
+                    ) : stripeData && stripeData.payments.length > 0 ? (
+                      <div className="divide-y divide-border">
+                        {stripeData.payments.map((payment) => (
+                          <div
+                            key={payment.id}
+                            className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {payment.description || "Paiement"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(payment.created * 1000).toLocaleDateString("fr-FR", {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  payment.paid
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-orange-100 text-orange-700"
+                                }`}
+                              >
+                                {payment.paid ? "Payé" : "Échoué"}
+                              </span>
+                              <span className="text-sm font-semibold">
+                                {formatPrice(payment.amount)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : stripeData ? (
+                      <p className="py-2 text-sm text-muted-foreground">
+                        Aucun paiement pour le moment
+                      </p>
+                    ) : null}
+                  </div>
+                </Section>
+              </>
+            )}
           </div>
         )}
 
@@ -1245,19 +1378,6 @@ export default function SettingsPage() {
                 onChange={setLoyaltyTiers}
               />
             )}
-
-            <Button
-              onClick={saveLoyalty}
-              disabled={savingLoyalty}
-              className="w-full"
-            >
-              {savingLoyalty ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Enregistrer
-            </Button>
           </div>
         )}
 

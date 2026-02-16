@@ -38,10 +38,10 @@ export function FloatingCartButton({
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl p-3">
+      <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-between rounded-2xl bg-primary px-5 py-4 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
+          className="flex w-full items-center justify-between rounded-2xl bg-primary px-5 py-3.5 text-primary-foreground shadow-lg shadow-black/10 transition-colors active:bg-primary/90"
           style={bounce ? { animation: "cart-bounce 0.5s ease-in-out" } : undefined}
         >
           <div className="flex items-center gap-3">

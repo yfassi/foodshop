@@ -48,11 +48,11 @@ export default async function OrderConfirmationPage({
       </div>
 
       {/* Order number + payment instruction */}
-      <div className="mb-4 rounded-xl border border-border bg-card p-5 text-center shadow-sm">
+      <div className="mb-4 rounded-xl border border-border bg-card p-5 text-center">
         <p className="text-sm font-medium text-muted-foreground">
           Votre numéro de commande
         </p>
-        <p className="mt-1 text-4xl font-bold text-primary">{orderNumber}</p>
+        <p className="mt-1 text-3xl font-bold text-primary">{orderNumber}</p>
         <div className="mt-2 flex items-center justify-center gap-2">
           {orderTypeLabel && (
             <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -80,7 +80,7 @@ export default async function OrderConfirmationPage({
       <OrderStatusTracker orderId={order.id} initialStatus={order.status} />
 
       {/* Order summary */}
-      <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
         <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
           Récapitulatif
         </h3>
@@ -112,7 +112,7 @@ export default async function OrderConfirmationPage({
 
       {/* Order notes */}
       {order.customer_info?.notes && (
-        <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="mt-4 rounded-xl border border-border bg-card p-4">
           <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
             <MessageSquare className="h-3.5 w-3.5" />
             Instructions
@@ -134,7 +134,7 @@ export default async function OrderConfirmationPage({
 
       {/* Sign-up CTA for non-logged-in users */}
       {!user && (
-        <div className="mt-4 rounded-xl border border-border bg-primary/5 p-4 text-center shadow-sm">
+        <div className="mt-4 rounded-xl bg-muted/50 p-4 text-center">
           <UserPlus className="mx-auto mb-2 h-6 w-6 text-primary" />
           <p className="text-sm font-semibold">
             Créez votre compte fidélité

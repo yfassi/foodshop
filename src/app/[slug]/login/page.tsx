@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function CustomerLoginPage() {
-  const router = useRouter();
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
 
@@ -38,8 +37,8 @@ export default function CustomerLoginPage() {
       return;
     }
 
-    router.push(`/${slug}`);
-    router.refresh();
+    // Full reload to ensure auth state propagates to all components
+    window.location.href = `/${slug}`;
   };
 
   const handleResetPassword = async () => {

@@ -262,7 +262,7 @@ export async function POST(request: Request) {
     );
     const displayOrderNumber = orderNumberResult || `${orderPrefix}-000`;
 
-    // Handle wallet payment
+    // Handle wallet payment (full or partial)
     if (payment_source === "wallet" && customerUserId) {
       // Get wallet
       const { data: wallet } = await supabase
@@ -272,14 +272,18 @@ export async function POST(request: Request) {
         .eq("restaurant_id", restaurant.id)
         .single();
 
-      if (!wallet || wallet.balance < totalPrice) {
+      if (!wallet || wallet.balance <= 0) {
         return NextResponse.json(
           { error: "Solde insuffisant" },
           { status: 400 }
         );
       }
 
-      // Create order first
+      const walletAmount = Math.min(wallet.balance, totalPrice);
+      const remainder = totalPrice - walletAmount;
+      const isFullWallet = remainder === 0;
+
+      // Create order
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -288,12 +292,13 @@ export async function POST(request: Request) {
           items: orderItems,
           status: "new",
           total_price: totalPrice,
-          payment_method,
+          payment_method: isFullWallet ? payment_method : "online",
           order_type: resolvedOrderType,
           payment_source: "wallet",
           customer_user_id: customerUserId,
           display_order_number: displayOrderNumber,
-          paid: true,
+          paid: isFullWallet,
+          wallet_amount_used: walletAmount,
         })
         .select("id")
         .single();
@@ -309,7 +314,7 @@ export async function POST(request: Request) {
       // Deduct wallet balance atomically
       const { error: deductError } = await supabase.rpc(
         "deduct_wallet_balance",
-        { p_wallet_id: wallet.id, p_amount: totalPrice, p_order_id: order.id }
+        { p_wallet_id: wallet.id, p_amount: walletAmount, p_order_id: order.id }
       );
 
       if (deductError) {
@@ -324,7 +329,63 @@ export async function POST(request: Request) {
         );
       }
 
-      return NextResponse.json({ order_id: order.id });
+      // Full wallet payment -> done
+      if (isFullWallet) {
+        return NextResponse.json({ order_id: order.id });
+      }
+
+      // Partial wallet -> Stripe for the remainder
+      if (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
+        // Rollback if Stripe not available
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled" })
+          .eq("id", order.id);
+        return NextResponse.json(
+          { error: "Le paiement en ligne n'est pas disponible pour ce restaurant" },
+          { status: 400 }
+        );
+      }
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        locale: "fr",
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              product_data: {
+                name: `Commande ${displayOrderNumber} (complément)`,
+                description: `Total ${(totalPrice / 100).toFixed(2)} € - Solde déduit ${(walletAmount / 100).toFixed(2)} €`,
+              },
+              unit_amount: remainder,
+            },
+            quantity: 1,
+          },
+        ],
+        payment_intent_data: {
+          transfer_data: {
+            destination: restaurant.stripe_account_id!,
+          },
+        },
+        metadata: {
+          order_id: order.id,
+          restaurant_id: restaurant.id,
+          type: "order",
+        },
+        success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
+        cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+      });
+
+      await supabase
+        .from("orders")
+        .update({ stripe_session_id: session.id })
+        .eq("id", order.id);
+
+      return NextResponse.json({ url: session.url });
     }
 
     // Create order in database (direct payment)

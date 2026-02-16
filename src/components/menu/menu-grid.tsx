@@ -145,7 +145,7 @@ export function MenuGrid({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher un produit..."
-              className="h-9 w-full rounded-lg border border-border bg-muted/50 pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/50"
+              className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:bg-muted/70"
             />
             {searchQuery && (
               <button
@@ -161,7 +161,7 @@ export function MenuGrid({
         {/* Category chips (hidden when searching) */}
         {!query && (
           <ScrollArea className="w-full">
-            <div className="flex gap-1.5 px-3 py-2.5">
+            <div className="flex gap-1.5 px-3 py-2">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -171,8 +171,8 @@ export function MenuGrid({
                   onClick={() => scrollToCategory(cat.id)}
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                     activeCategoryId === cat.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary hover:bg-primary hover:text-primary-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground active:text-foreground"
                   }`}
                 >
                   {cat.name}
@@ -195,9 +195,12 @@ export function MenuGrid({
       {/* Categories + products */}
       <div className="px-4 py-4 md:px-6">
         {filteredCategories.length === 0 && query ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Aucun produit trouvé pour &quot;{searchQuery}&quot;
-          </p>
+          <div className="flex flex-col items-center py-12">
+            <Search className="mb-2 h-6 w-6 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              Aucun produit trouvé pour &quot;{searchQuery}&quot;
+            </p>
+          </div>
         ) : (
           filteredCategories.map((category) => (
             <CategorySection

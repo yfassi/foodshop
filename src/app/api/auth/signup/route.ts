@@ -39,11 +39,11 @@ export async function POST(request: Request) {
       .insert({ user_id: data.user.id, full_name: full_name.trim() });
 
     if (profileError) {
-      console.error("Profile creation error:", profileError);
+      console.error("Profile creation error:", profileError.message, profileError.code, profileError.details);
       // Roll back: delete the auth user so the customer can retry
       await supabase.auth.admin.deleteUser(data.user.id);
       return NextResponse.json(
-        { error: "Erreur lors de la création du profil" },
+        { error: `Erreur lors de la création du profil: ${profileError.message}` },
         { status: 500 }
       );
     }

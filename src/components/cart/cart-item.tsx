@@ -32,7 +32,7 @@ export function CartItem({ item }: { item: CartItemType }) {
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-accent"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
         >
           <Minus className="h-3 w-3" />
         </button>
@@ -41,13 +41,13 @@ export function CartItem({ item }: { item: CartItemType }) {
         </span>
         <button
           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-accent"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
         >
           <Plus className="h-3 w-3" />
         </button>
         <button
           onClick={() => removeItem(item.id)}
-          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/10"
+          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors active:text-destructive"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

@@ -16,15 +16,15 @@ export function FeaturedProducts({ products, onProductClick }: FeaturedProductsP
   return (
     <div className="px-4 pt-4 md:px-6">
       <div className="mb-3 flex items-center gap-1.5">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-bold">Nos incontournables</h2>
+        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nos incontournables</h2>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-2">
         {products.map((product) => (
           <button
             key={product.id}
             onClick={() => onProductClick(product)}
-            className="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+            className="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors active:bg-accent/50"
             style={{ width: "140px" }}
           >
             {product.image_url ? (

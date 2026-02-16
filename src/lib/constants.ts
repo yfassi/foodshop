@@ -42,8 +42,8 @@ export const ORDER_STATUS_CONFIG: Record<
 > = {
   new: {
     label: "Nouvelle",
-    color: "text-red-700",
-    bgClass: "bg-red-50 border border-red-200",
+    color: "text-orange-700",
+    bgClass: "bg-orange-50 border border-orange-200",
     nextStatus: "preparing",
     nextLabel: "Commencer",
   },
