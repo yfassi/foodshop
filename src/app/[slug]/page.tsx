@@ -36,26 +36,26 @@ export default async function MenuPage({
 
   if (!restaurant) notFound();
 
-  // Fetch categories and products in parallel
-  const [{ data: categories }, { data: allProducts }] = await Promise.all([
-    supabase
-      .from("categories")
-      .select("*")
-      .eq("restaurant_id", restaurant.id)
-      .eq("is_visible", true)
-      .order("sort_order", { ascending: true })
-      .returns<Category[]>(),
-    supabase
-      .from("products")
-      .select("*")
-      .eq("restaurant_id", restaurant.id)
-      .order("sort_order", { ascending: true })
-      .returns<Product[]>(),
-  ]);
+  // Fetch categories first (products depend on category IDs)
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("restaurant_id", restaurant.id)
+    .eq("is_visible", true)
+    .order("sort_order", { ascending: true })
+    .returns<Category[]>();
 
-  const categoryIds = new Set((categories || []).map((c) => c.id));
-  const products = (allProducts || []).filter((p) => categoryIds.has(p.category_id));
-  const productIds = products.map((p) => p.id);
+  const categoryIds = (categories || []).map((c) => c.id);
+
+  // Fetch products by category IDs
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .in("category_id", categoryIds.length > 0 ? categoryIds : ["__none__"])
+    .order("sort_order", { ascending: true })
+    .returns<Product[]>();
+
+  const productIds = (products || []).map((p) => p.id);
 
   // Fetch modifier groups, modifiers, and shared links in parallel
   const [
@@ -169,7 +169,7 @@ export default async function MenuPage({
   }
 
   const productsByCategory = new Map<string, ProductWithModifiers[]>();
-  for (const product of products) {
+  for (const product of products || []) {
     const perProduct = groupsByProduct.get(product.id) || [];
     const shared = sharedGroupsByProduct.get(product.id) || [];
     const list = productsByCategory.get(product.category_id) || [];
