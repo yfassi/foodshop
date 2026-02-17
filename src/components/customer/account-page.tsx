@@ -143,7 +143,7 @@ export function AccountPage({
   orders: AccountOrder[];
 }) {
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(
-    new Set(loyaltyEnabled ? ["loyalty"] : ["orders"])
+    new Set(["wallet"])
   );
   const [balance, setBalance] = useState(walletBalance);
   const [transactions, setTransactions] = useState(walletTransactions);
@@ -221,6 +221,59 @@ export function AccountPage({
           <p className="text-xs text-muted-foreground">{profile.fullName}</p>
         </div>
       </div>
+
+      {/* ── Wallet Section ── */}
+      <SectionToggle
+        sectionKey="wallet"
+        icon={Wallet}
+        title="Mon portefeuille"
+        subtitle={formatPrice(balance)}
+        badge={
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 rounded-full px-3 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setTopupOpen(true);
+            }}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Recharger
+          </Button>
+        }
+        isOpen={openSections.has("wallet")}
+        onToggle={toggleSection}
+      >
+        {transactions.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            Aucune transaction pour le moment
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {transactions.map((tx) => {
+              const config = TX_CONFIG[tx.type];
+              const Icon = config.icon;
+              return (
+                <div key={tx.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.colorClass}`}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{config.label}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {tx.description || formatDate(tx.created_at)}
+                    </p>
+                  </div>
+                  <p className={`text-sm font-bold ${config.sign === "+" ? "text-green-600" : "text-orange-600"}`}>
+                    {config.sign}{formatPrice(Math.abs(tx.amount))}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionToggle>
 
       {/* ── Points Section ── */}
       {loyaltyEnabled && sortedTiers.length > 0 && (
@@ -415,59 +468,6 @@ export function AccountPage({
                     </div>
                     <span>{formatDate(order.created_at)}</span>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </SectionToggle>
-
-      {/* ── Wallet Section ── */}
-      <SectionToggle
-        sectionKey="wallet"
-        icon={Wallet}
-        title="Mon portefeuille"
-        subtitle={formatPrice(balance)}
-        badge={
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 rounded-full px-3 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setTopupOpen(true);
-            }}
-          >
-            <Plus className="mr-1 h-3 w-3" />
-            Recharger
-          </Button>
-        }
-        isOpen={openSections.has("wallet")}
-        onToggle={toggleSection}
-      >
-        {transactions.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            Aucune transaction pour le moment
-          </p>
-        ) : (
-          <div className="divide-y divide-border">
-            {transactions.map((tx) => {
-              const config = TX_CONFIG[tx.type];
-              const Icon = config.icon;
-              return (
-                <div key={tx.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.colorClass}`}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{config.label}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {tx.description || formatDate(tx.created_at)}
-                    </p>
-                  </div>
-                  <p className={`text-sm font-bold ${config.sign === "+" ? "text-green-600" : "text-orange-600"}`}>
-                    {config.sign}{formatPrice(Math.abs(tx.amount))}
-                  </p>
                 </div>
               );
             })}
