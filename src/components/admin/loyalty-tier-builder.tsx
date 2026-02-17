@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Gift, Percent, Plus, Trash2 } from "lucide-react";
+import { Gift, Percent, Plus, Trash2, Search, Check, ChevronsUpDown } from "lucide-react";
 import type { LoyaltyTier } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 
@@ -20,6 +13,121 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  category_id: string;
+}
+
+interface CategoryGroup {
+  id: string;
+  name: string;
+  products: Product[];
+}
+
+function ProductSearchSelect({
+  groups,
+  value,
+  onSelect,
+}: {
+  groups: CategoryGroup[];
+  value: string | undefined;
+  onSelect: (product: Product) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedProduct = value
+    ? groups.flatMap((g) => g.products).find((p) => p.id === value)
+    : null;
+
+  const query = search.toLowerCase();
+  const filtered = groups
+    .map((g) => ({
+      ...g,
+      products: g.products.filter((p) => p.name.toLowerCase().includes(query)),
+    }))
+    .filter((g) => g.products.length > 0);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm shadow-xs transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <span className={selectedProduct ? "text-foreground" : "text-muted-foreground"}>
+          {selectedProduct ? selectedProduct.name : "Choisir un article..."}
+        </span>
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher un article..."
+              className="h-6 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                Aucun article trouvé
+              </p>
+            ) : (
+              filtered.map((group) => (
+                <div key={group.id}>
+                  <p className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    {group.name}
+                  </p>
+                  {group.products.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(p);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent/50"
+                    >
+                      <Check
+                        className={`h-3.5 w-3.5 shrink-0 ${value === p.id ? "text-primary" : "text-transparent"}`}
+                      />
+                      <span className="flex-1 truncate">{p.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatPrice(p.price)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function LoyaltyTierBuilder({
@@ -31,17 +139,37 @@ export function LoyaltyTierBuilder({
   tiers: LoyaltyTier[];
   onChange: (tiers: LoyaltyTier[]) => void;
 }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>([]);
 
   useEffect(() => {
     const fetchProducts = async () => {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data: categories } = await supabase
+        .from("categories")
+        .select("id, name, sort_order")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_visible", true)
+        .order("sort_order");
+
+      if (!categories || categories.length === 0) return;
+
+      const { data: products } = await supabase
         .from("products")
-        .select("id, name, price")
+        .select("id, name, price, category_id")
+        .in("category_id", categories.map((c) => c.id))
         .eq("is_available", true)
         .order("name");
-      if (data) setProducts(data);
+
+      if (products) {
+        const groups: CategoryGroup[] = categories
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            products: products.filter((p) => p.category_id === cat.id),
+          }))
+          .filter((g) => g.products.length > 0);
+        setCategoryGroups(groups);
+      }
     };
     fetchProducts();
   }, [restaurantId]);
@@ -210,30 +338,17 @@ export function LoyaltyTierBuilder({
             {tier.reward_type === "free_product" ? (
               <div className="space-y-1.5">
                 <Label className="text-xs">Article offert</Label>
-                <Select
-                  value={tier.product_id || ""}
-                  onValueChange={(val) => {
-                    const product = products.find((p) => p.id === val);
+                <ProductSearchSelect
+                  groups={categoryGroups}
+                  value={tier.product_id}
+                  onSelect={(product) => {
                     updateTier(tier.id, {
-                      product_id: val,
-                      product_name: product?.name,
-                      label: product?.name
-                        ? `${product.name} offert`
-                        : tier.label,
+                      product_id: product.id,
+                      product_name: product.name,
+                      label: `${product.name} offert`,
                     });
                   }}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Choisir un article..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-52">
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id} className="text-sm">
-                        {p.name} ({formatPrice(p.price)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
             ) : (
               <div className="space-y-1.5">

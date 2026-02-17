@@ -71,8 +71,8 @@ export async function POST(request: Request) {
         restaurant_id: restaurant.id,
         amount: amount.toString(),
       },
-      success_url: `${appUrl}/${restaurant_slug}?wallet_topup=success`,
-      cancel_url: `${appUrl}/${restaurant_slug}?wallet_topup=cancelled`,
+      success_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=success`,
+      cancel_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });
