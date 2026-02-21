@@ -25,6 +25,7 @@ CREATE TABLE public.restaurants (
     "sunday": {"open": "12:00", "close": "22:00"}
   }'::jsonb,
   is_accepting_orders BOOLEAN NOT NULL DEFAULT true,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   owner_id UUID REFERENCES auth.users(id),
   stripe_account_id TEXT,
   stripe_onboarding_complete BOOLEAN NOT NULL DEFAULT false,
