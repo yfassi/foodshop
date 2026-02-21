@@ -531,7 +531,7 @@ export default function Home() {
                     Commissions abusives
                   </h3>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                    Uber Eats, Deliveroo... jusqu&apos;à{" "}
+                    Les plateformes traditionnelles prélèvent jusqu&apos;à{" "}
                     <span className="font-bold text-destructive">
                       30% de commission
                     </span>{" "}
