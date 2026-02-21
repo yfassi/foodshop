@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { AnimatedBackground } from "@/components/animated-background";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -70,8 +71,9 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
+      <AnimatedBackground />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
         <h1 className="mb-6 text-center text-xl font-bold">
           Espace Restaurateur
         </h1>
@@ -86,7 +88,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@chezmomo.fr"
+              placeholder="contact@restaurant.fr"
               required
               className="mt-1.5 h-12"
             />

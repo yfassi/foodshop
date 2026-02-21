@@ -4,25 +4,34 @@ import { createClient } from "@/lib/supabase/server";
 
 interface OnboardingBody {
   name: string;
-  slug: string;
   description?: string;
   address?: string;
   phone?: string;
   opening_hours: Record<string, { open: string; close: string }[]>;
+  order_types?: string[];
   accepted_payment_methods: string[];
   logo_url?: string;
   email?: string;
   password?: string;
 }
 
+function toSlug(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OnboardingBody;
-    const { name, slug, description, address, phone, opening_hours, accepted_payment_methods, logo_url, email, password } = body;
+    const { name, description, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password } = body;
 
-    if (!name || !slug) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Nom et slug requis" },
+        { error: "Nom requis" },
         { status: 400 }
       );
     }
@@ -73,20 +82,6 @@ export async function POST(request: Request) {
       ownerId = user.id;
     }
 
-    // Check slug uniqueness
-    const { data: existing } = await supabase
-      .from("restaurants")
-      .select("id")
-      .eq("slug", slug)
-      .single();
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Ce slug est déjà pris" },
-        { status: 409 }
-      );
-    }
-
     // Check user doesn't already own a restaurant
     const { data: owned } = await supabase
       .from("restaurants")
@@ -101,6 +96,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // Generate unique slug from name
+    const baseSlug = toSlug(name);
+    let slug = baseSlug;
+    let suffix = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { data: existing } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+
+      if (!existing) break;
+
+      suffix++;
+      slug = `${baseSlug}-${suffix}`;
+    }
+
     // Create restaurant
     const { error } = await supabase.from("restaurants").insert({
       name,
@@ -110,6 +124,7 @@ export async function POST(request: Request) {
       phone: phone || null,
       logo_url: logo_url || null,
       opening_hours,
+      order_types: order_types && order_types.length > 0 ? order_types : ["dine_in", "takeaway"],
       accepted_payment_methods,
       owner_id: ownerId,
       is_accepting_orders: true,

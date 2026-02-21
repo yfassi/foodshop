@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import {
   Copy,
   Building2,
   UserPlus,
+  UtensilsCrossed,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
+import { AnimatedBackground } from "@/components/animated-background";
 import { TIME_OPTIONS } from "@/lib/constants";
 import {
   Select,
@@ -45,6 +48,7 @@ const STEPS = [
   { label: "Restaurant", icon: Store },
   { label: "Informations", icon: Building2 },
   { label: "Horaires", icon: Clock },
+  { label: "Service", icon: UtensilsCrossed },
   { label: "Paiement", icon: CreditCard },
   { label: "Compte", icon: UserPlus },
 ];
@@ -66,15 +70,6 @@ interface TimeRange {
 
 type HoursState = Record<string, TimeRange[] | null>;
 
-function toSlug(name: string) {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 const DEFAULT_HOURS: HoursState = {
   monday: [{ open: "11:00", close: "22:00" }],
   tuesday: [{ open: "11:00", close: "22:00" }],
@@ -95,10 +90,6 @@ export default function OnboardingPage() {
 
   // Step 1 — Restaurant
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugEdited, setSlugEdited] = useState(false);
-  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
-  const [slugChecking, setSlugChecking] = useState(false);
   const [description, setDescription] = useState("");
 
   // Success screen
@@ -115,7 +106,11 @@ export default function OnboardingPage() {
   const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
 
-  // Step 4 — Payment
+  // Step 4 — Service (order types)
+  const [dineInEnabled, setDineInEnabled] = useState(true);
+  const [takeawayEnabled, setTakeawayEnabled] = useState(true);
+
+  // Step 5 — Payment
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(false);
 
@@ -124,53 +119,20 @@ export default function OnboardingPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Auto-generate slug from name
-  useEffect(() => {
-    if (!slugEdited && name) {
-      setSlug(toSlug(name));
-    }
-  }, [name, slugEdited]);
-
-  // Check slug availability (debounced)
-  const checkSlug = useCallback(async (s: string) => {
-    if (!s || s.length < 2) {
-      setSlugAvailable(null);
-      return;
-    }
-    setSlugChecking(true);
-    try {
-      const res = await fetch(
-        `/api/admin/check-slug?slug=${encodeURIComponent(s)}`
-      );
-      const data = await res.json();
-      setSlugAvailable(data.available);
-    } catch {
-      setSlugAvailable(null);
-    } finally {
-      setSlugChecking(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (slug) checkSlug(slug);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [slug, checkSlug]);
 
   const canAdvance = () => {
     switch (step) {
       case 0:
-        return (
-          name.trim().length > 0 && slug.length >= 2 && slugAvailable === true
-        );
+        return name.trim().length > 0;
       case 1:
         return true;
       case 2:
         return true;
       case 3:
-        return cashEnabled || cardEnabled;
+        return dineInEnabled || takeawayEnabled;
       case 4:
+        return cashEnabled || cardEnabled;
+      case 5:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -211,6 +173,11 @@ export default function OnboardingPage() {
       opening_hours[day.key] = ranges || [];
     }
 
+    // Build order types
+    const order_types: string[] = [];
+    if (dineInEnabled) order_types.push("dine_in");
+    if (takeawayEnabled) order_types.push("takeaway");
+
     // Build payment methods
     const accepted_payment_methods: string[] = [];
     if (cashEnabled) accepted_payment_methods.push("on_site");
@@ -225,12 +192,12 @@ export default function OnboardingPage() {
           email: email.trim(),
           password,
           name: name.trim(),
-          slug,
           description: description.trim() || undefined,
           siret: siret.replace(/\s/g, "").trim() || undefined,
           address: address.trim() || undefined,
           phone: phone.trim() || undefined,
           opening_hours,
+          order_types,
           accepted_payment_methods,
         }),
       });
@@ -364,9 +331,10 @@ export default function OnboardingPage() {
 
   if (showSuccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-        <div className="w-full max-w-md step-enter-from-right">
-          <div className="rounded-2xl border border-border bg-card p-8 shadow-lg text-center space-y-5">
+      <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
+        <AnimatedBackground />
+        <div className="relative z-10 w-full max-w-md step-enter-from-right">
+          <div className="rounded-2xl border border-border bg-card/90 p-8 shadow-lg backdrop-blur-sm text-center space-y-5">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
               <Check className="h-8 w-8" />
             </div>
@@ -395,8 +363,9 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
+      <AnimatedBackground />
+      <div className="relative z-10 w-full max-w-md">
         {/* Step counter */}
         <p className="mb-4 text-center text-xs font-medium text-muted-foreground">
           Étape {step + 1} sur {STEPS.length}
@@ -451,7 +420,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-lg">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
           <div key={step} className={animClass}>
             {/* Step 1: Restaurant */}
             {step === 0 && (
@@ -471,50 +440,10 @@ export default function OnboardingPage() {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Chez Momo"
+                    placeholder="Les Saveurs du Midi"
                     className="h-12"
                     autoFocus
                   />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="slug" className="text-sm font-medium">
-                    Adresse web
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">/</span>
-                    <Input
-                      id="slug"
-                      value={slug}
-                      onChange={(e) => {
-                        setSlugEdited(true);
-                        setSlug(toSlug(e.target.value));
-                      }}
-                      placeholder="chez-momo"
-                      className="h-12 font-mono"
-                    />
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center">
-                      {slugChecking && (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      )}
-                      {!slugChecking && slugAvailable === true && (
-                        <Check className="h-4 w-4 text-green-500" />
-                      )}
-                      {!slugChecking && slugAvailable === false && (
-                        <X className="h-4 w-4 text-orange-500" />
-                      )}
-                    </div>
-                  </div>
-                  {slugAvailable === false && (
-                    <p className="text-xs text-orange-500">
-                      Ce nom est déjà pris
-                    </p>
-                  )}
-                  {slug.length >= 2 && slugAvailable !== false && (
-                    <p className="text-xs text-muted-foreground">
-                      Vos clients commanderont sur ce lien
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -836,8 +765,86 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 4: Payment */}
+            {/* Step 4: Service (order types) */}
             {step === 3 && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-bold">Type de service</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Comment vos clients récupèrent-ils leur commande ?
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDineInEnabled(!dineInEnabled)}
+                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
+                      dineInEnabled
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/40"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                        dineInEnabled
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <UtensilsCrossed className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Sur place</p>
+                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                        Le client mange au restaurant
+                      </p>
+                    </div>
+                    {dineInEnabled && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTakeawayEnabled(!takeawayEnabled)}
+                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
+                      takeawayEnabled
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/40"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                        takeawayEnabled
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <ShoppingBag className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">À emporter</p>
+                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                        Le client récupère sa commande
+                      </p>
+                    </div>
+                    {takeawayEnabled && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+                </div>
+
+                {!dineInEnabled && !takeawayEnabled && (
+                  <p className="text-xs text-orange-500">
+                    Sélectionnez au moins un type de service
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Step 5: Payment */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Modes de paiement</h2>
@@ -930,8 +937,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 5: Account */}
-            {step === 4 && (
+            {/* Step 6: Account */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Créez votre compte</h2>
