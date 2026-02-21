@@ -22,9 +22,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Taapr - Commandez en ligne",
+  title: "Taapr - La commande en ligne pour les restaurants",
   description:
-    "Commandez vos tacos, kebabs et burgers en ligne. Click & Collect rapide.",
+    "Taapr permet à vos clients de commander depuis leur smartphone via QR code. Paiement sécurisé Stripe, 0% de commission, abonnement fixe à 29€/mois.",
 };
 
 export default function RootLayout({
