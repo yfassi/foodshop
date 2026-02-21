@@ -170,3 +170,45 @@
   30% { transform: scale(1.05); }
   60% { transform: scale(0.97); }
 }
+
+/* Landing page animations */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(60px, 40px) scale(1.1); }
+  66% { transform: translate(-30px, 70px) scale(0.95); }
+}
+
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-50px, -30px) scale(0.9); }
+  66% { transform: translate(40px, -60px) scale(1.08); }
+}
+
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -50px) scale(1.05); }
+  66% { transform: translate(-60px, 20px) scale(0.92); }
+}
+
+@keyframes float-food {
+  0% { opacity: 0; transform: translateY(0) rotate(0deg) scale(0.8); }
+  10% { opacity: 0.18; transform: translateY(-10px) rotate(5deg) scale(1); }
+  50% { opacity: 0.22; transform: translateY(-30px) rotate(-5deg) scale(1.05); }
+  90% { opacity: 0.18; transform: translateY(-10px) rotate(3deg) scale(1); }
+  100% { opacity: 0; transform: translateY(0) rotate(0deg) scale(0.8); }
+}
+
+@layer utilities {
+  .animate-orb-1 {
+    animation: orb-drift-1 20s ease-in-out infinite;
+  }
+  .animate-orb-2 {
+    animation: orb-drift-2 25s ease-in-out infinite;
+  }
+  .animate-orb-3 {
+    animation: orb-drift-3 22s ease-in-out infinite;
+  }
+  .animate-float-food {
+    animation: float-food ease-in-out infinite;
+  }
+}

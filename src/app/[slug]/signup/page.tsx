@@ -86,7 +86,7 @@ export default function CustomerSignupPage() {
             id="fullName"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Ali Benzema"
+            placeholder="Prénom"
             required
             className="h-12"
           />
