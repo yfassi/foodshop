@@ -65,7 +65,7 @@ export default function SuperAdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@foodshop.fr"
+              placeholder="admin@taapr.fr"
               required
               className="mt-1.5 h-12"
             />
