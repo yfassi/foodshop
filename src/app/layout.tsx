@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "FoodShop - Commandez en ligne",
+  title: "Taapr - Commandez en ligne",
   description:
     "Commandez vos tacos, kebabs et burgers en ligne. Click & Collect rapide.",
 };

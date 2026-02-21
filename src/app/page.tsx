@@ -30,7 +30,7 @@ export default function Home() {
 
         {/* Title with gradient */}
         <h1 className="mb-3 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text font-heading text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
-          FoodShop
+          Taapr
         </h1>
 
         <p className="mb-10 max-w-xs text-center text-base leading-relaxed text-muted-foreground sm:max-w-sm">
