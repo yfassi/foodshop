@@ -26,6 +26,7 @@ export interface Restaurant {
   phone: string | null;
   opening_hours: Record<string, { open: string; close: string }[]>;
   is_accepting_orders: boolean;
+  is_active: boolean;
   owner_id: string | null;
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
