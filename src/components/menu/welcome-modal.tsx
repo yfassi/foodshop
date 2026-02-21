@@ -10,6 +10,7 @@ import {
   Drawer,
   DrawerContent,
   DrawerFooter,
+  DrawerTitle,
 } from "@/components/ui/drawer";
 import {
   UtensilsCrossed,
@@ -69,6 +70,7 @@ export function WelcomeModal({
   return (
     <Drawer open={open} dismissible={false}>
       <DrawerContent>
+        <DrawerTitle className="sr-only">Bienvenue</DrawerTitle>
         {/* Hero header */}
         <div className="flex flex-col items-center px-6 pt-6 pb-2">
           {logoUrl ? (
