@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AccountPage } from "@/components/customer/account-page";
-import type { LoyaltyTier, WalletTransaction } from "@/lib/types";
+import { CompleteProfileForm } from "@/components/customer/complete-profile-form";
+import type { LoyaltyTier, WalletTopupTier, WalletTransaction } from "@/lib/types";
 
 export default async function CustomerAccountPage({
   params,
@@ -22,7 +23,7 @@ export default async function CustomerAccountPage({
   // Fetch restaurant with loyalty config
   const { data: restaurant } = await supabase
     .from("restaurants")
-    .select("id, name, loyalty_enabled, loyalty_tiers")
+    .select("id, name, loyalty_enabled, loyalty_tiers, wallet_topup_enabled, wallet_topup_tiers")
     .eq("slug", slug)
     .single();
 
@@ -38,7 +39,7 @@ export default async function CustomerAccountPage({
     .single();
 
   if (!profile) {
-    redirect(`/${slug}`);
+    return <CompleteProfileForm slug={slug} />;
   }
 
   // Fetch wallet
@@ -93,6 +94,11 @@ export default async function CustomerAccountPage({
       walletBalance={wallet?.balance ?? 0}
       walletTransactions={transactions}
       orders={orders ?? []}
+      topupTiers={
+        restaurant.wallet_topup_enabled
+          ? (restaurant.wallet_topup_tiers as WalletTopupTier[]) ?? []
+          : []
+      }
     />
   );
 }

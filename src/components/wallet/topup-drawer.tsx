@@ -10,22 +10,36 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from "@/components/ui/drawer";
-import { Loader2 } from "lucide-react";
+import { Loader2, Gift } from "lucide-react";
 import { toast } from "sonner";
+import type { WalletTopupTier } from "@/lib/types";
 
-const TOPUP_AMOUNTS = [500, 1000, 2000, 5000]; // in cents
+const DEFAULT_AMOUNTS = [500, 1000, 2000, 5000]; // in cents
 
 export function TopupDrawer({
   slug,
   open,
   onClose,
+  tiers,
 }: {
   slug: string;
   open: boolean;
   onClose: () => void;
+  tiers?: WalletTopupTier[];
 }) {
-  const [selectedAmount, setSelectedAmount] = useState(1000);
+  const hasTiers = tiers && tiers.length > 0;
+  const sortedTiers = hasTiers
+    ? [...tiers].sort((a, b) => a.amount - b.amount)
+    : [];
+
+  const defaultAmount = hasTiers ? sortedTiers[0].amount : 1000;
+  const [selectedAmount, setSelectedAmount] = useState(defaultAmount);
   const [loading, setLoading] = useState(false);
+
+  const selectedTier = hasTiers
+    ? sortedTiers.find((t) => t.amount === selectedAmount)
+    : null;
+  const bonus = selectedTier?.bonus ?? 0;
 
   const handleTopup = async () => {
     setLoading(true);
@@ -36,6 +50,7 @@ export function TopupDrawer({
         body: JSON.stringify({
           restaurant_slug: slug,
           amount: selectedAmount,
+          ...(bonus > 0 && { bonus }),
         }),
       });
 
@@ -70,20 +85,55 @@ export function TopupDrawer({
             Choisissez un montant
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {TOPUP_AMOUNTS.map((amount) => (
-              <button
-                key={amount}
-                onClick={() => setSelectedAmount(amount)}
-                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                  selectedAmount === amount
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border active:bg-accent"
-                }`}
-              >
-                {formatPrice(amount)}
-              </button>
-            ))}
+            {hasTiers
+              ? sortedTiers.map((tier) => (
+                  <button
+                    key={tier.id}
+                    onClick={() => setSelectedAmount(tier.amount)}
+                    className={`relative rounded-xl border px-4 py-3 text-center transition-colors ${
+                      selectedAmount === tier.amount
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border active:bg-accent"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">
+                      {formatPrice(tier.amount)}
+                    </span>
+                    {tier.bonus > 0 && (
+                      <span className="mt-0.5 flex items-center justify-center gap-1 text-xs font-semibold text-green-600">
+                        <Gift className="h-3 w-3" />+{formatPrice(tier.bonus)} offerts
+                      </span>
+                    )}
+                    {tier.label && (
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                        {tier.label}
+                      </span>
+                    )}
+                  </button>
+                ))
+              : DEFAULT_AMOUNTS.map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setSelectedAmount(amount)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                      selectedAmount === amount
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border active:bg-accent"
+                    }`}
+                  >
+                    {formatPrice(amount)}
+                  </button>
+                ))}
           </div>
+
+          {bonus > 0 && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Votre solde sera crédité de{" "}
+              <span className="font-semibold text-foreground">
+                {formatPrice(selectedAmount + bonus)}
+              </span>
+            </p>
+          )}
         </div>
 
         <DrawerFooter className="border-t border-border pt-3">

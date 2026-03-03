@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/format";
-import type { Restaurant, LoyaltyTier, OrderType } from "@/lib/types";
+import type { Restaurant, LoyaltyTier, WalletTopupTier, OrderType } from "@/lib/types";
 import {
   DAYS_FR,
   DAYS_FR_SHORT,
@@ -48,6 +48,7 @@ import {
 } from "@/lib/constants";
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
+import { TopupTierBuilder } from "@/components/admin/topup-tier-builder";
 import {
   Select,
   SelectContent,
@@ -56,7 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "loyalty" | "account";
+type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "account";
 
 interface StripePayment {
   id: string;
@@ -225,6 +226,10 @@ export default function SettingsPage() {
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTier[]>([]);
 
+  // Wallet topup
+  const [walletTopupEnabled, setWalletTopupEnabled] = useState(false);
+  const [walletTopupTiers, setWalletTopupTiers] = useState<WalletTopupTier[]>([]);
+
   // Stripe data
   const [stripeData, setStripeData] = useState<StripeData | null>(null);
   const [stripeDataLoading, setStripeDataLoading] = useState(false);
@@ -275,6 +280,8 @@ export default function SettingsPage() {
         setOrderTypeTakeaway(types.includes("takeaway"));
         setLoyaltyEnabled(data.loyalty_enabled ?? false);
         setLoyaltyTiers(data.loyalty_tiers ?? []);
+        setWalletTopupEnabled(data.wallet_topup_enabled ?? false);
+        setWalletTopupTiers(data.wallet_topup_tiers ?? []);
       }
 
       setLoading(false);
@@ -369,6 +376,7 @@ export default function SettingsPage() {
   const restaurantTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const paymentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const walletTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveRestaurant = useCallback(async () => {
     if (!restaurant || !name.trim()) return;
@@ -442,6 +450,24 @@ export default function SettingsPage() {
     }
   }, [restaurant, loyaltyEnabled, loyaltyTiers]);
 
+  const autoSaveWalletTopup = useCallback(async () => {
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        wallet_topup_enabled: walletTopupEnabled,
+        wallet_topup_tiers: walletTopupTiers,
+      })
+      .eq("id", restaurant.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [restaurant, walletTopupEnabled, walletTopupTiers]);
+
   // Auto-save restaurant settings (debounced)
   useEffect(() => {
     if (!hasLoaded.current) return;
@@ -465,6 +491,14 @@ export default function SettingsPage() {
     loyaltyTimerRef.current = setTimeout(autoSaveLoyalty, 800);
     return () => { if (loyaltyTimerRef.current) clearTimeout(loyaltyTimerRef.current); };
   }, [autoSaveLoyalty]);
+
+  // Auto-save wallet topup (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (walletTimerRef.current) clearTimeout(walletTimerRef.current);
+    walletTimerRef.current = setTimeout(autoSaveWalletTopup, 800);
+    return () => { if (walletTimerRef.current) clearTimeout(walletTimerRef.current); };
+  }, [autoSaveWalletTopup]);
 
   // --- Account ---
 
@@ -667,6 +701,11 @@ export default function SettingsPage() {
       key: "loyalty",
       label: "Fidélité",
       icon: <Gift className="h-4 w-4" />,
+    },
+    {
+      key: "wallet",
+      label: "Solde",
+      icon: <Wallet className="h-4 w-4" />,
     },
     {
       key: "account",
@@ -1374,6 +1413,32 @@ export default function SettingsPage() {
                 restaurantId={restaurant.id}
                 tiers={loyaltyTiers}
                 onChange={setLoyaltyTiers}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ═══ Tab: Solde ═══ */}
+        {activeTab === "wallet" && (
+          <div className="space-y-4">
+            <Section>
+              <SectionHeader
+                icon={Wallet}
+                title="Recharge de solde"
+                description="Proposez des bonus pour inciter vos clients à recharger"
+                action={
+                  <Switch
+                    checked={walletTopupEnabled}
+                    onCheckedChange={setWalletTopupEnabled}
+                  />
+                }
+              />
+            </Section>
+
+            {walletTopupEnabled && (
+              <TopupTierBuilder
+                tiers={walletTopupTiers}
+                onChange={setWalletTopupTiers}
               />
             )}
           </div>

@@ -208,6 +208,7 @@ export function MenuGrid({
             <CategorySection
               key={category.id}
               category={category}
+              horizontal={category.name.toLowerCase() === "nouveautés"}
               ref={(el) => {
                 if (el) categoryRefs.current.set(category.id, el);
               }}

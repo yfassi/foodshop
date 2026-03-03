@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { stripe } from "@/lib/stripe/client";
 import type { Order } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
@@ -21,6 +23,26 @@ export default async function OrderConfirmationPage({
     .single<Order>();
 
   if (!order) notFound();
+
+  // If order is not yet marked as paid but has a Stripe session, verify payment
+  if (!order.paid && order.stripe_session_id) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+      if (session.payment_status === "paid") {
+        const adminSupabase = createAdminClient();
+        await adminSupabase
+          .from("orders")
+          .update({
+            paid: true,
+            stripe_payment_intent_id: session.payment_intent as string,
+          })
+          .eq("id", order.id);
+        order.paid = true;
+      }
+    } catch {
+      // Stripe verification failed, webhook will handle it as fallback
+    }
+  }
 
   const {
     data: { user },

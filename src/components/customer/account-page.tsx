@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice, formatDate } from "@/lib/format";
 import { TopupDrawer } from "@/components/wallet/topup-drawer";
-import type { LoyaltyTier, WalletTransaction, WalletTxType, OrderItem } from "@/lib/types";
+import type { LoyaltyTier, WalletTopupTier, WalletTransaction, WalletTxType, OrderItem } from "@/lib/types";
 
 interface AccountOrder {
   id: string;
@@ -126,6 +126,7 @@ export function AccountPage({
   walletBalance,
   walletTransactions,
   orders,
+  topupTiers,
 }: {
   slug: string;
   profile: {
@@ -141,6 +142,7 @@ export function AccountPage({
   walletBalance: number;
   walletTransactions: WalletTransaction[];
   orders: AccountOrder[];
+  topupTiers?: WalletTopupTier[];
 }) {
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(
     new Set(["wallet"])
@@ -547,7 +549,7 @@ export function AccountPage({
         </Link>
       </div>
 
-      <TopupDrawer slug={slug} open={topupOpen} onClose={() => setTopupOpen(false)} />
+      <TopupDrawer slug={slug} open={topupOpen} onClose={() => setTopupOpen(false)} tiers={topupTiers} />
     </div>
   );
 }
