@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { WalletLive } from "@/components/wallet/wallet-live";
-import type { WalletTransaction } from "@/lib/types";
+import type { WalletTransaction, WalletTopupTier } from "@/lib/types";
 
 export default async function WalletPage({
   params,
@@ -23,7 +23,7 @@ export default async function WalletPage({
   // Get restaurant
   const { data: restaurant } = await supabase
     .from("restaurants")
-    .select("id")
+    .select("id, wallet_topup_enabled, wallet_topup_tiers")
     .eq("slug", slug)
     .single();
 
@@ -54,12 +54,17 @@ export default async function WalletPage({
     transactions = (data as WalletTransaction[]) ?? [];
   }
 
+  const topupTiers = restaurant.wallet_topup_enabled
+    ? (restaurant.wallet_topup_tiers as WalletTopupTier[]) ?? []
+    : [];
+
   return (
     <WalletLive
       slug={slug}
       walletId={wallet?.id ?? null}
       initialBalance={wallet?.balance ?? 0}
       initialTransactions={transactions}
+      topupTiers={topupTiers}
     />
   );
 }

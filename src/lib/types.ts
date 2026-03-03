@@ -14,6 +14,13 @@ export interface LoyaltyTier {
   label: string;
 }
 
+export interface WalletTopupTier {
+  id: string;
+  amount: number;  // montant payé en centimes (ex: 2000 = 20€)
+  bonus: number;   // bonus offert en centimes (ex: 500 = 5€)
+  label: string;   // "Populaire", "Meilleure offre"...
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -34,6 +41,8 @@ export interface Restaurant {
   order_types: OrderType[];
   loyalty_enabled: boolean;
   loyalty_tiers: LoyaltyTier[];
+  wallet_topup_enabled: boolean;
+  wallet_topup_tiers: WalletTopupTier[];
   created_at: string;
   updated_at: string;
 }

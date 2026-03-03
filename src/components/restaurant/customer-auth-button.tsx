@@ -8,6 +8,8 @@ import { User } from "lucide-react";
 import Link from "next/link";
 
 export function CustomerAuthButton({ slug }: { slug: string }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [points, setPoints] = useState<number | null>(null);
@@ -19,6 +21,8 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        setIsAuthenticated(true);
+
         // Fetch restaurant by slug
         const { data: restaurant } = await supabase
           .from("restaurants")
@@ -33,6 +37,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
 
         // Check if this is a restaurant owner (admin)
         if (restaurant.owner_id === user.id) {
+          setIsOwner(true);
           setLoading(false);
           return;
         }
@@ -87,7 +92,11 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
 
   if (loading) return null;
 
-  if (!profile) {
+  // Owner: don't show customer button
+  if (isOwner) return null;
+
+  // Not authenticated: show login link
+  if (!isAuthenticated) {
     return (
       <Link
         href={`/${slug}/login`}
@@ -95,6 +104,19 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
       >
         <User className="h-3.5 w-3.5" />
         Connexion
+      </Link>
+    );
+  }
+
+  // Authenticated but no customer profile yet
+  if (!profile) {
+    return (
+      <Link
+        href={`/${slug}/account`}
+        className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
+      >
+        <User className="h-3.5 w-3.5" />
+        Mon compte
       </Link>
     );
   }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice, formatDate } from "@/lib/format";
 import { TopupDrawer } from "@/components/wallet/topup-drawer";
-import type { WalletTransaction, WalletTxType } from "@/lib/types";
+import type { WalletTransaction, WalletTxType, WalletTopupTier } from "@/lib/types";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -51,11 +51,13 @@ export function WalletLive({
   walletId,
   initialBalance,
   initialTransactions,
+  topupTiers,
 }: {
   slug: string;
   walletId: string | null;
   initialBalance: number;
   initialTransactions: WalletTransaction[];
+  topupTiers?: WalletTopupTier[];
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] =
@@ -240,6 +242,7 @@ export function WalletLive({
         slug={slug}
         open={topupOpen}
         onClose={() => setTopupOpen(false)}
+        tiers={topupTiers}
       />
     </div>
   );

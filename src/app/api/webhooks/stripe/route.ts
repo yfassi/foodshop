@@ -41,6 +41,8 @@ export async function POST(request: Request) {
       const userId = session.metadata?.user_id;
       const restaurantId = session.metadata?.restaurant_id;
       const amount = parseInt(session.metadata?.amount || "0", 10);
+      const bonus = parseInt(session.metadata?.bonus || "0", 10);
+      const totalCredit = amount + bonus;
 
       if (userId && restaurantId && amount > 0) {
         // Idempotency check: verify this session hasn't already been processed
@@ -82,12 +84,17 @@ export async function POST(request: Request) {
         }
 
         if (walletId) {
-          // Use atomic credit function
+          const description = bonus > 0
+            ? `Recharge ${(amount / 100).toFixed(2)} € + ${(bonus / 100).toFixed(2)} € offerts`
+            : undefined;
+
+          // Use atomic credit function (amount + bonus)
           await supabase.rpc("credit_wallet_balance", {
             p_wallet_id: walletId,
-            p_amount: amount,
+            p_amount: totalCredit,
             p_type: "topup_stripe",
             p_stripe_session_id: session.id,
+            ...(description && { p_description: description }),
           });
         }
       }
