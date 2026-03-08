@@ -27,6 +27,13 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Service-Worker-Allowed", value: "/" },
+          { key: "Cache-Control", value: "no-cache" },
+        ],
+      },
     ];
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,15 +15,17 @@ import {
   ArrowLeft,
   Store,
   Clock,
-  CreditCard,
+  Settings,
   Plus,
   Coins,
   ShieldCheck,
   Copy,
-  Building2,
   UserPlus,
   UtensilsCrossed,
   ShoppingBag,
+  CreditCard,
+  MapPin,
+  Users,
 } from "lucide-react";
 import {
   Dialog,
@@ -44,13 +46,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/* ─── Constants ─── */
+
 const STEPS = [
   { label: "Restaurant", icon: Store },
-  { label: "Informations", icon: Building2 },
+  { label: "Coordonnées", icon: MapPin },
   { label: "Horaires", icon: Clock },
-  { label: "Service", icon: UtensilsCrossed },
-  { label: "Paiement", icon: CreditCard },
+  { label: "Configuration", icon: Settings },
   { label: "Compte", icon: UserPlus },
+];
+
+const RESTAURANT_TYPES = [
+  { value: "fast_food", emoji: "🍔", label: "Fast-food" },
+  { value: "pizzeria", emoji: "🍕", label: "Pizzeria" },
+  { value: "tacos_snack", emoji: "🌮", label: "Tacos / Snack" },
+  { value: "boulangerie", emoji: "🥖", label: "Boulangerie" },
+  { value: "patisserie", emoji: "🍰", label: "Pâtisserie" },
+  { value: "asiatique", emoji: "🍣", label: "Asiatique" },
+  { value: "healthy", emoji: "🥗", label: "Healthy" },
+  { value: "traditionnel", emoji: "🍽️", label: "Traditionnel" },
+  { value: "cafe", emoji: "☕", label: "Café / Bar" },
+  { value: "autre", emoji: "🏪", label: "Autre" },
 ];
 
 const DAYS = [
@@ -80,24 +96,24 @@ const DEFAULT_HOURS: HoursState = {
   sunday: [{ open: "12:00", close: "22:00" }],
 };
 
+/* ─── Component ─── */
+
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-
-  // Animation
   const [animClass, setAnimClass] = useState("");
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Step 1 — Restaurant
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-
-  // Success screen
+  // Success
   const [showSuccess, setShowSuccess] = useState(false);
   const [successSlug, setSuccessSlug] = useState("");
 
-  // Step 2 — Informations
-  const [siret, setSiret] = useState("");
+  // Step 1 — Restaurant
+  const [name, setName] = useState("");
+  const [restaurantType, setRestaurantType] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Step 2 — Coordonnées
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -106,19 +122,19 @@ export default function OnboardingPage() {
   const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
 
-  // Step 4 — Service (order types)
+  // Step 4 — Configuration
   const [dineInEnabled, setDineInEnabled] = useState(true);
   const [takeawayEnabled, setTakeawayEnabled] = useState(true);
-
-  // Step 5 — Payment
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(false);
+  const [queueEnabled, setQueueEnabled] = useState(false);
 
   // Step 5 — Account
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  /* ─── Navigation ─── */
 
   const canAdvance = () => {
     switch (step) {
@@ -129,10 +145,11 @@ export default function OnboardingPage() {
       case 2:
         return true;
       case 3:
-        return dineInEnabled || takeawayEnabled;
+        return (
+          (dineInEnabled || takeawayEnabled) &&
+          (cashEnabled || cardEnabled)
+        );
       case 4:
-        return cashEnabled || cardEnabled;
-      case 5:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -146,7 +163,9 @@ export default function OnboardingPage() {
   const goToStep = (next: number) => {
     const direction = next > step ? "forward" : "backward";
     setAnimClass(
-      direction === "forward" ? "step-enter-from-right" : "step-enter-from-left"
+      direction === "forward"
+        ? "step-enter-from-right"
+        : "step-enter-from-left"
     );
     setStep(next);
     if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
@@ -161,30 +180,26 @@ export default function OnboardingPage() {
     if (step > 0) goToStep(step - 1);
   };
 
+  /* ─── Submit ─── */
+
   const handleSubmit = async () => {
     if (!canAdvance()) return;
-
     setSubmitting(true);
 
-    // Build opening_hours
     const opening_hours: Record<string, { open: string; close: string }[]> = {};
     for (const day of DAYS) {
-      const ranges = hours[day.key];
-      opening_hours[day.key] = ranges || [];
+      opening_hours[day.key] = hours[day.key] || [];
     }
 
-    // Build order types
     const order_types: string[] = [];
     if (dineInEnabled) order_types.push("dine_in");
     if (takeawayEnabled) order_types.push("takeaway");
 
-    // Build payment methods
     const accepted_payment_methods: string[] = [];
     if (cashEnabled) accepted_payment_methods.push("on_site");
     if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
-      // Create account + restaurant in one call
       const res = await fetch("/api/admin/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -193,12 +208,13 @@ export default function OnboardingPage() {
           password,
           name: name.trim(),
           description: description.trim() || undefined,
-          siret: siret.replace(/\s/g, "").trim() || undefined,
+          restaurant_type: restaurantType || undefined,
           address: address.trim() || undefined,
           phone: phone.trim() || undefined,
           opening_hours,
           order_types,
           accepted_payment_methods,
+          queue_enabled: queueEnabled,
         }),
       });
 
@@ -208,7 +224,6 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Erreur");
       }
 
-      // Sign in to establish session
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -216,19 +231,15 @@ export default function OnboardingPage() {
       });
 
       if (signInError) {
-        // Account and restaurant were created, but sign-in failed
-        // Redirect to login instead
         toast.success("Restaurant créé ! Connectez-vous pour continuer.");
         window.location.href = "/admin/login";
         return;
       }
 
-      // Show success screen with confetti
       setSuccessSlug(data.slug);
       setShowSuccess(true);
       setSubmitting(false);
 
-      // Fire confetti bursts
       const duration = 2000;
       const end = Date.now() + duration;
       const frame = () => {
@@ -255,7 +266,7 @@ export default function OnboardingPage() {
     }
   };
 
-  // --- Hours helpers ---
+  /* ─── Hours helpers ─── */
 
   const toggleDay = (key: string, enabled: boolean) => {
     setHours((prev) => ({
@@ -329,27 +340,27 @@ export default function OnboardingPage() {
     setCopyToDays([]);
   };
 
+  /* ─── Success Screen ─── */
+
   if (showSuccess) {
     return (
       <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
         <AnimatedBackground />
         <div className="relative z-10 w-full max-w-md step-enter-from-right">
-          <div className="rounded-2xl border border-border bg-card/90 p-8 shadow-lg backdrop-blur-sm text-center space-y-5">
+          <div className="space-y-5 rounded-2xl border border-border bg-card/90 p-8 text-center shadow-lg backdrop-blur-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
               <Check className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">
-                Félicitations !
-              </h2>
+              <h2 className="text-xl font-bold">Félicitations !</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Votre restaurant a été créé avec succès. Votre espace de gestion
-                est prêt !
+                Votre restaurant est prêt. Ajoutez vos premiers produits pour
+                commencer à recevoir des commandes.
               </p>
             </div>
             <Button
               onClick={() => {
-                window.location.href = `/admin/${successSlug}`;
+                window.location.href = `/admin/${successSlug}?welcome=true`;
               }}
               className="h-12 w-full rounded-xl font-semibold"
             >
@@ -361,6 +372,8 @@ export default function OnboardingPage() {
       </div>
     );
   }
+
+  /* ─── Render ─── */
 
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
@@ -385,7 +398,7 @@ export default function OnboardingPage() {
                       isDone
                         ? "border-primary bg-primary text-primary-foreground"
                         : isActive
-                          ? "border-primary bg-primary/10 text-primary scale-110"
+                          ? "scale-110 border-primary bg-primary/10 text-primary"
                           : "border-muted-foreground/30 text-muted-foreground/50"
                     }`}
                   >
@@ -398,7 +411,7 @@ export default function OnboardingPage() {
                   <span
                     className={`mt-1.5 text-[9px] font-medium transition-colors duration-300 ${
                       isActive
-                        ? "text-primary font-semibold"
+                        ? "font-semibold text-primary"
                         : isDone
                           ? "text-foreground"
                           : "text-muted-foreground/50"
@@ -409,7 +422,7 @@ export default function OnboardingPage() {
                 </div>
                 {i < STEPS.length - 1 && (
                   <div
-                    className={`mx-0.5 mb-5 h-0.5 w-4 rounded-full transition-colors duration-500 ${
+                    className={`mx-1 mb-5 h-0.5 w-6 rounded-full transition-colors duration-500 ${
                       i < step ? "bg-primary" : "bg-muted-foreground/20"
                     }`}
                   />
@@ -422,13 +435,13 @@ export default function OnboardingPage() {
         {/* Card */}
         <div className="overflow-hidden rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
           <div key={step} className={animClass}>
-            {/* Step 1: Restaurant */}
+            {/* ─── Step 1: Restaurant ─── */}
             {step === 0 && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <h2 className="text-lg font-bold">Bienvenue !</h2>
+                  <h2 className="text-lg font-bold">Votre restaurant</h2>
                   <p className="text-sm text-muted-foreground">
-                    Commencez par nous parler de votre restaurant
+                    Commençons par l&apos;essentiel
                   </p>
                 </div>
 
@@ -446,9 +459,39 @@ export default function OnboardingPage() {
                   />
                 </div>
 
+                {/* Restaurant type grid */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">
+                    Type d&apos;établissement
+                  </Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {RESTAURANT_TYPES.map((type) => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() =>
+                          setRestaurantType(
+                            restaurantType === type.value ? "" : type.value
+                          )
+                        }
+                        className={`flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 transition-all ${
+                          restaurantType === type.value
+                            ? "scale-105 border-primary bg-primary/5"
+                            : "border-transparent bg-muted/50 hover:bg-muted"
+                        }`}
+                      >
+                        <span className="text-xl">{type.emoji}</span>
+                        <span className="text-center text-[9px] font-medium leading-tight">
+                          {type.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="description" className="text-sm font-medium">
-                    Parlez-nous de votre restaurant{" "}
+                    Description{" "}
                     <span className="text-muted-foreground">(optionnel)</span>
                   </Label>
                   <textarea
@@ -456,49 +499,20 @@ export default function OnboardingPage() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Cuisine marocaine traditionnelle..."
-                    rows={3}
+                    rows={2}
                     className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               </div>
             )}
 
-            {/* Step 2: Informations */}
+            {/* ─── Step 2: Coordonnées ─── */}
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-bold">Informations</h2>
+                  <h2 className="text-lg font-bold">Coordonnées</h2>
                   <p className="text-sm text-muted-foreground">
-                    Ces informations sont utiles pour identifier votre
-                    établissement
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="siret" className="text-sm font-medium">
-                    Numéro SIRET{" "}
-                    <span className="text-muted-foreground">(optionnel)</span>
-                  </Label>
-                  <Input
-                    id="siret"
-                    value={siret}
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 14);
-                      const formatted = digits.replace(
-                        /(\d{3})(?=\d)/g,
-                        "$1 "
-                      );
-                      setSiret(formatted);
-                    }}
-                    placeholder="123 456 789 00012"
-                    className="h-12 font-mono"
-                    maxLength={17}
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    14 chiffres — disponible sur votre extrait Kbis
+                    Pour que vos clients vous trouvent
                   </p>
                 </div>
 
@@ -512,6 +526,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="12 rue de la Paix, 75002 Paris"
                     className="h-12"
+                    autoFocus
                   />
                 </div>
 
@@ -538,10 +553,14 @@ export default function OnboardingPage() {
                     maxLength={14}
                   />
                 </div>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  Ces informations sont optionnelles et modifiables plus tard
+                </p>
               </div>
             )}
 
-            {/* Step 3: Hours */}
+            {/* ─── Step 3: Hours ─── */}
             {step === 2 && (
               <div className="space-y-4">
                 <div>
@@ -549,7 +568,7 @@ export default function OnboardingPage() {
                     Horaires d&apos;ouverture
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Définissez quand vos clients peuvent commander
+                    Quand vos clients peuvent commander
                   </p>
                 </div>
 
@@ -765,186 +784,204 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 4: Service (order types) */}
+            {/* ─── Step 4: Configuration ─── */}
             {step === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <h2 className="text-lg font-bold">Type de service</h2>
+                  <h2 className="text-lg font-bold">Configuration</h2>
                   <p className="text-sm text-muted-foreground">
-                    Comment vos clients récupèrent-ils leur commande ?
+                    Personnalisez le fonctionnement de votre restaurant
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDineInEnabled(!dineInEnabled)}
-                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
-                      dineInEnabled
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                {/* Service type */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Type de service
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDineInEnabled(!dineInEnabled)}
+                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
                         dineInEnabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/40"
                       }`}
                     >
-                      <UtensilsCrossed className="h-7 w-7" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Sur place</p>
-                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                        Le client mange au restaurant
-                      </p>
-                    </div>
-                    {dineInEnabled && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          dineInEnabled
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <UtensilsCrossed className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">Sur place</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Consommation au restaurant
+                        </p>
+                      </div>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setTakeawayEnabled(!takeawayEnabled)}
-                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
-                      takeawayEnabled
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                    <button
+                      type="button"
+                      onClick={() => setTakeawayEnabled(!takeawayEnabled)}
+                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
                         takeawayEnabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/40"
                       }`}
                     >
-                      <ShoppingBag className="h-7 w-7" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">À emporter</p>
-                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                        Le client récupère sa commande
-                      </p>
-                    </div>
-                    {takeawayEnabled && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                </div>
-
-                {!dineInEnabled && !takeawayEnabled && (
-                  <p className="text-xs text-orange-500">
-                    Sélectionnez au moins un type de service
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Step 5: Payment */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold">Modes de paiement</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Comment vos clients pourront-ils payer ?
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCashEnabled(!cashEnabled)}
-                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
-                      cashEnabled
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                        cashEnabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <Coins className="h-7 w-7" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Au comptoir</p>
-                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                        Espèces ou CB au retrait
-                      </p>
-                    </div>
-                    {cashEnabled && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCardEnabled(!cardEnabled)}
-                    className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all ${
-                      cardEnabled
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                        cardEnabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <CreditCard className="h-7 w-7" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        Sur l&apos;application
-                      </p>
-                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                        Paiement en ligne sécurisé
-                      </p>
-                    </div>
-                    {cardEnabled && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                </div>
-
-                {!cashEnabled && !cardEnabled && (
-                  <p className="text-xs text-orange-500">
-                    Sélectionnez au moins un mode de paiement
-                  </p>
-                )}
-
-                {cardEnabled && (
-                  <div className="flex items-start gap-2.5 rounded-xl bg-muted/50 p-3">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      Le paiement par carte nécessite la configuration de votre
-                      compte avec notre partenaire de paiement sécurisé{" "}
-                      <span className="font-semibold text-foreground">
-                        Stripe
-                      </span>
-                      . Vous pourrez le configurer dans les réglages.
-                    </p>
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          takeawayEnabled
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <ShoppingBag className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">À emporter</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Retrait au comptoir
+                        </p>
+                      </div>
+                    </button>
                   </div>
-                )}
+                </div>
+
+                {/* Payment */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Modes de paiement
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCashEnabled(!cashEnabled)}
+                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
+                        cashEnabled
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/40"
+                      }`}
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          cashEnabled
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <Coins className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">Au comptoir</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Espèces ou CB au retrait
+                        </p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCardEnabled(!cardEnabled)}
+                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
+                        cardEnabled
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/40"
+                      }`}
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          cardEnabled
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">En ligne</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          CB via Stripe
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {cardEnabled && (
+                    <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-2.5">
+                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Vous configurerez{" "}
+                        <span className="font-semibold text-foreground">
+                          Stripe
+                        </span>{" "}
+                        dans les réglages après la création.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Queue */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Options
+                  </Label>
+                  <div
+                    onClick={() => setQueueEnabled(!queueEnabled)}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
+                      queueEnabled
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/40"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                        queueEnabled
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-semibold">
+                        File d&apos;attente digitale
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Gérez l&apos;affluence aux heures de pointe
+                      </p>
+                    </div>
+                    <Switch
+                      checked={queueEnabled}
+                      onCheckedChange={setQueueEnabled}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+
+                {(!dineInEnabled && !takeawayEnabled) ||
+                (!cashEnabled && !cardEnabled) ? (
+                  <p className="text-xs text-orange-500">
+                    Sélectionnez au moins un type de service et un mode de
+                    paiement
+                  </p>
+                ) : null}
               </div>
             )}
 
-            {/* Step 6: Account */}
-            {step === 5 && (
+            {/* ─── Step 5: Account ─── */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Créez votre compte</h2>
                   <p className="text-sm text-muted-foreground">
-                    Dernière étape ! Créez votre compte pour accéder à votre
-                    espace de gestion
+                    Dernière étape pour accéder à votre espace de gestion
                   </p>
                 </div>
 

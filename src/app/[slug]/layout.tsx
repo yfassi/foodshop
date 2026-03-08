@@ -51,6 +51,9 @@ export default async function RestaurantLayout({
         openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       />
       <main className="pb-24">{children}</main>
+      <footer className="py-4 text-center text-[10px] text-muted-foreground/50">
+        Propulsé par TaapR — Tous droits réservés
+      </footer>
     </div>
   );
 }

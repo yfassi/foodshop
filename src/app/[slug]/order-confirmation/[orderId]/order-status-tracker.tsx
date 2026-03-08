@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import type { OrderStatus } from "@/lib/types";
 import { useCartStore } from "@/stores/cart-store";
+import { usePushSubscription } from "@/hooks/use-push-subscription";
+import { Bell, BellOff } from "lucide-react";
+import { toast } from "sonner";
 
 export function OrderStatusTracker({
   orderId,
@@ -15,9 +18,10 @@ export function OrderStatusTracker({
 }) {
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
   const clearCart = useCartStore((s) => s.clearCart);
+  const { isSupported, isSubscribed, loading, subscribe } =
+    usePushSubscription();
 
   useEffect(() => {
-    // Clear cart on mount (order placed successfully)
     clearCart();
   }, [clearCart]);
 
@@ -46,13 +50,49 @@ export function OrderStatusTracker({
     };
   }, [orderId]);
 
+  const handleSubscribe = async () => {
+    const ok = await subscribe({ orderId, role: "customer" });
+    if (ok) {
+      toast.success("Vous serez notifié quand votre commande sera prête");
+    } else {
+      toast.error("Impossible d'activer les notifications");
+    }
+  };
+
   const config = ORDER_STATUS_CONFIG[status];
   const statuses: OrderStatus[] = ["new", "preparing", "ready", "done"];
   const currentIdx = statuses.indexOf(status);
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Suivi en direct</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground">
+          Suivi en direct
+        </h3>
+        {isSupported && status !== "done" && status !== "cancelled" && (
+          <button
+            onClick={handleSubscribe}
+            disabled={isSubscribed || loading}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              isSubscribed
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            }`}
+          >
+            {isSubscribed ? (
+              <>
+                <Bell className="h-3.5 w-3.5" />
+                Activées
+              </>
+            ) : (
+              <>
+                <BellOff className="h-3.5 w-3.5" />
+                {loading ? "..." : "Me notifier"}
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       {/* Status badge */}
       <div

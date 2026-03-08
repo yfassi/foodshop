@@ -8,8 +8,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
-import { PartyPopper, ArrowRight, Monitor, ChefHat } from "lucide-react";
+import { PartyPopper, ArrowRight, Monitor, ChefHat, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePushSubscription } from "@/hooks/use-push-subscription";
+import { toast } from "sonner";
 
 const VIEW_TABS: { key: OrderView; label: string; icon: React.ReactNode }[] = [
   { key: "comptoir", label: "Comptoir", icon: <Monitor className="h-4 w-4" /> },
@@ -25,6 +27,18 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const { playAlert } = useNewOrderAlert();
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
+    usePushSubscription();
+
+  const handlePushToggle = async () => {
+    if (!restaurantId) return;
+    const ok = await pushSubscribe({ restaurantId, role: "admin" });
+    if (ok) {
+      toast.success("Notifications push activées");
+    } else {
+      toast.error("Impossible d'activer les notifications");
+    }
+  };
 
   const [view, setView] = useState<OrderView>(() => {
     if (typeof window !== "undefined") {
@@ -164,8 +178,8 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* View toggle */}
-      <div className="no-scrollbar mb-4 flex gap-1">
+      {/* View toggle + notifications */}
+      <div className="no-scrollbar mb-4 flex items-center gap-1">
         {VIEW_TABS.map((tab) => (
           <button
             key={tab.key}
@@ -180,6 +194,25 @@ export default function AdminDashboard() {
             {tab.label}
           </button>
         ))}
+
+        {pushSupported && (
+          <button
+            onClick={handlePushToggle}
+            disabled={pushSubscribed || pushLoading}
+            className={`ml-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+              pushSubscribed
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+            title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
+          >
+            {pushSubscribed ? (
+              <Bell className="h-4 w-4" />
+            ) : (
+              <BellOff className="h-4 w-4" />
+            )}
+          </button>
+        )}
       </div>
 
       {activeOrders.length === 0 && !showWelcome ? (

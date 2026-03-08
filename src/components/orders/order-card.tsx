@@ -34,13 +34,16 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   }, [showStatusPicker]);
 
   const updateStatus = async (newStatus: OrderStatus) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", order.id);
-
-    if (error) {
+    try {
+      const res = await fetch("/api/orders/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id, status: newStatus }),
+      });
+      if (!res.ok) {
+        toast.error("Erreur lors de la mise à jour");
+      }
+    } catch {
       toast.error("Erreur lors de la mise à jour");
     }
   };

@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
 import { isCurrentlyOpen } from "@/lib/constants";
+import { sendPushNotification } from "@/lib/push";
+import { formatPrice } from "@/lib/format";
 import type { OrderItem, OrderItemModifier } from "@/lib/types";
 
 interface CheckoutItem {
@@ -22,6 +24,46 @@ interface CheckoutBody {
   customer_name?: string;
   order_notes?: string;
   queue_session_id?: string;
+}
+
+async function notifyAdmins(
+  restaurantId: string,
+  restaurantSlug: string,
+  displayOrderNumber: string,
+  totalPrice: number
+) {
+  try {
+    const supabase = createAdminClient();
+    const { data: subscriptions } = await supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("restaurant_id", restaurantId)
+      .eq("role", "admin");
+
+    if (!subscriptions?.length) return;
+
+    const expiredIds: string[] = [];
+    await Promise.all(
+      subscriptions.map(async (sub) => {
+        const result = await sendPushNotification(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          {
+            title: "Nouvelle commande",
+            body: `Commande ${displayOrderNumber} — ${formatPrice(totalPrice)}`,
+            url: `/admin/${restaurantSlug}`,
+            tag: "new-order",
+          }
+        );
+        if (result.expired) expiredIds.push(sub.id);
+      })
+    );
+
+    if (expiredIds.length > 0) {
+      await supabase.from("push_subscriptions").delete().in("id", expiredIds);
+    }
+  } catch (err) {
+    console.error("Admin push error:", err);
+  }
 }
 
 export async function POST(request: Request) {
@@ -398,6 +440,7 @@ export async function POST(request: Request) {
             .eq("customer_session_id", queue_session_id)
             .eq("status", "active");
         }
+        notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -494,6 +537,7 @@ export async function POST(request: Request) {
           .eq("customer_session_id", queue_session_id)
           .eq("status", "active");
       }
+      notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
       return NextResponse.json({ order_id: order.id });
     }
 
