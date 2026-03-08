@@ -11,10 +11,12 @@ export function FloatingCartButton({
   slug,
   disabled,
   categories,
+  queueEnabled,
 }: {
   slug: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
+  queueEnabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const items = useCartStore((s) => s.items);
@@ -62,6 +64,7 @@ export function FloatingCartButton({
         slug={slug}
         disabled={disabled}
         categories={categories}
+        queueEnabled={queueEnabled}
       />
 
     </>

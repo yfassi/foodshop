@@ -43,6 +43,23 @@ export interface Restaurant {
   loyalty_tiers: LoyaltyTier[];
   wallet_topup_enabled: boolean;
   wallet_topup_tiers: WalletTopupTier[];
+  queue_enabled: boolean;
+  queue_max_concurrent: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QueueTicketStatus = "waiting" | "active" | "completed" | "expired";
+
+export interface QueueTicket {
+  id: string;
+  restaurant_id: string;
+  customer_session_id: string;
+  customer_user_id: string | null;
+  status: QueueTicketStatus;
+  position: number;
+  called_at: string | null;
+  expires_at: string | null;
   created_at: string;
   updated_at: string;
 }

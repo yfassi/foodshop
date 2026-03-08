@@ -197,6 +197,7 @@ export default async function MenuPage({
       logoUrl={restaurant.logo_url}
       orderTypes={restaurant.order_types as ("dine_in" | "takeaway")[]}
       loyaltyEnabled={restaurant.loyalty_enabled}
+      queueEnabled={restaurant.queue_enabled ?? false}
     />
   );
 }

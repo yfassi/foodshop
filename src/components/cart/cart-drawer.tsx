@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
@@ -16,6 +17,7 @@ import { CartSuggestions } from "./cart-suggestions";
 import { Trash2, ChevronLeft, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { CategoryWithProducts } from "@/lib/types";
+import { QueueWaiting } from "@/components/queue/queue-waiting";
 
 interface CartDrawerProps {
   open: boolean;
@@ -23,18 +25,70 @@ interface CartDrawerProps {
   slug: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
+  queueEnabled?: boolean;
 }
 
-export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDrawerProps) {
+function getSessionId(): string {
+  if (typeof window === "undefined") return "";
+  let id = localStorage.getItem("queue_session_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("queue_session_id", id);
+  }
+  return id;
+}
+
+export function CartDrawer({ open, onClose, slug, disabled, categories, queueEnabled }: CartDrawerProps) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
+  const [queueState, setQueueState] = useState<"checking" | "waiting" | "ready" | "not_required">(
+    queueEnabled ? "checking" : "not_required"
+  );
+  const [sessionId] = useState(() => getSessionId());
+
+  // Reset queue state when drawer opens and queue is enabled
+  useEffect(() => {
+    if (open && queueEnabled) {
+      setQueueState("checking");
+      // Quick check if queue is active
+      fetch(`/api/queue?restaurant_slug=${slug}&session_id=${sessionId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.queue_active) {
+            setQueueState("not_required");
+          } else if (data.can_order) {
+            setQueueState("ready");
+          } else if (data.ticket) {
+            setQueueState("waiting");
+          } else {
+            // Need to join queue
+            setQueueState("waiting");
+          }
+        })
+        .catch(() => {
+          setQueueState("not_required");
+        });
+    } else if (!queueEnabled) {
+      setQueueState("not_required");
+    }
+  }, [open, queueEnabled, slug, sessionId]);
 
   const handleCheckout = () => {
     onClose();
     router.push(`/${slug}/checkout`);
   };
+
+  const handleQueueReady = useCallback(() => {
+    setQueueState("ready");
+  }, []);
+
+  const handleQueueNotRequired = useCallback(() => {
+    setQueueState("not_required");
+  }, []);
+
+  const canCheckout = queueState === "ready" || queueState === "not_required";
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
@@ -83,29 +137,46 @@ export function CartDrawer({ open, onClose, slug, disabled, categories }: CartDr
 
         {items.length > 0 && (
           <DrawerFooter className="border-t border-border pt-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Total</span>
-              <span className="text-lg font-bold">
-                {formatPrice(totalPrice())}
-              </span>
-            </div>
-            <Button
-              onClick={handleCheckout}
-              disabled={disabled}
-              className="h-14 w-full rounded-xl text-base font-bold"
-              size="lg"
-            >
-              {disabled
-                ? "Commandes fermees"
-                : `Commander \u2014 ${formatPrice(totalPrice())}`}
-            </Button>
-            <button
-              onClick={onClose}
-              className="flex w-full items-center justify-center gap-1 py-2 text-sm text-muted-foreground transition-colors active:text-foreground"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Continuer mes achats
-            </button>
+            {/* Queue waiting overlay */}
+            {queueEnabled && queueState === "waiting" && (
+              <QueueWaiting
+                slug={slug}
+                sessionId={sessionId}
+                onReady={handleQueueReady}
+                onNotRequired={handleQueueNotRequired}
+              />
+            )}
+
+            {/* Normal checkout flow */}
+            {(canCheckout || queueState === "checking") && (
+              <>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Total</span>
+                  <span className="text-lg font-bold">
+                    {formatPrice(totalPrice())}
+                  </span>
+                </div>
+                <Button
+                  onClick={handleCheckout}
+                  disabled={disabled || queueState === "checking"}
+                  className="h-14 w-full rounded-xl text-base font-bold"
+                  size="lg"
+                >
+                  {disabled
+                    ? "Commandes fermees"
+                    : queueState === "checking"
+                      ? "Vérification..."
+                      : `Commander \u2014 ${formatPrice(totalPrice())}`}
+                </Button>
+                <button
+                  onClick={onClose}
+                  className="flex w-full items-center justify-center gap-1 py-2 text-sm text-muted-foreground transition-colors active:text-foreground"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Continuer mes achats
+                </button>
+              </>
+            )}
           </DrawerFooter>
         )}
       </DrawerContent>

@@ -21,6 +21,7 @@ interface CheckoutBody {
   payment_source?: "direct" | "wallet";
   customer_name?: string;
   order_notes?: string;
+  queue_session_id?: string;
 }
 
 export async function POST(request: Request) {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
       payment_source = "direct",
       customer_name,
       order_notes,
+      queue_session_id,
     } = body;
 
     // Validate input
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types")
+      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled")
       .eq("slug", restaurant_slug)
       .single();
 
@@ -87,6 +89,47 @@ export async function POST(request: Request) {
         { error: "Le restaurant est actuellement fermé" },
         { status: 400 }
       );
+    }
+
+    // Queue validation: if queue is enabled, require an active ticket
+    if (restaurant.queue_enabled && !queue_session_id) {
+      return NextResponse.json(
+        { error: "Veuillez attendre votre tour dans la file d'attente" },
+        { status: 400 }
+      );
+    }
+
+    if (restaurant.queue_enabled && queue_session_id) {
+      const { data: activeTicket } = await supabase
+        .from("queue_tickets")
+        .select("id, status, expires_at")
+        .eq("restaurant_id", restaurant.id)
+        .eq("customer_session_id", queue_session_id)
+        .eq("status", "active")
+        .limit(1)
+        .single();
+
+      if (!activeTicket) {
+        return NextResponse.json(
+          { error: "Veuillez attendre votre tour dans la file d'attente" },
+          { status: 400 }
+        );
+      }
+
+      // Check expiry
+      if (activeTicket.expires_at && new Date(activeTicket.expires_at) < new Date()) {
+        await supabase
+          .from("queue_tickets")
+          .update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("id", activeTicket.id);
+
+        return NextResponse.json(
+          { error: "Votre ticket a expiré. Veuillez reprendre la file d'attente." },
+          { status: 400 }
+        );
+      }
+
+      // Mark ticket as completed after successful order placement (done later)
     }
 
     if (payment_method === "online" && payment_source === "direct" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
@@ -346,6 +389,15 @@ export async function POST(request: Request) {
 
       // Full wallet payment -> done
       if (isFullWallet) {
+        // Complete queue ticket
+        if (restaurant.queue_enabled && queue_session_id) {
+          await supabase
+            .from("queue_tickets")
+            .update({ status: "completed", updated_at: new Date().toISOString() })
+            .eq("restaurant_id", restaurant.id)
+            .eq("customer_session_id", queue_session_id)
+            .eq("status", "active");
+        }
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -390,6 +442,7 @@ export async function POST(request: Request) {
           order_id: order.id,
           restaurant_id: restaurant.id,
           type: "order",
+          ...(queue_session_id && { queue_session_id }),
         },
         success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
         cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
@@ -432,6 +485,15 @@ export async function POST(request: Request) {
 
     // If on_site payment, return order ID directly
     if (payment_method === "on_site") {
+      // Complete queue ticket
+      if (restaurant.queue_enabled && queue_session_id) {
+        await supabase
+          .from("queue_tickets")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("restaurant_id", restaurant.id)
+          .eq("customer_session_id", queue_session_id)
+          .eq("status", "active");
+      }
       return NextResponse.json({ order_id: order.id });
     }
 
@@ -464,6 +526,7 @@ export async function POST(request: Request) {
         order_id: order.id,
         restaurant_id: restaurant.id,
         type: "order",
+        ...(queue_session_id && { queue_session_id }),
       },
       success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
       cancel_url: `${appUrl}/${restaurant_slug}/checkout`,

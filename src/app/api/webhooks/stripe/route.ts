@@ -109,6 +109,18 @@ export async function POST(request: Request) {
             stripe_payment_intent_id: session.payment_intent as string,
           })
           .eq("id", orderId);
+
+        // Complete queue ticket if applicable
+        const queueSessionId = session.metadata?.queue_session_id;
+        const restaurantId = session.metadata?.restaurant_id;
+        if (queueSessionId && restaurantId) {
+          await supabase
+            .from("queue_tickets")
+            .update({ status: "completed", updated_at: new Date().toISOString() })
+            .eq("restaurant_id", restaurantId)
+            .eq("customer_session_id", queueSessionId)
+            .eq("status", "active");
+        }
       }
     }
   }
