@@ -26,6 +26,9 @@ import {
   CreditCard,
   MapPin,
   Users,
+  FileCheck,
+  Upload,
+  FileText,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,8 +56,12 @@ const STEPS = [
   { label: "Coordonnées", icon: MapPin },
   { label: "Horaires", icon: Clock },
   { label: "Configuration", icon: Settings },
+  { label: "Vérification", icon: FileCheck },
   { label: "Compte", icon: UserPlus },
 ];
+
+const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
 
 const RESTAURANT_TYPES = [
   { value: "fast_food", emoji: "🍔", label: "Fast-food" },
@@ -129,7 +136,12 @@ export default function OnboardingPage() {
   const [cardEnabled, setCardEnabled] = useState(false);
   const [queueEnabled, setQueueEnabled] = useState(false);
 
-  // Step 5 — Account
+  // Step 5 — Verification document
+  const [verificationDoc, setVerificationDoc] = useState<File | null>(null);
+  const [verificationDocName, setVerificationDocName] = useState("");
+  const docInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Step 6 — Account
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -150,6 +162,8 @@ export default function OnboardingPage() {
           (cashEnabled || cardEnabled)
         );
       case 4:
+        return !!verificationDoc;
+      case 5:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -200,22 +214,27 @@ export default function OnboardingPage() {
     if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
+      const formData = new FormData();
+      formData.append("data", JSON.stringify({
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        restaurant_type: restaurantType || undefined,
+        address: address.trim() || undefined,
+        phone: phone.trim() || undefined,
+        opening_hours,
+        order_types,
+        accepted_payment_methods,
+        queue_enabled: queueEnabled,
+      }));
+      if (verificationDoc) {
+        formData.append("verification_document", verificationDoc);
+      }
+
       const res = await fetch("/api/admin/onboarding", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          name: name.trim(),
-          description: description.trim() || undefined,
-          restaurant_type: restaurantType || undefined,
-          address: address.trim() || undefined,
-          phone: phone.trim() || undefined,
-          opening_hours,
-          order_types,
-          accepted_payment_methods,
-          queue_enabled: queueEnabled,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -348,14 +367,20 @@ export default function OnboardingPage() {
         <AnimatedBackground />
         <div className="relative z-10 w-full max-w-md step-enter-from-right">
           <div className="space-y-5 rounded-2xl border border-border bg-card/90 p-8 text-center shadow-lg backdrop-blur-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
-              <Check className="h-8 w-8" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <FileCheck className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Félicitations !</h2>
+              <h2 className="text-xl font-bold">Compte créé avec succès !</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Votre restaurant est prêt. Ajoutez vos premiers produits pour
-                commencer à recevoir des commandes.
+                Votre document de vérification a été envoyé. Les équipes{" "}
+                <span className="font-semibold text-foreground">TaapR</span>{" "}
+                vont examiner votre dossier et valider votre compte.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                En attendant, vous pouvez déjà configurer votre menu et vos
+                réglages. Votre page client sera accessible une fois votre
+                compte vérifié.
               </p>
             </div>
             <Button
@@ -364,7 +389,7 @@ export default function OnboardingPage() {
               }}
               className="h-12 w-full rounded-xl font-semibold"
             >
-              Accéder à mon restaurant
+              Configurer mon restaurant
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -975,8 +1000,118 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ─── Step 5: Account ─── */}
+            {/* ─── Step 5: Verification Document ─── */}
             {step === 4 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Vérification de votre établissement
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Pour garantir la sécurité de notre plateforme, nous avons
+                    besoin d&apos;un justificatif de propriété
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Documents acceptés
+                      </p>
+                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                        <li>- Extrait KBIS (moins de 3 mois)</li>
+                        <li>- Certificat d&apos;inscription au répertoire SIRENE</li>
+                        <li>- Tout justificatif officiel attestant que vous êtes le propriétaire de l&apos;établissement</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    if (!ACCEPTED_DOC_TYPES.includes(file.type)) {
+                      toast.error(
+                        "Format non supporté. Utilisez PDF, JPG, PNG ou WebP."
+                      );
+                      return;
+                    }
+                    if (file.size > MAX_DOC_SIZE) {
+                      toast.error("Le fichier ne doit pas dépasser 10 Mo.");
+                      return;
+                    }
+
+                    setVerificationDoc(file);
+                    setVerificationDocName(file.name);
+                  }}
+                />
+
+                {!verificationDoc ? (
+                  <button
+                    type="button"
+                    onClick={() => docInputRef.current?.click()}
+                    className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/30 p-8 transition-colors hover:border-primary hover:bg-primary/5"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">
+                        Cliquez pour importer votre document
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        PDF, JPG, PNG ou WebP (max. 10 Mo)
+                      </p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-primary bg-primary/5 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {verificationDocName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(verificationDoc.size / 1024 / 1024).toFixed(1)} Mo
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVerificationDoc(null);
+                        setVerificationDocName("");
+                        if (docInputRef.current) docInputRef.current.value = "";
+                      }}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+                  <p className="text-[11px] leading-relaxed text-amber-700">
+                    Votre document sera examiné par les équipes{" "}
+                    <span className="font-semibold">TaapR</span>. Votre page
+                    client sera activée une fois votre compte vérifié.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Step 6: Account ─── */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Créez votre compte</h2>

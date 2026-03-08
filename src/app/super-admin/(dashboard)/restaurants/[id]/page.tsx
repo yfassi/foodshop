@@ -23,6 +23,9 @@ import {
   Clock,
   CreditCard,
   Store,
+  FileCheck,
+  FileX,
+  FileText,
 } from "lucide-react";
 
 interface RestaurantDetail extends Restaurant {
@@ -109,6 +112,29 @@ export default function SuperAdminRestaurantDetailPage() {
   useEffect(() => {
     fetchRestaurant();
   }, [fetchRestaurant]);
+
+  const updateVerification = async (verification_status: string) => {
+    if (!restaurant) return;
+    const prev = restaurant.verification_status;
+    setRestaurant({ ...restaurant, verification_status: verification_status as Restaurant["verification_status"] });
+
+    const res = await fetch("/api/super-admin/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: restaurant.id, verification_status }),
+    });
+
+    if (!res.ok) {
+      setRestaurant({ ...restaurant, verification_status: prev });
+      toast.error("Erreur lors de la mise a jour");
+    } else {
+      toast.success(
+        verification_status === "verified"
+          ? "Restaurant verifie"
+          : "Verification refusee"
+      );
+    }
+  };
 
   const toggleActive = async (is_active: boolean) => {
     if (!restaurant) return;
@@ -226,6 +252,21 @@ export default function SuperAdminRestaurantDetailPage() {
                     Accepte les commandes
                   </span>
                 )}
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                    restaurant.verification_status === "verified"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : restaurant.verification_status === "rejected"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {restaurant.verification_status === "verified"
+                    ? "Verifie"
+                    : restaurant.verification_status === "rejected"
+                      ? "Refuse"
+                      : "En attente de verification"}
+                </span>
               </div>
             </div>
           </div>
@@ -288,6 +329,74 @@ export default function SuperAdminRestaurantDetailPage() {
                 { day: "numeric", month: "long", year: "numeric" }
               )}
             />
+          </div>
+        </Section>
+
+        {/* Verification */}
+        <Section title="Verification">
+          <div className="space-y-3">
+            <div className="space-y-1 divide-y divide-border">
+              <InfoRow
+                label="Statut"
+                value={
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      restaurant.verification_status === "verified"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : restaurant.verification_status === "rejected"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {restaurant.verification_status === "verified"
+                      ? "Verifie"
+                      : restaurant.verification_status === "rejected"
+                        ? "Refuse"
+                        : "En attente"}
+                  </span>
+                }
+              />
+              <InfoRow
+                label="Document"
+                value={
+                  restaurant.verification_document_url ? (
+                    <a
+                      href={restaurant.verification_document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Voir le document
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    "Aucun document"
+                  )
+                }
+              />
+            </div>
+
+            {restaurant.verification_status !== "verified" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => updateVerification("verified")}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                >
+                  <FileCheck className="h-4 w-4" />
+                  Valider
+                </button>
+                {restaurant.verification_status !== "rejected" && (
+                  <button
+                    onClick={() => updateVerification("rejected")}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                  >
+                    <FileX className="h-4 w-4" />
+                    Refuser
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </Section>
 
