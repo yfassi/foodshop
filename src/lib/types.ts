@@ -21,6 +21,8 @@ export interface WalletTopupTier {
   label: string;   // "Populaire", "Meilleure offre"...
 }
 
+export type VerificationStatus = "pending" | "verified" | "rejected";
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -45,6 +47,8 @@ export interface Restaurant {
   wallet_topup_tiers: WalletTopupTier[];
   queue_enabled: boolean;
   queue_max_concurrent: number;
+  verification_status: VerificationStatus;
+  verification_document_url: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -27,6 +27,7 @@ export async function GET(request: Request) {
 
   if (filter === "active") query = query.eq("is_active", true);
   if (filter === "inactive") query = query.eq("is_active", false);
+  if (filter === "pending") query = query.eq("verification_status", "pending");
 
   const { data: restaurants, error } = await query;
 
@@ -87,9 +88,19 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { id, is_active } = body;
+  const { id, is_active, verification_status } = body;
 
-  if (!id || typeof is_active !== "boolean") {
+  if (!id) {
+    return NextResponse.json({ error: "Donnees invalides" }, { status: 400 });
+  }
+
+  const update: Record<string, unknown> = {};
+  if (typeof is_active === "boolean") update.is_active = is_active;
+  if (verification_status && ["pending", "verified", "rejected"].includes(verification_status)) {
+    update.verification_status = verification_status;
+  }
+
+  if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Donnees invalides" }, { status: 400 });
   }
 
@@ -97,7 +108,7 @@ export async function PATCH(request: Request) {
 
   const { error } = await admin
     .from("restaurants")
-    .update({ is_active })
+    .update(update)
     .eq("id", id);
 
   if (error) {

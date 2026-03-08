@@ -29,7 +29,10 @@ function toSlug(name: string) {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as OnboardingBody;
+    const formData = await request.formData();
+    const body = JSON.parse(formData.get("data") as string) as OnboardingBody;
+    const verificationFile = formData.get("verification_document") as File | null;
+
     const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent } = body;
 
     if (!name) {
@@ -99,6 +102,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // Upload verification document if provided
+    let verification_document_url: string | null = null;
+    if (verificationFile && verificationFile.size > 0) {
+      const ext = verificationFile.name.split(".").pop() || "pdf";
+      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const buffer = Buffer.from(await verificationFile.arrayBuffer());
+
+      const { error: uploadError } = await supabase.storage
+        .from("verification-documents")
+        .upload(filePath, buffer, {
+          contentType: verificationFile.type,
+        });
+
+      if (uploadError) {
+        console.error("Verification doc upload error:", uploadError);
+        return NextResponse.json(
+          { error: "Erreur lors de l'envoi du document de vérification" },
+          { status: 500 }
+        );
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("verification-documents")
+        .getPublicUrl(filePath);
+      verification_document_url = urlData.publicUrl;
+    }
+
     // Generate unique slug from name
     const baseSlug = toSlug(name);
     let slug = baseSlug;
@@ -118,7 +148,7 @@ export async function POST(request: Request) {
       slug = `${baseSlug}-${suffix}`;
     }
 
-    // Create restaurant
+    // Create restaurant (verification_status defaults to 'pending')
     const { error } = await supabase.from("restaurants").insert({
       name,
       slug,
@@ -132,6 +162,8 @@ export async function POST(request: Request) {
       accepted_payment_methods,
       owner_id: ownerId,
       is_accepting_orders: true,
+      verification_status: "pending",
+      verification_document_url,
       ...(queue_enabled != null && { queue_enabled }),
       ...(queue_max_concurrent != null && { queue_max_concurrent }),
     });
@@ -139,7 +171,7 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Onboarding insert error:", error);
       return NextResponse.json(
-        { error: "Erreur lors de la création du restaurant" },
+        { error: `Erreur lors de la création du restaurant: ${error.message}` },
         { status: 500 }
       );
     }

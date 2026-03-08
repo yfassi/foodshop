@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { ClipboardList, UtensilsCrossed, Settings, Users, BarChart3 } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Settings, Users, BarChart3, Clock } from "lucide-react";
 
 
 export default async function AdminLayout({
@@ -25,7 +25,7 @@ export default async function AdminLayout({
     // Demo mode (dev only): skip auth, fetch restaurant by slug only
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders")
+      .select("id, name, is_accepting_orders, verification_status")
       .eq("slug", slug)
       .single();
 
@@ -40,7 +40,7 @@ export default async function AdminLayout({
 
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders")
+      .select("id, name, is_accepting_orders, verification_status")
       .eq("slug", slug)
       .eq("owner_id", user.id)
       .single();
@@ -100,6 +100,25 @@ export default async function AdminLayout({
       {isDemo && (
         <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">
           Mode Démo
+        </div>
+      )}
+
+      {/* Verification pending banner */}
+      {restaurant.verification_status === "pending" && (
+        <div className="flex items-center justify-center gap-2 bg-amber-50 px-4 py-2.5 text-center text-xs font-medium text-amber-700">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Votre compte est en cours de vérification par les équipes TaapR.
+            Votre page client sera accessible une fois validé.
+          </span>
+        </div>
+      )}
+
+      {/* Verification rejected banner */}
+      {restaurant.verification_status === "rejected" && (
+        <div className="bg-red-50 px-4 py-2.5 text-center text-xs font-medium text-red-700">
+          Votre vérification a été refusée. Veuillez nous contacter pour plus
+          d&apos;informations.
         </div>
       )}
 

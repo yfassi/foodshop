@@ -34,7 +34,12 @@ export default async function MenuPage({
     console.error("[MenuPage] Restaurant fetch error:", restaurantError.message, "slug:", slug);
   }
 
-  if (!restaurant || restaurant.is_active === false) notFound();
+  if (
+    !restaurant ||
+    restaurant.is_active === false ||
+    restaurant.verification_status !== "verified"
+  )
+    notFound();
 
   // Fetch categories first (products depend on category IDs)
   const { data: categories } = await supabase

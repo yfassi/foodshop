@@ -31,3 +31,28 @@ CREATE POLICY "Authenticated users can delete product images"
     bucket_id = 'product-images'
     AND auth.role() = 'authenticated'
   );
+
+-- ============================================
+-- VERIFICATION DOCUMENTS BUCKET
+-- ============================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('verification-documents', 'verification-documents', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Public read verification documents"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'verification-documents');
+
+CREATE POLICY "Authenticated users can upload verification documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'verification-documents'
+    AND auth.role() = 'authenticated'
+  );
+
+CREATE POLICY "Authenticated users can delete verification documents"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'verification-documents'
+    AND auth.role() = 'authenticated'
+  );

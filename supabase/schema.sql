@@ -403,6 +403,10 @@ ALTER TABLE public.restaurants ADD COLUMN loyalty_tiers JSONB NOT NULL DEFAULT '
 ALTER TABLE public.restaurants ADD COLUMN restaurant_type TEXT;
 ALTER TABLE public.restaurants ADD COLUMN siret TEXT;
 
+-- Restaurant: verification
+ALTER TABLE public.restaurants ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE public.restaurants ADD COLUMN verification_document_url TEXT;
+
 -- ============================================
 -- PHASE 2: UX & UPSELLING
 -- ============================================

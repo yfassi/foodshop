@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-type Filter = "all" | "active" | "inactive";
+type Filter = "all" | "active" | "inactive" | "pending";
 
 interface RestaurantItem {
   id: string;
@@ -24,6 +24,7 @@ interface RestaurantItem {
   logo_url: string | null;
   is_active: boolean;
   is_accepting_orders: boolean;
+  verification_status: string;
   created_at: string;
   order_count: number;
   total_revenue: number;
@@ -31,6 +32,7 @@ interface RestaurantItem {
 
 const FILTER_TABS: { key: Filter; label: string }[] = [
   { key: "all", label: "Tous" },
+  { key: "pending", label: "En attente" },
   { key: "active", label: "Actifs" },
   { key: "inactive", label: "Inactifs" },
 ];
@@ -193,6 +195,21 @@ export default function SuperAdminRestaurantsPage() {
                         }`}
                       >
                         {r.is_active ? "Actif" : "Inactif"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          r.verification_status === "verified"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : r.verification_status === "rejected"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {r.verification_status === "verified"
+                          ? "Verifie"
+                          : r.verification_status === "rejected"
+                            ? "Refuse"
+                            : "En attente"}
                       </span>
                     </div>
                   </div>
