@@ -22,6 +22,7 @@ export function MenuGrid({
   logoUrl,
   orderTypes,
   loyaltyEnabled,
+  queueEnabled,
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
@@ -31,6 +32,7 @@ export function MenuGrid({
   logoUrl: string | null;
   orderTypes: OrderType[];
   loyaltyEnabled: boolean;
+  queueEnabled: boolean;
 }) {
   const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
   const orderType = useCartStore((s) => s.orderType);
@@ -218,7 +220,7 @@ export function MenuGrid({
       </div>
 
       {/* Floating cart button */}
-      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} />
+      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} queueEnabled={queueEnabled} />
 
       {/* Featured product modal */}
       {selectedProduct && (

@@ -86,6 +86,7 @@ export function CheckoutForm({
           order_type: orderType,
           payment_method: paymentMethod,
           payment_source: paymentSource,
+          queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
         }),
       });
 

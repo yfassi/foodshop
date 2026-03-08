@@ -36,6 +36,7 @@ import {
   UtensilsCrossed,
   ExternalLink,
   Wallet,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/format";
@@ -49,6 +50,7 @@ import {
 import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
 import { TopupTierBuilder } from "@/components/admin/topup-tier-builder";
+import { QueueManager } from "@/components/admin/queue-manager";
 import {
   Select,
   SelectContent,
@@ -57,7 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "account";
+type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "account";
 
 interface StripePayment {
   id: string;
@@ -179,6 +181,15 @@ function CollapsibleSection({
   );
 }
 
+function QueueManagerSection({ slug, restaurantId }: { slug: string; restaurantId: string }) {
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-semibold">File d&apos;attente en cours</h3>
+      <QueueManager slug={slug} restaurantId={restaurantId} />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
@@ -229,6 +240,10 @@ export default function SettingsPage() {
   // Wallet topup
   const [walletTopupEnabled, setWalletTopupEnabled] = useState(false);
   const [walletTopupTiers, setWalletTopupTiers] = useState<WalletTopupTier[]>([]);
+
+  // Queue
+  const [queueEnabled, setQueueEnabled] = useState(false);
+  const [queueMaxConcurrent, setQueueMaxConcurrent] = useState(5);
 
   // Stripe data
   const [stripeData, setStripeData] = useState<StripeData | null>(null);
@@ -282,6 +297,8 @@ export default function SettingsPage() {
         setLoyaltyTiers(data.loyalty_tiers ?? []);
         setWalletTopupEnabled(data.wallet_topup_enabled ?? false);
         setWalletTopupTiers(data.wallet_topup_tiers ?? []);
+        setQueueEnabled(data.queue_enabled ?? false);
+        setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
       }
 
       setLoading(false);
@@ -377,6 +394,7 @@ export default function SettingsPage() {
   const paymentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const walletTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveRestaurant = useCallback(async () => {
     if (!restaurant || !name.trim()) return;
@@ -468,6 +486,24 @@ export default function SettingsPage() {
     }
   }, [restaurant, walletTopupEnabled, walletTopupTiers]);
 
+  const autoSaveQueue = useCallback(async () => {
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        queue_enabled: queueEnabled,
+        queue_max_concurrent: queueMaxConcurrent,
+      })
+      .eq("id", restaurant.id);
+
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [restaurant, queueEnabled, queueMaxConcurrent]);
+
   // Auto-save restaurant settings (debounced)
   useEffect(() => {
     if (!hasLoaded.current) return;
@@ -499,6 +535,14 @@ export default function SettingsPage() {
     walletTimerRef.current = setTimeout(autoSaveWalletTopup, 800);
     return () => { if (walletTimerRef.current) clearTimeout(walletTimerRef.current); };
   }, [autoSaveWalletTopup]);
+
+  // Auto-save queue settings (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (queueTimerRef.current) clearTimeout(queueTimerRef.current);
+    queueTimerRef.current = setTimeout(autoSaveQueue, 800);
+    return () => { if (queueTimerRef.current) clearTimeout(queueTimerRef.current); };
+  }, [autoSaveQueue]);
 
   // --- Account ---
 
@@ -706,6 +750,11 @@ export default function SettingsPage() {
       key: "wallet",
       label: "Solde",
       icon: <Wallet className="h-4 w-4" />,
+    },
+    {
+      key: "queue",
+      label: "File d'attente",
+      icon: <Users className="h-4 w-4" />,
     },
     {
       key: "account",
@@ -1440,6 +1489,61 @@ export default function SettingsPage() {
                 tiers={walletTopupTiers}
                 onChange={setWalletTopupTiers}
               />
+            )}
+          </div>
+        )}
+
+        {/* ═══ Tab: File d'attente ═══ */}
+        {activeTab === "queue" && (
+          <div className="space-y-4">
+            <Section>
+              <SectionHeader
+                icon={Users}
+                title="File d'attente digitale"
+                description="Limitez les commandes simultanées pendant les heures de pointe"
+                action={
+                  <Switch
+                    checked={queueEnabled}
+                    onCheckedChange={setQueueEnabled}
+                  />
+                }
+              />
+            </Section>
+
+            {queueEnabled && (
+              <>
+                <Section>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">
+                      Commandes simultanées max
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Nombre de clients pouvant commander en même temps
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setQueueMaxConcurrent(Math.max(1, queueMaxConcurrent - 1))}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-lg font-medium transition-colors hover:bg-muted"
+                      >
+                        -
+                      </button>
+                      <span className="min-w-[3rem] text-center text-2xl font-bold tabular-nums">
+                        {queueMaxConcurrent}
+                      </span>
+                      <button
+                        onClick={() => setQueueMaxConcurrent(Math.min(50, queueMaxConcurrent + 1))}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-lg font-medium transition-colors hover:bg-muted"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </Section>
+
+                <Section>
+                  <QueueManagerSection slug={params.slug} restaurantId={restaurant.id} />
+                </Section>
+              </>
             )}
           </div>
         )}
