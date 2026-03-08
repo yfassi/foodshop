@@ -2,20 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSuperAdmin } from "@/lib/super-admin";
-
-function getStartDate(period: string): Date {
-  const now = new Date();
-  if (period === "7days") {
-    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  }
-  if (period === "30days") {
-    return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  }
-  // today
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
+import { getStartDate, type Period } from "@/lib/format";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -28,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const period = searchParams.get("period") || "today";
+  const period = (searchParams.get("period") || "today") as Period;
   const startDate = getStartDate(period);
 
   const admin = createAdminClient();
