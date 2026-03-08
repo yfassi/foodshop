@@ -1,10 +1,15 @@
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  "mailto:support@taapr.com",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails(
+    "mailto:support@taapr.com",
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+}
 
 interface PushSubscription {
   endpoint: string;
