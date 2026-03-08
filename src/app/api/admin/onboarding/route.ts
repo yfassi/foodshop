@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 interface OnboardingBody {
   name: string;
   description?: string;
+  restaurant_type?: string;
   address?: string;
   phone?: string;
   opening_hours: Record<string, { open: string; close: string }[]>;
@@ -13,6 +14,8 @@ interface OnboardingBody {
   logo_url?: string;
   email?: string;
   password?: string;
+  queue_enabled?: boolean;
+  queue_max_concurrent?: number;
 }
 
 function toSlug(name: string) {
@@ -27,7 +30,7 @@ function toSlug(name: string) {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OnboardingBody;
-    const { name, description, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password } = body;
+    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -120,6 +123,7 @@ export async function POST(request: Request) {
       name,
       slug,
       description: description || null,
+      restaurant_type: restaurant_type || null,
       address: address || null,
       phone: phone || null,
       logo_url: logo_url || null,
@@ -128,6 +132,8 @@ export async function POST(request: Request) {
       accepted_payment_methods,
       owner_id: ownerId,
       is_accepting_orders: true,
+      ...(queue_enabled != null && { queue_enabled }),
+      ...(queue_max_concurrent != null && { queue_max_concurrent }),
     });
 
     if (error) {

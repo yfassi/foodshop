@@ -9,36 +9,19 @@ import {
   ShieldCheck,
   ArrowDown,
   ChevronDown,
-  Monitor,
-  Users,
   QrCode,
   ShoppingBag,
   CreditCard,
   Check,
   X,
   ArrowRight,
-  Lock,
-  Landmark,
   Smartphone,
-  LayoutDashboard,
-  SlidersHorizontal,
-  Gift,
-  UtensilsCrossed,
-  Bell,
   Search,
   Plus,
   Sparkles,
-  Percent,
 } from "lucide-react";
 
 /* ─── Constants ─── */
-
-const STATS = [
-  { value: 0, suffix: "%", label: "de commission*" },
-  { value: 29, suffix: "€/mois", label: "à partir de" },
-  { value: 15, suffix: " min", label: "pour démarrer" },
-  { value: 100, suffix: "%", label: "de votre CA conservé" },
-];
 
 const PLANS = [
   {
@@ -290,36 +273,11 @@ function useScrollReveal(threshold = 0.15) {
   return { ref, isVisible };
 }
 
-function useAnimatedCounter(
-  target: number,
-  isVisible: boolean,
-  duration = 1500
-) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!isVisible) return;
-    const startTime = performance.now();
-    const step = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(eased * target));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [isVisible, target, duration]);
-
-  return count;
-}
-
 /* ─── Component ─── */
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [orders, setOrders] = useState(200);
-  const [ticket, setTicket] = useState(15);
 
   useEffect(() => {
     setMounted(true);
@@ -328,32 +286,12 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Scroll reveal refs
-  const bentoSection = useScrollReveal();
   const howSection = useScrollReveal();
-  const featuresSection = useScrollReveal();
   const pricingSection = useScrollReveal();
-  const calcSection = useScrollReveal();
-  const trustSection = useScrollReveal();
-  const trustVisualSection = useScrollReveal();
-  const statsSection = useScrollReveal();
-
-  // Animated counters for stats section
-  const stat0 = useAnimatedCounter(STATS[0].value, statsSection.isVisible);
-  const stat1 = useAnimatedCounter(STATS[1].value, statsSection.isVisible);
-  const stat2 = useAnimatedCounter(STATS[2].value, statsSection.isVisible);
-  const stat3 = useAnimatedCounter(STATS[3].value, statsSection.isVisible);
-  const statValues = [stat0, stat1, stat2, stat3];
 
   const handleConfetti = useCallback(() => {
     confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
   }, []);
-
-  // Savings calculator derived values
-  const commissionLoss = Math.round(orders * ticket * 0.3);
-  const recommendedPlan =
-    orders > 300 ? (orders > 800 ? PLANS[2] : PLANS[1]) : PLANS[0];
-  const savings = Math.max(0, commissionLoss - recommendedPlan.price);
 
   return (
     <div className="min-h-screen">
@@ -385,12 +323,6 @@ export default function Home() {
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Tarifs
-            </a>
-            <a
-              href="#securite"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Sécurité
             </a>
           </div>
 
@@ -501,108 +433,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Bento: Problems + Value Props ─── */}
-      <section className="py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div
-            ref={bentoSection.ref}
-            className={
-              bentoSection.isVisible ? "animate-reveal-up" : "opacity-0"
-            }
-          >
-            <div className="mb-12 text-center">
-              <Badge variant="secondary" className="mb-4">
-                Pourquoi Taapr
-              </Badge>
-              <h2 className="font-heading text-2xl font-bold sm:text-3xl lg:text-4xl">
-                Les solutions actuelles vous coûtent cher
-              </h2>
-            </div>
-
-            {/* Bento grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Large card: Commissions */}
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-destructive/10 via-destructive/5 to-transparent p-8 sm:col-span-2 lg:row-span-2">
-                <div className="relative z-10">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-                    <Percent className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-heading text-xl font-bold sm:text-2xl">
-                    Commissions abusives
-                  </h3>
-                  <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                    Les plateformes traditionnelles prélèvent jusqu&apos;à{" "}
-                    <span className="font-bold text-destructive">
-                      30% de commission
-                    </span>{" "}
-                    sur chaque commande. Sur un ticket moyen de 15€, c&apos;est
-                    4,50€ envolés à chaque fois.
-                  </p>
-                  <div className="mt-6 inline-flex items-baseline gap-1 rounded-2xl bg-card px-5 py-3 shadow-sm">
-                    <span className="font-heading text-3xl font-extrabold text-destructive">
-                      -900€
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      /mois perdus
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Sur 200 commandes/mois à 15€ de panier moyen
-                  </p>
-                </div>
-              </div>
-
-              {/* Bornes */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-amber-100/60 to-transparent p-6 sm:p-7">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
-                  <Monitor className="h-5 w-5" />
-                </div>
-                <h3 className="font-heading text-base font-bold">
-                  Bornes inaccessibles
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Une borne coûte entre{" "}
-                  <span className="font-bold text-foreground">
-                    3 000€ et 8 000€
-                  </span>
-                  , sans la maintenance. Inaccessible pour les TPE/PME.
-                </p>
-              </div>
-
-              {/* Files d'attente */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-blue-100/60 to-transparent p-6 sm:p-7">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
-                  <Users className="h-5 w-5" />
-                </div>
-                <h3 className="font-heading text-base font-bold">
-                  Files d&apos;attente
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Vos clients attendent, s&apos;impatientent, parfois
-                  repartent. Chaque minute perdue = du CA en moins.
-                </p>
-              </div>
-
-              {/* Solution banner - full width */}
-              <div className="flex items-center gap-4 rounded-3xl bg-primary/5 p-6 sm:col-span-2 sm:p-7 lg:col-span-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                  <Smartphone className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-heading text-base font-bold sm:text-lg">
-                    La solution ? Le smartphone que vos clients ont déjà.
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Pas de borne, pas de tablette, pas d&apos;app à télécharger.
-                    Un simple QR code suffit.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── How It Works ─── */}
       <section
         id="fonctionnement"
@@ -674,137 +504,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Bento Features ─── */}
-      <section className="py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div
-            ref={featuresSection.ref}
-            className={
-              featuresSection.isVisible ? "animate-reveal-up" : "opacity-0"
-            }
-          >
-            <div className="mb-12 text-center">
-              <Badge variant="secondary" className="mb-4">
-                Fonctionnalités
-              </Badge>
-              <h2 className="font-heading text-2xl font-bold sm:text-3xl lg:text-4xl">
-                Tout ce dont votre restaurant a besoin
-              </h2>
-            </div>
-
-            {/* Bento grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* QR Code - large card with visual */}
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 lg:col-span-2 lg:row-span-2">
-                <div className="relative z-10 max-w-sm">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <QrCode className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-heading text-xl font-bold sm:text-2xl">
-                    QR Code intelligent
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    Imprimez votre QR code unique. Vos clients scannent et
-                    accèdent au menu instantanément, sans télécharger
-                    d&apos;application. Fonctionne sur tous les smartphones.
-                  </p>
-                </div>
-                {/* Decorative QR visual */}
-                <div className="absolute -bottom-4 -right-4 hidden opacity-[0.07] sm:block">
-                  <QrCode className="h-52 w-52 lg:h-64 lg:w-64" />
-                </div>
-              </div>
-
-              {/* Dashboard */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-violet-100/60 to-transparent p-6 sm:p-7">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600">
-                  <LayoutDashboard className="h-5 w-5" />
-                </div>
-                <h3 className="font-heading text-base font-bold">
-                  Tableau de bord temps réel
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Suivez vos commandes, gérez votre menu et consultez vos
-                  statistiques depuis un seul tableau de bord.
-                </p>
-              </div>
-
-              {/* Menu personnalisable */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-100/60 to-transparent p-6 sm:p-7">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-                  <SlidersHorizontal className="h-5 w-5" />
-                </div>
-                <h3 className="font-heading text-base font-bold">
-                  Menu personnalisable
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Catégories, suppléments, options, menus composés... Configurez
-                  votre carte exactement comme vous le souhaitez.
-                </p>
-              </div>
-
-              {/* Fidélité - wide */}
-              <div className="group flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-pink-100/60 to-transparent p-6 sm:col-span-2 sm:flex-row sm:items-center sm:p-7">
-                <div className="shrink-0">
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-pink-500/10 text-pink-600 sm:mb-0">
-                    <Gift className="h-5 w-5" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-heading text-base font-bold">
-                    Programme de fidélité intégré
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    Fidélisez vos clients avec un portefeuille intégré et des
-                    récompenses automatiques. Pas de carte à tamponner, tout est
-                    digital.
-                  </p>
-                </div>
-              </div>
-
-              {/* Sur place & emporter */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-orange-100/60 to-transparent p-6 sm:p-7">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500/10 text-orange-600">
-                  <UtensilsCrossed className="h-5 w-5" />
-                </div>
-                <h3 className="font-heading text-base font-bold">
-                  Sur place & à emporter
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Gérez les commandes sur place et à emporter depuis la même
-                  interface.
-                </p>
-              </div>
-
-              {/* Notifications */}
-              <div className="group overflow-hidden rounded-3xl bg-gradient-to-br from-sky-100/60 to-transparent p-6 sm:col-span-2 sm:p-7 lg:col-span-2">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <div className="shrink-0">
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 sm:mb-0">
-                      <Bell className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-base font-bold">
-                      Notifications en temps réel
-                    </h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      Vos clients sont alertés quand leur commande est prête.
-                      Vous recevez les nouvelles commandes instantanément sur
-                      votre tableau de bord.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── Pricing ─── */}
       <section
         id="tarifs"
-        className="scroll-mt-nav bg-muted/30 py-20 sm:py-28"
+        className="scroll-mt-nav py-20 sm:py-28"
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div
@@ -821,9 +524,8 @@ export default function Home() {
                 Un prix fixe, zéro commission
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-                Contrairement aux plateformes qui prélèvent jusqu&apos;à 30%
-                sur chaque vente, Taapr propose des abonnements fixes et
-                transparents. Choisissez le plan adapté à votre activité.
+                Pas de pourcentage sur vos ventes. Choisissez le plan adapté à
+                votre activité.
               </p>
             </div>
 
@@ -913,255 +615,6 @@ export default function Home() {
             </p>
           </div>
         </div>
-      </section>
-
-      {/* ─── Savings Calculator ─── */}
-      <section className="py-20 sm:py-28">
-        <div className="mx-auto max-w-xl px-4 sm:px-6">
-          <div
-            ref={calcSection.ref}
-            className={
-              calcSection.isVisible ? "animate-reveal-up" : "opacity-0"
-            }
-          >
-            <div className="text-center">
-              <h2 className="font-heading text-2xl font-bold sm:text-3xl">
-                Calculez vos économies
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                Combien économiseriez-vous en passant de 30% de commission à
-                Taapr ?
-              </p>
-            </div>
-
-            <div className="mt-8 rounded-3xl border border-border bg-card p-6">
-              {/* Orders slider */}
-              <div className="space-y-2">
-                <label className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Commandes par mois</span>
-                  <span className="font-heading text-lg font-bold text-primary">
-                    {orders}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={50}
-                  max={1000}
-                  step={10}
-                  value={orders}
-                  onChange={(e) => setOrders(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>50</span>
-                  <span>1000</span>
-                </div>
-              </div>
-
-              {/* Ticket slider */}
-              <div className="mt-6 space-y-2">
-                <label className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Panier moyen</span>
-                  <span className="font-heading text-lg font-bold text-primary">
-                    {ticket}€
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={5}
-                  max={50}
-                  step={1}
-                  value={ticket}
-                  onChange={(e) => setTicket(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>5€</span>
-                  <span>50€</span>
-                </div>
-              </div>
-
-              {/* Results */}
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="rounded-2xl bg-destructive/5 p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Avec 30% de commission
-                  </p>
-                  <p className="mt-1 font-heading text-xl font-bold text-destructive">
-                    -{commissionLoss}€
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-primary/5 p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Taapr {recommendedPlan.name}
-                  </p>
-                  <p className="mt-1 font-heading text-xl font-bold text-primary">
-                    {recommendedPlan.price}€
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl bg-green-50 p-4 text-center">
-                <p className="text-xs font-medium text-green-700">
-                  Vous économisez
-                </p>
-                <p className="mt-1 font-heading text-3xl font-extrabold text-green-600">
-                  {savings}€ / mois
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Security / Trust ─── */}
-      <section
-        id="securite"
-        className="scroll-mt-nav bg-muted/30 py-20 sm:py-28"
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* Left: Copy */}
-            <div
-              ref={trustSection.ref}
-              className={
-                trustSection.isVisible ? "animate-reveal-left" : "opacity-0"
-              }
-            >
-              <Badge variant="secondary" className="mb-4">
-                Sécurité
-              </Badge>
-              <h2 className="font-heading text-2xl font-bold sm:text-3xl lg:text-4xl">
-                Votre argent, directement sur votre compte
-              </h2>
-              <p className="mt-4 leading-relaxed text-muted-foreground">
-                Nous ne touchons jamais votre argent. Les paiements transitent
-                via{" "}
-                <span className="font-semibold text-foreground">Stripe</span>,
-                le leader mondial du paiement en ligne utilisé par Amazon,
-                Google et des millions d&apos;entreprises.
-              </p>
-
-              <div className="mt-8 space-y-4">
-                {[
-                  {
-                    icon: Lock,
-                    title: "Paiement chiffré",
-                    desc: "Chiffrement SSL/TLS de bout en bout. Conforme PCI DSS niveau 1.",
-                  },
-                  {
-                    icon: Landmark,
-                    title: "Versement direct",
-                    desc: "L'argent est versé directement sur le compte bancaire de votre restaurant. Aucun intermédiaire.",
-                  },
-                  {
-                    icon: ShieldCheck,
-                    title: "Protection anti-fraude",
-                    desc: "Stripe Radar détecte et bloque automatiquement les transactions frauduleuses.",
-                  },
-                ].map((item) => (
-                  <div key={item.title} className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold">{item.title}</h4>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Payment flow visual */}
-            <div
-              ref={trustVisualSection.ref}
-              className={
-                trustVisualSection.isVisible
-                  ? "animate-reveal-right"
-                  : "opacity-0"
-              }
-            >
-              <div className="mx-auto w-full max-w-sm space-y-4">
-                <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <Smartphone className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Client paie</p>
-                    <p className="text-xs text-muted-foreground">
-                      15,90€ via smartphone
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <ArrowDown className="h-5 w-5 text-primary" />
-                </div>
-
-                <div className="flex items-center gap-4 rounded-2xl border-2 border-[#635BFF] bg-[#635BFF]/5 p-4 shadow-sm">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#635BFF]/10 font-heading text-lg font-bold text-[#635BFF]">
-                    S
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Stripe sécurise</p>
-                    <p className="text-xs text-muted-foreground">
-                      Paiement chiffré & vérifié
-                    </p>
-                  </div>
-                  <Check className="ml-auto h-5 w-5 text-green-500" />
-                </div>
-
-                <div className="flex justify-center">
-                  <ArrowDown className="h-5 w-5 text-primary" />
-                </div>
-
-                <div className="flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 shadow-sm">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Landmark className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-primary">
-                      Votre compte bancaire
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      +15,90€ reçus directement
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Stats ─── */}
-      <section className="border-y border-border py-16">
-        <div
-          ref={statsSection.ref}
-          className={`mx-auto grid max-w-4xl grid-cols-2 gap-8 px-4 sm:grid-cols-4 sm:px-6 ${
-            statsSection.isVisible ? "animate-reveal-up" : "opacity-0"
-          }`}
-        >
-          {STATS.map((stat, i) => (
-            <div key={stat.label} className="text-center">
-              <p className="font-heading text-3xl font-extrabold text-primary sm:text-4xl">
-                {statValues[i]}
-                {stat.suffix}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {stat.label}
-              </p>
-            </div>
-          ))}
-        </div>
-        <p className="mx-auto mt-6 max-w-4xl text-center text-[11px] text-muted-foreground/60">
-          * Taapr ne prélève aucune commission. Seuls les frais de service
-          Stripe s&apos;appliquent (environ 1,5% + 0,25€ par transaction
-          carte).
-        </p>
       </section>
 
       {/* ─── Final CTA ─── */}

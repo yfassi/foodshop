@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPushNotification } from "@/lib/push";
+import { formatPrice } from "@/lib/format";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -102,6 +104,12 @@ export async function POST(request: Request) {
       // Handle order payment
       const orderId = session.metadata?.order_id;
       if (orderId) {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("id, display_order_number, order_number, total_price, restaurant_id")
+          .eq("id", orderId)
+          .single();
+
         await supabase
           .from("orders")
           .update({
@@ -109,6 +117,43 @@ export async function POST(request: Request) {
             stripe_payment_intent_id: session.payment_intent as string,
           })
           .eq("id", orderId);
+
+        // Send push notification to admin
+        if (order) {
+          const { data: restaurant } = await supabase
+            .from("restaurants")
+            .select("slug")
+            .eq("id", order.restaurant_id)
+            .single();
+
+          const { data: subs } = await supabase
+            .from("push_subscriptions")
+            .select("id, endpoint, p256dh, auth")
+            .eq("restaurant_id", order.restaurant_id)
+            .eq("role", "admin");
+
+          if (subs?.length && restaurant) {
+            const orderNum = order.display_order_number || `#${order.order_number}`;
+            const expiredIds: string[] = [];
+            await Promise.all(
+              subs.map(async (sub) => {
+                const result = await sendPushNotification(
+                  { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+                  {
+                    title: "Nouvelle commande",
+                    body: `Commande ${orderNum} — ${formatPrice(order.total_price)}`,
+                    url: `/admin/${restaurant.slug}`,
+                    tag: "new-order",
+                  }
+                );
+                if (result.expired) expiredIds.push(sub.id);
+              })
+            );
+            if (expiredIds.length > 0) {
+              await supabase.from("push_subscriptions").delete().in("id", expiredIds);
+            }
+          }
+        }
 
         // Complete queue ticket if applicable
         const queueSessionId = session.metadata?.queue_session_id;
