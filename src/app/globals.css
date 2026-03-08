@@ -169,15 +169,6 @@ html {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes reveal-left {
-  from { opacity: 0; transform: translateX(-32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes reveal-right {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
 
 @keyframes stepSlideInRight {
   from { opacity: 0; transform: translateX(40px); }
@@ -243,12 +234,6 @@ html {
   }
   .animate-reveal-up {
     animation: reveal-up 600ms ease-out both;
-  }
-  .animate-reveal-left {
-    animation: reveal-left 600ms ease-out both;
-  }
-  .animate-reveal-right {
-    animation: reveal-right 600ms ease-out both;
   }
   .animate-float-phone {
     animation: float-phone 6s ease-in-out infinite;

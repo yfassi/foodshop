@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatPrice, formatDate } from "@/lib/format";
+import { formatPrice, formatDate, getStartDate, type Period } from "@/lib/format";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import type { Order } from "@/lib/types";
 import {
@@ -32,27 +32,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type Period = "today" | "7days" | "30days";
-
 const PERIOD_TABS: { key: Period; label: string }[] = [
   { key: "today", label: "Aujourd'hui" },
   { key: "7days", label: "7 jours" },
   { key: "30days", label: "30 jours" },
 ];
-
-function getStartDate(period: Period): Date {
-  const d = new Date();
-  if (period === "today") {
-    d.setHours(0, 0, 0, 0);
-  } else if (period === "7days") {
-    d.setDate(d.getDate() - 6);
-    d.setHours(0, 0, 0, 0);
-  } else {
-    d.setDate(d.getDate() - 29);
-    d.setHours(0, 0, 0, 0);
-  }
-  return d;
-}
 
 /* ─── Metric card ─── */
 function MetricCard({

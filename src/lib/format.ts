@@ -20,3 +20,19 @@ export function formatDate(dateString: string): string {
     minute: "2-digit",
   });
 }
+
+export type Period = "today" | "7days" | "30days";
+
+export function getStartDate(period: Period): Date {
+  const d = new Date();
+  if (period === "today") {
+    d.setHours(0, 0, 0, 0);
+  } else if (period === "7days") {
+    d.setDate(d.getDate() - 6);
+    d.setHours(0, 0, 0, 0);
+  } else {
+    d.setDate(d.getDate() - 29);
+    d.setHours(0, 0, 0, 0);
+  }
+  return d;
+}
