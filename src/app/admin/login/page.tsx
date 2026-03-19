@@ -73,10 +73,16 @@ export default function AdminLoginPage() {
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
-        <h1 className="mb-6 text-center text-xl font-bold">
-          Espace Restaurateur
-        </h1>
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
+            T
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">
+            Espace Restaurateur
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Connectez-vous à votre compte</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -143,7 +149,7 @@ export default function AdminLoginPage() {
         <div className="mt-4 border-t border-border pt-4">
           <Link
             href="/admin/chez-momo?demo=true"
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-amber-50 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+            className="flex h-12 w-full items-center justify-center rounded-xl bg-accent text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/80"
           >
             Entrer en mode démo
           </Link>

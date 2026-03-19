@@ -37,11 +37,11 @@ export function RestaurantHeader({
   const todayName = DAYS_FR[getTodayKey()];
 
   return (
-    <header className="border-b border-border bg-background px-4 py-4">
+    <header className="border-b border-border bg-card px-4 py-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          {restaurant.logo_url && (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+          {restaurant.logo_url ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
               <Image
                 src={restaurant.logo_url}
                 alt={`${restaurant.name} logo`}
@@ -50,10 +50,22 @@ export function RestaurantHeader({
                 sizes="40px"
               />
             </div>
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
+              {restaurant.name.charAt(0).toUpperCase()}
+            </div>
           )}
-          <h1 className="text-xl font-bold tracking-tight">
-            {restaurant.name}
-          </h1>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">
+              {restaurant.name}
+            </h1>
+            {restaurant.is_accepting_orders && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-medium text-emerald-600">Ouvert</span>
+              </div>
+            )}
+          </div>
         </div>
         <CustomerAuthButton slug={restaurant.slug} />
       </div>

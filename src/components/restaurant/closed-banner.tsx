@@ -24,7 +24,7 @@ export function ClosedBanner({
   // Manual override: owner turned off orders
   if (!isAcceptingOrders) {
     return (
-      <div className="bg-orange-50 px-4 py-3 text-center text-sm font-medium text-orange-600">
+      <div className="bg-destructive/10 px-4 py-3 text-center text-sm font-medium text-destructive">
         Le restaurant ne prend plus de commandes pour le moment.
       </div>
     );
@@ -36,7 +36,7 @@ export function ClosedBanner({
     const nextOpening = getNextOpening(openingHours);
 
     return (
-      <div className="bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-700">
+      <div className="bg-accent px-4 py-3 text-center text-sm font-medium text-accent-foreground">
         <div className="flex items-center justify-center gap-1.5">
           <Clock className="h-3.5 w-3.5" />
           <span>
