@@ -71,7 +71,7 @@ export default function CustomerSignupPage() {
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
         <Link
           href={`/${slug}`}
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"

@@ -24,14 +24,14 @@ export function AnimatedBackground() {
 
   return (
     <>
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-background to-amber-50/60" />
+      {/* Warm gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.97_0.02_28)] via-background to-[oklch(0.97_0.01_75)]" />
 
-      {/* Animated blurred orbs */}
+      {/* Animated blurred orbs — terracotta & warm tones */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="animate-orb-1 absolute -left-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-primary/[0.07] blur-[80px]" />
-        <div className="animate-orb-2 absolute -right-32 top-1/4 h-[32rem] w-[32rem] rounded-full bg-accent/[0.06] blur-[90px]" />
-        <div className="animate-orb-3 absolute -bottom-24 left-1/4 h-[26rem] w-[26rem] rounded-full bg-secondary/[0.08] blur-[70px]" />
+        <div className="animate-orb-1 absolute -left-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-primary/[0.06] blur-[80px]" />
+        <div className="animate-orb-2 absolute -right-32 top-1/4 h-[32rem] w-[32rem] rounded-full bg-[oklch(0.72_0.10_75_/_0.06)] blur-[90px]" />
+        <div className="animate-orb-3 absolute -bottom-24 left-1/4 h-[26rem] w-[26rem] rounded-full bg-primary/[0.04] blur-[70px]" />
       </div>
 
       {/* Floating food emojis */}

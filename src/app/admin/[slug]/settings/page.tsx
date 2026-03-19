@@ -37,6 +37,7 @@ import {
   ExternalLink,
   Wallet,
   Users,
+  Download,
 } from "lucide-react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/format";
@@ -91,7 +92,7 @@ function Section({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-border bg-card p-5 ${className}`}
+      className={`rounded-2xl border border-border bg-card p-5 shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -113,8 +114,8 @@ function SectionHeader({
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-3">
         {Icon && (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
         )}
         <div className="min-w-0">
@@ -157,8 +158,8 @@ function CollapsibleSection({
       >
         <div className="flex items-start gap-3">
           {Icon && (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-              <Icon className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Icon className="h-4 w-4 text-primary" />
             </div>
           )}
           <div className="min-w-0 text-left">
@@ -171,12 +172,20 @@ function CollapsibleSection({
           </div>
         </div>
         <ChevronDown
-          className={`mt-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+          className={`mt-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
-      {isOpen && <div className="mt-4">{children}</div>}
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-4">{children}</div>
+        </div>
+      </div>
     </Section>
   );
 }
@@ -302,8 +311,9 @@ export default function SettingsPage() {
       }
 
       setLoading(false);
-      // Mark loaded so auto-save effects don't trigger on initial hydration
-      setTimeout(() => { hasLoaded.current = true; }, 0);
+      // Mark loaded after all effects have settled (useEffect is async in React 18,
+      // so setTimeout(0) can fire before pending effects — use a longer delay)
+      setTimeout(() => { hasLoaded.current = true; }, 1500);
     };
     load();
   }, [params.slug]);
@@ -397,6 +407,7 @@ export default function SettingsPage() {
   const queueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveRestaurant = useCallback(async () => {
+    if (!hasLoaded.current) return;
     if (!restaurant || !name.trim()) return;
     if (!orderTypeDineIn && !orderTypeTakeaway) return;
 
@@ -431,6 +442,7 @@ export default function SettingsPage() {
   }, [restaurant, name, address, phone, description, hours, orderTypeDineIn, orderTypeTakeaway]);
 
   const autoSavePaymentMethods = useCallback(async () => {
+    if (!hasLoaded.current) return;
     if (!restaurant) return;
     const methods: string[] = [];
     if (acceptOnSite) methods.push("on_site");
@@ -451,6 +463,7 @@ export default function SettingsPage() {
   }, [restaurant, acceptOnSite, acceptOnline]);
 
   const autoSaveLoyalty = useCallback(async () => {
+    if (!hasLoaded.current) return;
     if (!restaurant) return;
     const supabase = createClient();
     const { error } = await supabase
@@ -469,6 +482,7 @@ export default function SettingsPage() {
   }, [restaurant, loyaltyEnabled, loyaltyTiers]);
 
   const autoSaveWalletTopup = useCallback(async () => {
+    if (!hasLoaded.current) return;
     if (!restaurant) return;
     const supabase = createClient();
     const { error } = await supabase
@@ -487,6 +501,7 @@ export default function SettingsPage() {
   }, [restaurant, walletTopupEnabled, walletTopupTiers]);
 
   const autoSaveQueue = useCallback(async () => {
+    if (!hasLoaded.current) return;
     if (!restaurant) return;
     const supabase = createClient();
     const { error } = await supabase
@@ -766,18 +781,33 @@ export default function SettingsPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-lg">
-        <h2 className="mb-6 text-xl font-bold">Réglages</h2>
+        {/* ─── Header ─── */}
+        <div className="mb-6 flex items-center gap-3">
+          {logoUrl ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-border shadow-sm">
+              <Image src={logoUrl} alt="" fill className="object-cover" sizes="40px" />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Store className="h-5 w-5 text-primary" />
+            </div>
+          )}
+          <div>
+            <h2 className="text-xl font-bold">Réglages</h2>
+            <p className="text-xs text-muted-foreground">{restaurant.name}</p>
+          </div>
+        </div>
 
         {/* ─── Tabs ─── */}
-        <div className="no-scrollbar mb-8 -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-[11px] font-medium transition-all duration-200 ${
                 activeTab === tab.key
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "border-primary/20 bg-primary/5 text-primary shadow-sm"
+                  : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               {tab.icon}
@@ -790,23 +820,42 @@ export default function SettingsPage() {
         {activeTab === "restaurant" && (
           <div className="space-y-4">
             {/* Commandes ouvertes / fermées */}
-            <Section>
-              <SectionHeader
-                title={isAcceptingOrders ? "Commandes ouvertes" : "Commandes fermées"}
-                description={
-                  isAcceptingOrders
-                    ? "Les clients peuvent passer commande"
-                    : "Les commandes sont actuellement suspendues"
-                }
-                action={
-                  <KitchenToggle
-                    restaurantId={restaurant.id}
-                    initialOpen={restaurant.is_accepting_orders}
-                    onToggle={setIsAcceptingOrders}
-                  />
-                }
-              />
-            </Section>
+            <div
+              className={`rounded-2xl border-2 p-5 shadow-sm transition-all duration-300 ${
+                isAcceptingOrders
+                  ? "border-green-500/20 bg-green-50/50 dark:bg-green-950/20"
+                  : "border-red-500/20 bg-red-50/50 dark:bg-red-950/20"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
+                      isAcceptingOrders
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-red-500/10 text-red-500"
+                    }`}
+                  >
+                    <Store className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold leading-tight">
+                      {isAcceptingOrders ? "Commandes ouvertes" : "Commandes fermées"}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {isAcceptingOrders
+                        ? "Les clients peuvent passer commande"
+                        : "Les commandes sont actuellement suspendues"}
+                    </p>
+                  </div>
+                </div>
+                <KitchenToggle
+                  restaurantId={restaurant.id}
+                  initialOpen={restaurant.is_accepting_orders}
+                  onToggle={setIsAcceptingOrders}
+                />
+              </div>
+            </div>
 
             {/* Horaires d'ouverture */}
             <CollapsibleSection
@@ -1130,20 +1179,22 @@ export default function SettingsPage() {
               onToggle={toggleSection}
             >
               <div className="flex items-center gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                   <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate font-mono text-sm">
-                    {typeof window !== "undefined"
+                  <span className="truncate font-mono text-xs">
+                    {process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined"
                       ? window.location.origin
-                      : ""}
+                      : "")}
                     /{params.slug}
                   </span>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="shrink-0 rounded-xl"
                   onClick={() => {
-                    const url = `${window.location.origin}/${params.slug}`;
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+                    const url = `${appUrl}/${params.slug}`;
                     navigator.clipboard.writeText(url);
                     toast.success("Lien copié !");
                   }}
@@ -1153,20 +1204,35 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              <div className="mt-4 flex flex-col items-center gap-2">
-                <div className="rounded-xl border border-border bg-white p-3">
+              <div className="mt-5 flex flex-col items-center gap-3">
+                <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/${params.slug}`)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "")}/${params.slug}`)}`}
                     alt="QR Code"
-                    width={160}
-                    height={160}
-                    className="h-[160px] w-[160px]"
+                    width={180}
+                    height={180}
+                    className="h-[180px] w-[180px]"
                   />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Scannez pour commander
-                </span>
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => {
+                    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/${params.slug}`)}`;
+                    const link = document.createElement("a");
+                    link.href = qrUrl;
+                    link.download = `qr-${params.slug}.png`;
+                    link.click();
+                  }}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Télécharger le QR code
+                </Button>
               </div>
             </CollapsibleSection>
 
@@ -1362,15 +1428,15 @@ export default function SettingsPage() {
                       </div>
                     ) : stripeData ? (
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl border border-border bg-muted/50 p-3">
-                          <p className="text-xs text-muted-foreground">Disponible</p>
-                          <p className="mt-1 text-lg font-bold text-green-600">
+                        <div className="rounded-xl border border-green-500/20 bg-green-50/50 p-4 dark:bg-green-950/20">
+                          <p className="text-xs font-medium text-muted-foreground">Disponible</p>
+                          <p className="mt-1.5 text-xl font-bold text-green-600">
                             {formatPrice(stripeData.balance.available)}
                           </p>
                         </div>
-                        <div className="rounded-xl border border-border bg-muted/50 p-3">
-                          <p className="text-xs text-muted-foreground">En attente</p>
-                          <p className="mt-1 text-lg font-bold text-amber-600">
+                        <div className="rounded-xl border border-amber-500/20 bg-amber-50/50 p-4 dark:bg-amber-950/20">
+                          <p className="text-xs font-medium text-muted-foreground">En attente</p>
+                          <p className="mt-1.5 text-xl font-bold text-amber-600">
                             {formatPrice(stripeData.balance.pending)}
                           </p>
                         </div>
@@ -1602,15 +1668,16 @@ export default function SettingsPage() {
             </Section>
 
             {/* Logout */}
-            <Separator className="my-2" />
-            <Button
-              onClick={handleLogout}
-              variant="ghost"
-              className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Déconnexion
-            </Button>
+            <div className="pt-2">
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="w-full rounded-xl border-red-200 text-destructive hover:bg-destructive/5 hover:text-destructive dark:border-red-900"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Déconnexion
+              </Button>
+            </div>
           </div>
         )}
       </div>
