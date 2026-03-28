@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatPrice, formatDate, getStartDate, type Period } from "@/lib/format";
+import { formatPrice, formatDate, getDateRange, type Period } from "@/lib/format";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import type { Order } from "@/lib/types";
 import {
@@ -19,6 +19,8 @@ import {
   Trophy,
   Sun,
   Moon,
+  CalendarIcon,
+  ChevronDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -31,12 +33,40 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { TypographyH2, TypographyH3, TypographyH4, TypographyMuted } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
+import { format, differenceInDays } from "date-fns";
+import { fr } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 
-const PERIOD_TABS: { key: Period; label: string }[] = [
-  { key: "today", label: "Aujourd'hui" },
-  { key: "7days", label: "7 jours" },
-  { key: "30days", label: "30 jours" },
+/* ─── Period presets ─── */
+const PERIOD_PRESETS: { key: Period; label: string; group: "quick" | "relative" | "rolling" }[] = [
+  { key: "today", label: "Aujourd'hui", group: "quick" },
+  { key: "yesterday", label: "Hier", group: "quick" },
+  { key: "this_week", label: "Cette semaine", group: "relative" },
+  { key: "last_week", label: "Semaine dernière", group: "relative" },
+  { key: "this_month", label: "Ce mois", group: "relative" },
+  { key: "last_month", label: "Mois dernier", group: "relative" },
+  { key: "this_quarter", label: "Ce trimestre", group: "relative" },
+  { key: "this_year", label: "Cette année", group: "relative" },
+  { key: "7days", label: "7 derniers jours", group: "rolling" },
+  { key: "30days", label: "30 derniers jours", group: "rolling" },
+  { key: "90days", label: "90 derniers jours", group: "rolling" },
 ];
+
+function getPeriodLabel(period: Period, customRange?: DateRange): string {
+  if (period === "custom" && customRange?.from) {
+    const fromStr = format(customRange.from, "d MMM", { locale: fr });
+    const toStr = customRange.to
+      ? format(customRange.to, "d MMM yyyy", { locale: fr })
+      : format(customRange.from, "d MMM yyyy", { locale: fr });
+    return customRange.to ? `${fromStr} – ${toStr}` : fromStr;
+  }
+  return PERIOD_PRESETS.find((p) => p.key === period)?.label ?? period;
+}
 
 /* ─── Metric card ─── */
 function MetricCard({
@@ -56,8 +86,8 @@ function MetricCard({
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+      <TypographyMuted className="text-xs">{label}</TypographyMuted>
+      {sub && <TypographyMuted className="mt-0.5 text-xs">{sub}</TypographyMuted>}
     </div>
   );
 }
@@ -67,6 +97,20 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  // Effective date range
+  const dateRange = useMemo(() => {
+    if (period === "custom" && customRange?.from) {
+      const start = new Date(customRange.from);
+      start.setHours(0, 0, 0, 0);
+      const end = customRange.to ? new Date(customRange.to) : new Date(customRange.from);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    return getDateRange(period);
+  }, [period, customRange]);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -84,13 +128,12 @@ export default function DashboardPage() {
         return;
       }
 
-      const startDate = getStartDate(period);
-
       const { data } = await supabase
         .from("orders")
         .select("*")
         .eq("restaurant_id", restaurant.id)
-        .gte("created_at", startDate.toISOString())
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false })
         .returns<Order[]>();
 
@@ -99,7 +142,10 @@ export default function DashboardPage() {
     };
 
     fetchOrders();
-  }, [params.slug, period]);
+  }, [params.slug, dateRange]);
+
+  const rangeDays = differenceInDays(dateRange.end, dateRange.start) + 1;
+  const isMultiDay = rangeDays > 1;
 
   /* ─── Computed metrics ─── */
   const metrics = useMemo(() => {
@@ -137,17 +183,16 @@ export default function DashboardPage() {
     }));
   }, [orders]);
 
-  /* ─── Revenue by day (for 7d/30d) ─── */
+  /* ─── Revenue by day (multi-day periods) ─── */
   const dailyData = useMemo(() => {
-    if (period === "today") return [];
+    if (!isMultiDay) return [];
 
     const completed = orders.filter((o) => o.status !== "cancelled");
     const byDay: Record<string, number> = {};
 
-    const days = period === "7days" ? 7 : 30;
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    for (let i = 0; i < rangeDays; i++) {
+      const d = new Date(dateRange.start);
+      d.setDate(d.getDate() + i);
       const key = d.toLocaleDateString("fr-FR", {
         day: "2-digit",
         month: "2-digit",
@@ -169,7 +214,7 @@ export default function DashboardPage() {
       date,
       montant: Number((cents / 100).toFixed(2)),
     }));
-  }, [orders, period]);
+  }, [orders, isMultiDay, rangeDays, dateRange.start]);
 
   /* ─── Top clients ─── */
   const topClients = useMemo(() => {
@@ -242,6 +287,23 @@ export default function DashboardPage() {
     return { topProducts, bottomProducts, peakHours, slowHours, bestClients };
   }, [orders]);
 
+  function handlePresetSelect(key: Period) {
+    setPeriod(key);
+    setCustomRange(undefined);
+    setPopoverOpen(false);
+  }
+
+  function handleCalendarSelect(range: DateRange | undefined) {
+    setCustomRange(range);
+    if (range?.from) {
+      setPeriod("custom");
+      // Close popover when both dates selected
+      if (range.to) {
+        setPopoverOpen(false);
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -253,23 +315,101 @@ export default function DashboardPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-4xl">
-        <h2 className="mb-6 text-xl font-bold">Tableau de bord</h2>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <TypographyH2>Tableau de bord</TypographyH2>
 
-        {/* ─── Period toggle ─── */}
-        <div className="no-scrollbar mb-6 flex gap-1">
-          {PERIOD_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setPeriod(tab.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                period === tab.key
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {/* ─── Date filter ─── */}
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start gap-2 text-left font-medium",
+                  period === "custom" && !customRange?.from && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">{getPeriodLabel(period, customRange)}</span>
+                <ChevronDown className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
+              <div className="flex flex-col sm:flex-row">
+                {/* Preset list */}
+                <div className="border-b border-border p-3 sm:w-44 sm:border-b-0 sm:border-r">
+                  <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Rapide
+                  </p>
+                  {PERIOD_PRESETS.filter((p) => p.group === "quick").map((preset) => (
+                    <button
+                      key={preset.key}
+                      onClick={() => handlePresetSelect(preset.key)}
+                      className={cn(
+                        "flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors",
+                        period === preset.key && period !== "custom"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+
+                  <p className="mb-2 mt-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Période
+                  </p>
+                  {PERIOD_PRESETS.filter((p) => p.group === "relative").map((preset) => (
+                    <button
+                      key={preset.key}
+                      onClick={() => handlePresetSelect(preset.key)}
+                      className={cn(
+                        "flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors",
+                        period === preset.key && period !== "custom"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+
+                  <p className="mb-2 mt-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Glissant
+                  </p>
+                  {PERIOD_PRESETS.filter((p) => p.group === "rolling").map((preset) => (
+                    <button
+                      key={preset.key}
+                      onClick={() => handlePresetSelect(preset.key)}
+                      className={cn(
+                        "flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors",
+                        period === preset.key && period !== "custom"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Calendar */}
+                <div className="p-3">
+                  <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Personnalisé
+                  </p>
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={handleCalendarSelect}
+                    numberOfMonths={1}
+                    locale={fr}
+                    disabled={{ after: new Date() }}
+                    defaultMonth={customRange?.from ?? new Date()}
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* ─── Metric cards ─── */}
@@ -297,12 +437,12 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Charts ─── */}
-        <div className={`mb-6 grid gap-4 ${period !== "today" ? "md:grid-cols-2" : ""}`}>
+        <div className={`mb-6 grid gap-4 ${isMultiDay ? "md:grid-cols-2" : ""}`}>
           {/* Orders by hour */}
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Commandes par heure</h3>
+              <TypographyH4>Commandes par heure</TypographyH4>
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
@@ -337,12 +477,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Revenue by day (7d / 30d only) */}
-          {period !== "today" && (
+          {/* Revenue by day (multi-day only) */}
+          {isMultiDay && (
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">CA par jour</h3>
+                <TypographyH4>CA par jour</TypographyH4>
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -395,7 +535,7 @@ export default function DashboardPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <Sparkles className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-base font-bold">Analyse IA</h3>
+              <TypographyH3>Analyse IA</TypographyH3>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -404,7 +544,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <h4 className="text-sm font-semibold">Articles populaires</h4>
+                    <TypographyH4>Articles populaires</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.topProducts.map((p, i) => (
@@ -429,7 +569,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <h4 className="text-sm font-semibold">À surveiller</h4>
+                    <TypographyH4>À surveiller</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.bottomProducts.map((p) => (
@@ -449,7 +589,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Sun className="h-4 w-4 text-orange-500" />
-                    <h4 className="text-sm font-semibold">Heures de pointe</h4>
+                    <TypographyH4>Heures de pointe</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.peakHours.map((h) => (
@@ -469,7 +609,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Moon className="h-4 w-4 text-blue-400" />
-                    <h4 className="text-sm font-semibold">Heures creuses</h4>
+                    <TypographyH4>Heures creuses</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.slowHours.map((h) => (
@@ -490,7 +630,7 @@ export default function DashboardPage() {
               <div className="mt-4 rounded-xl bg-muted/50 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <Trophy className="h-4 w-4 text-orange-500" />
-                  <h4 className="text-sm font-semibold">Meilleurs clients</h4>
+                  <TypographyH4>Meilleurs clients</TypographyH4>
                 </div>
                 <div className="space-y-2">
                   {analysis.bestClients.map((c, i) => (
@@ -518,7 +658,7 @@ export default function DashboardPage() {
           <div className="mb-6 rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Top clients</h3>
+              <TypographyH4>Top clients</TypographyH4>
             </div>
             <div className="divide-y divide-border">
               {topClients.map((client, i) => (
@@ -548,12 +688,12 @@ export default function DashboardPage() {
 
         {/* ─── Order history ─── */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-semibold">Historique des commandes</h3>
+          <TypographyH4 className="mb-3">Historique des commandes</TypographyH4>
 
           {orders.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <TypographyMuted className="py-8 text-center">
               Aucune commande sur cette période.
-            </p>
+            </TypographyMuted>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

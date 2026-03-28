@@ -12,6 +12,7 @@ import { PartyPopper, ArrowRight, Monitor, ChefHat, Bell, BellOff } from "lucide
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
 import { toast } from "sonner";
+import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
 
 const VIEW_TABS: { key: OrderView; label: string; icon: React.ReactNode }[] = [
   { key: "comptoir", label: "Comptoir", icon: <Monitor className="h-4 w-4" /> },
@@ -165,10 +166,10 @@ export default function AdminDashboard() {
       {showWelcome && (
         <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
           <PartyPopper className="mx-auto mb-3 h-10 w-10 text-primary" />
-          <h2 className="mb-1 text-lg font-bold">Restaurant créé !</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
+          <TypographyH2 className="mb-1">Restaurant créé !</TypographyH2>
+          <TypographyMuted className="mb-4">
             Ajoutez vos premiers articles pour commencer à recevoir des commandes.
-          </p>
+          </TypographyMuted>
           <Link href={`/admin/${slug}/menu`}>
             <Button className="rounded-xl font-semibold">
               Créer mes articles
@@ -217,11 +218,11 @@ export default function AdminDashboard() {
 
       {activeOrders.length === 0 && !showWelcome ? (
         <div className="flex h-64 items-center justify-center">
-          <p className="text-sm text-muted-foreground">
+          <TypographyMuted>
             {view === "cuisine"
               ? "Aucune commande à préparer. Les nouvelles commandes apparaîtront ici."
               : "Aucune commande en cours. Les nouvelles commandes apparaîtront ici en temps réel."}
-          </p>
+          </TypographyMuted>
         </div>
       ) : activeOrders.length > 0 ? (
         view === "comptoir" ? (

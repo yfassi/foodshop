@@ -83,6 +83,56 @@ export function generateTimeOptions(): { value: string; label: string }[] {
 
 export const TIME_OPTIONS = generateTimeOptions();
 
+/** Get the current closing time if restaurant is open, or next opening info if closed */
+export function getRestaurantStatusLabel(
+  openingHours: Record<string, unknown> | null | undefined
+): { isOpen: boolean; label: string } {
+  if (!openingHours) return { isOpen: true, label: "Ouvert" };
+
+  const dayKeys = [
+    "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+  ];
+  const now = new Date();
+  const currentDay = now.getDay();
+  const todayKey = dayKeys[currentDay];
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Check if currently open & get closing time
+  const todayRanges = normalizeHoursEntry(openingHours[todayKey]);
+  if (todayRanges) {
+    for (const range of todayRanges) {
+      const [openH, openM] = range.open.split(":").map(Number);
+      const [closeH, closeM] = range.close.split(":").map(Number);
+      const openMin = openH * 60 + openM;
+      const closeMin = closeH * 60 + closeM;
+      if (currentMinutes >= openMin && currentMinutes < closeMin) {
+        return { isOpen: true, label: `Ouvert · jusqu'à ${range.close}` };
+      }
+    }
+    // Check if there's a later slot today
+    for (const range of todayRanges) {
+      const [openH, openM] = range.open.split(":").map(Number);
+      const openMin = openH * 60 + openM;
+      if (openMin > currentMinutes) {
+        return { isOpen: false, label: `Fermé · réouv. ${range.open}` };
+      }
+    }
+  }
+
+  // Find next opening day
+  for (let offset = 1; offset <= 7; offset++) {
+    const dayIdx = (currentDay + offset) % 7;
+    const dayKey = dayKeys[dayIdx];
+    const ranges = normalizeHoursEntry(openingHours[dayKey]);
+    if (ranges && ranges.length > 0) {
+      const dayLabel = offset === 1 ? "demain" : DAYS_FR[dayKey].toLowerCase();
+      return { isOpen: false, label: `Fermé · réouv. ${dayLabel}` };
+    }
+  }
+
+  return { isOpen: false, label: "Fermé" };
+}
+
 /** Check if the restaurant is currently open based on opening_hours */
 export function isCurrentlyOpen(
   openingHours: Record<string, unknown> | null | undefined

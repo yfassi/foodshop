@@ -217,8 +217,8 @@ export default function Home() {
         }`}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="font-space text-xl font-bold text-landing-primary uppercase tracking-wider">
-            TAAPR
+          <span className="font-ferron text-2xl text-landing-primary tracking-wider">
+            taapr
           </span>
 
           {/* Center counter — hidden on mobile */}
@@ -264,8 +264,8 @@ export default function Home() {
             >
               <div className="bg-landing-ticket text-landing-ticket">
                 <div className="px-6 py-8 sm:px-8 sm:py-10">
-                  <p className="text-center font-space text-sm tracking-[0.3em] uppercase opacity-40 text-landing-ticket">
-                    TAAPR
+                  <p className="text-center font-ferron text-base tracking-[0.3em] opacity-40 text-landing-ticket">
+                    taapr
                   </p>
 
                   <div className="my-3 border-t border-dashed border-black/15" />
@@ -591,7 +591,7 @@ export default function Home() {
           <p className="text-xs text-landing-muted tracking-widest">
             ═══════ MERCI DE VOTRE VISITE ═══════
           </p>
-          <p className="text-sm text-landing-fg">TAAPR © 2026</p>
+          <p className="font-ferron text-base text-landing-fg">taapr <span className="font-sans text-sm">© 2026</span></p>
           <p className="text-xs text-landing-muted space-x-3">
             <a href="#" className="hover:text-landing-fg transition-colors">
               Mentions légales

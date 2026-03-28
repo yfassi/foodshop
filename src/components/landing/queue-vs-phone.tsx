@@ -282,8 +282,8 @@ export function QueueVsPhone() {
               ✅
             </span>
             <div>
-              <p className="font-space text-sm font-bold uppercase tracking-wider text-[var(--landing-primary)]">
-                Avec Taapr
+              <p className="font-ferron text-base tracking-wider text-[var(--landing-primary)]">
+                avec taapr
               </p>
               <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
                 Chaque client commande depuis son téléphone
