@@ -341,7 +341,7 @@ export default function Home() {
 
       {/* ─── Section: Queue vs Phone comparison ─── */}
       <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-12 text-center">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-10 text-center">
           <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase tracking-wider text-landing-fg">
             FINI LA FILE D&apos;ATTENTE
           </h2>

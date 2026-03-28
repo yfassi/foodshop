@@ -1,309 +1,212 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-/* ═══════════════════════════════════════════
-   SVG: Borne tactile + file d'attente
-   ═══════════════════════════════════════════ */
-
-function QueueScene({ animate }: { animate: boolean }) {
-  return (
-    <svg viewBox="0 0 520 240" fill="none" className="w-full h-auto max-w-lg mx-auto">
-      {/* ── Borne de commande tactile ── */}
-      <g>
-        {/* Pied / support */}
-        <rect x="60" y="180" width="40" height="8" rx="2" fill="#b0a898" />
-        <rect x="73" y="130" width="14" height="52" fill="#c4b8ab" />
-        {/* Écran principal */}
-        <rect x="48" y="50" width="64" height="82" rx="5" fill="#3a3530" />
-        <rect x="52" y="54" width="56" height="68" rx="3" fill="#f5f0eb" />
-        {/* Contenu écran — lignes de menu */}
-        <rect x="57" y="60" width="46" height="5" rx="1.5" fill="#d4c8ba" />
-        <rect x="57" y="69" width="32" height="4" rx="1.5" fill="#e8e0d8" />
-        <rect x="57" y="77" width="38" height="4" rx="1.5" fill="#e8e0d8" />
-        <rect x="57" y="85" width="28" height="4" rx="1.5" fill="#e8e0d8" />
-        <rect x="57" y="95" width="46" height="4" rx="1.5" fill="#e8e0d8" />
-        {/* Bouton commander */}
-        <rect x="62" y="106" width="36" height="10" rx="5" fill="#c4564a" opacity="0.6" />
-        <text x="80" y="114" textAnchor="middle" fill="white" fontSize="5" fontWeight="600" fontFamily="system-ui">COMMANDER</text>
-        {/* Lecteur CB en bas */}
-        <rect x="66" y="126" width="28" height="6" rx="2" fill="#5a5248" />
-        {/* Label */}
-        <text x="80" y="46" textAnchor="middle" fill="#8a7e72" fontSize="7" fontWeight="600" fontFamily="system-ui">BORNE</text>
-      </g>
-
-      {/* ── File d'attente de 6 personnes ── */}
-      {[0, 1, 2, 3, 4, 5].map((i) => {
-        const x = 155 + i * 56;
-        const bodyColors = ["#8b9dc3", "#c9a87c", "#7fb5b0", "#d4a0a0", "#a3b18a", "#c7b299"];
-        const hairColors = ["#4a3728", "#2c1810", "#6b4423", "#1a1a2e", "#3d2b1f", "#5c3d2e"];
-        return (
-          <g
-            key={i}
-            style={{
-              opacity: animate ? 1 : 0,
-              transform: animate ? "translateX(0)" : "translateX(-16px)",
-              transition: `all 400ms ease-out ${300 + i * 180}ms`,
-            }}
-          >
-            {/* Tête */}
-            <circle cx={x} cy="108" r="13" fill="#f0d9c4" />
-            {/* Cheveux */}
-            <ellipse cx={x} cy="100" rx="12" ry="8" fill={hairColors[i]} />
-            {/* Corps */}
-            <rect x={x - 11} y="121" width="22" height="32" rx="7" fill={bodyColors[i]} />
-            {/* Bras */}
-            {i === 0 ? (
-              // Bras croisés — impatient
-              <rect x={x - 15} y="130" width="30" height="6" rx="3" fill={bodyColors[i]} opacity="0.8" />
-            ) : i % 2 === 0 ? (
-              // Regarde sa montre
-              <>
-                <rect x={x - 17} y="125" width="7" height="18" rx="3.5" fill={bodyColors[i]} opacity="0.8" transform={`rotate(-15 ${x - 13} 134)`} />
-                <rect x={x + 10} y="128" width="7" height="16" rx="3.5" fill={bodyColors[i]} opacity="0.8" />
-              </>
-            ) : (
-              // Bras le long du corps
-              <>
-                <rect x={x - 17} y="126" width="7" height="20" rx="3.5" fill={bodyColors[i]} opacity="0.8" />
-                <rect x={x + 10} y="126" width="7" height="20" rx="3.5" fill={bodyColors[i]} opacity="0.8" />
-              </>
-            )}
-            {/* Jambes */}
-            <rect x={x - 7} y="153" width="6" height="24" rx="3" fill="#6b6560" />
-            <rect x={x + 1} y="153" width="6" height="24" rx="3" fill="#6b6560" />
-            {/* Chaussures */}
-            <ellipse cx={x - 4} cy="178" rx="5" ry="3" fill="#4a4540" />
-            <ellipse cx={x + 4} cy="178" rx="5" ry="3" fill="#4a4540" />
-            {/* Expression agacée */}
-            <line x1={x - 4} y1="112" x2={x + 4} y2="112" stroke="#8a7060" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx={x - 4} cy="107" r="1.3" fill="#5a4a3a" />
-            <circle cx={x + 4} cy="107" r="1.3" fill="#5a4a3a" />
-            {/* Sourcils froncés sur certains */}
-            {i % 2 === 1 && (
-              <>
-                <line x1={x - 6} y1="104" x2={x - 2} y2="105" stroke="#5a4a3a" strokeWidth="1" strokeLinecap="round" />
-                <line x1={x + 2} y1="105" x2={x + 6} y2="104" stroke="#5a4a3a" strokeWidth="1" strokeLinecap="round" />
-              </>
-            )}
-          </g>
-        );
-      })}
-
-      {/* Ligne pointillée de la file */}
-      <line
-        x1="130" y1="155" x2="500" y2="155"
-        stroke="#c4b8ab" strokeWidth="1.5" strokeDasharray="5 4"
-        style={{ opacity: animate ? 0.4 : 0, transition: "opacity 400ms ease-out 250ms" }}
-      />
-
-      {/* Sol */}
-      <rect x="0" y="188" width="520" height="3" rx="1.5" fill="#e8e0d8" opacity="0.6" />
-    </svg>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   SVG: Tables de restaurant + commandes mobile
-   ═══════════════════════════════════════════ */
-
-function PhoneScene({ animate }: { animate: boolean }) {
-  const tables = [
-    { tx: 60, ty: 100, people: [{ dx: -20, dy: -30 }, { dx: 20, dy: -30 }] },
-    { tx: 210, ty: 80, people: [{ dx: -22, dy: -28 }, { dx: 22, dy: -28 }, { dx: 0, dy: 28 }] },
-    { tx: 370, ty: 110, people: [{ dx: -20, dy: -30 }, { dx: 20, dy: -30 }] },
-    { tx: 460, ty: 70, people: [{ dx: 0, dy: -28 }] },
-  ];
-
-  const bodyColors = ["#c4564a", "#e88a6e", "#7fb5b0", "#c9a87c", "#a3b18a", "#d4a0a0", "#8b9dc3", "#c7b299"];
-  const hairColors = ["#4a3728", "#2c1810", "#6b4423", "#1a1a2e", "#3d2b1f", "#5c3d2e", "#4a3728", "#2c1810"];
-  let personIdx = 0;
-
-  return (
-    <svg viewBox="0 0 520 240" fill="none" className="w-full h-auto max-w-lg mx-auto">
-      {tables.map((table, ti) => (
-        <g key={ti}>
-          {/* Table */}
-          <g
-            style={{
-              opacity: animate ? 1 : 0,
-              transition: `opacity 400ms ease-out ${150 + ti * 120}ms`,
-            }}
-          >
-            <ellipse cx={table.tx} cy={table.ty + 10} rx="28" ry="10" fill="#e8ddd3" />
-            <rect x={table.tx - 24} y={table.ty - 2} width="48" height="14" rx="4" fill="#f5f0eb" stroke="#e0d5c8" strokeWidth="1" />
-            {/* QR code sur la table */}
-            <g transform={`translate(${table.tx - 6}, ${table.ty})`}>
-              <rect x="0" y="0" width="12" height="12" rx="1.5" fill="white" stroke="#c4564a" strokeWidth="0.8" />
-              <rect x="2" y="2" width="3" height="3" fill="#c4564a" />
-              <rect x="7" y="2" width="3" height="3" fill="#c4564a" />
-              <rect x="2" y="7" width="3" height="3" fill="#c4564a" />
-              <rect x="5.5" y="5.5" width="2" height="2" fill="#c4564a" />
-            </g>
-          </g>
-
-          {/* Personnes assises autour de la table */}
-          {table.people.map((pos, pi) => {
-            const px = table.tx + pos.dx;
-            const py = table.ty + pos.dy;
-            const ci = personIdx++;
-            const bc = bodyColors[ci % bodyColors.length];
-            const hc = hairColors[ci % hairColors.length];
-            return (
-              <g
-                key={pi}
-                style={{
-                  opacity: animate ? 1 : 0,
-                  transform: animate ? "scale(1)" : "scale(0.7)",
-                  transformOrigin: `${px}px ${py + 10}px`,
-                  transition: `all 500ms cubic-bezier(0.34, 1.56, 0.64, 1) ${300 + ci * 130}ms`,
-                }}
-              >
-                {/* Tête */}
-                <circle cx={px} cy={py - 6} r="10" fill="#f0d9c4" />
-                <ellipse cx={px} cy={py - 12} rx="9" ry="6" fill={hc} />
-                {/* Corps (assis) */}
-                <rect x={px - 8} y={py + 4} width="16" height="18" rx="5" fill={bc} />
-                {/* Bras qui tient le téléphone */}
-                <rect x={px + 7} y={py} width="5" height="14" rx="2.5" fill={bc} opacity="0.85" transform={`rotate(-20 ${px + 9} ${py + 7})`} />
-                {/* Téléphone */}
-                <rect x={px + 11} y={py - 5} width="8" height="13" rx="2" fill="#1a1a1a" />
-                <rect x={px + 12} y={py - 3} width="6" height="9" rx="1.5" fill="white" />
-                <rect x={px + 13} y={py - 2} width="4" height="3" rx="0.5" fill="#c4564a" opacity="0.4" />
-                {/* Expression souriante */}
-                <path d={`M${px - 3} ${py - 3} Q${px} ${py + 1} ${px + 3} ${py - 3}`} stroke="#8a7060" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-                <circle cx={px - 3} cy={py - 7} r="1" fill="#5a4a3a" />
-                <circle cx={px + 3} cy={py - 7} r="1" fill="#5a4a3a" />
-                {/* Bulle de commande */}
-                {ci % 2 === 0 && (
-                  <g style={{ opacity: animate ? 1 : 0, transition: `opacity 300ms ease-out ${800 + ci * 120}ms` }}>
-                    <rect x={px + 16} y={py - 18} width="20" height="12" rx="6" fill="#22c55e" opacity="0.15" />
-                    <text x={px + 26} y={py - 10} textAnchor="middle" fill="#16a34a" fontSize="6" fontWeight="700" fontFamily="system-ui">OK</text>
-                  </g>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      ))}
-
-      {/* Sol / fond */}
-      <rect x="0" y="200" width="520" height="3" rx="1.5" fill="#e8e0d8" opacity="0.4" />
-    </svg>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   Main: sticky "Avant" + "Après" qui le recouvre
-   ═══════════════════════════════════════════ */
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function QueueVsPhone() {
-  const avantRef = useRef<HTMLDivElement>(null);
-  const apresRef = useRef<HTMLDivElement>(null);
-  const [avantVisible, setAvantVisible] = useState(false);
-  const [apresVisible, setApresVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [sliderPos, setSliderPos] = useState(50);
+  const [dragging, setDragging] = useState(false);
+  const [visible, setVisible] = useState(false);
 
-  // Reveal triggers
+  // Fade-in on scroll
   useEffect(() => {
-    const avantEl = avantRef.current;
-    const apresEl = apresRef.current;
-    if (!avantEl || !apresEl) return;
-
-    const obs1 = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setAvantVisible(true); obs1.unobserve(avantEl); } },
-      { threshold: 0.2 }
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setVisible(true);
+          obs.unobserve(el);
+        }
+      },
+      { threshold: 0.15 }
     );
-    const obs2 = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setApresVisible(true); obs2.unobserve(apresEl); } },
-      { threshold: 0.3 }
-    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-    obs1.observe(avantEl);
-    obs2.observe(apresEl);
-    return () => { obs1.disconnect(); obs2.disconnect(); };
+  const updatePosition = useCallback(
+    (clientX: number) => {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      setSliderPos(pct);
+    },
+    []
+  );
+
+  // Mouse / touch handlers
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      setDragging(true);
+      updatePosition(e.clientX);
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [updatePosition]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragging) return;
+      updatePosition(e.clientX);
+    },
+    [dragging, updatePosition]
+  );
+
+  const onPointerUp = useCallback(() => {
+    setDragging(false);
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6">
-      <div className="relative">
-        {/* AVANT — stays in place, gets covered */}
-        <div
-          ref={avantRef}
-          className={`sticky top-24 z-0 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-ticket)] p-5 sm:p-8 transition-opacity duration-500 ${
-            avantVisible ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-base">
-              ❌
-            </span>
-            <div>
-              <p className="font-space text-sm font-bold uppercase tracking-wider text-[var(--landing-fg)]">
-                Avant
-              </p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
-                La file d&apos;attente devant la borne de commande
-              </p>
-            </div>
+    <div
+      className={`mx-auto max-w-3xl px-4 sm:px-6 transition-all duration-700 ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+      }`}
+    >
+      {/* Slider widget */}
+      <div
+        ref={containerRef}
+        className="relative select-none overflow-hidden rounded-2xl border border-[var(--landing-border)] shadow-lg shadow-black/[0.06]"
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        {/* ── Image layer: AVEC (bottom / full) ── */}
+        <div className="relative aspect-[16/9] w-full">
+          <Image
+            src="/avec-taapr.png"
+            alt="Avec taapr — clients commandant depuis leur mobile"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 720px"
+            draggable={false}
+          />
+
+          {/* ── Image layer: SANS (clipped left portion) ── */}
+          <div
+            className="absolute inset-0"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+          >
+            <Image
+              src="/sans-taapr.png"
+              alt="Sans taapr — clients faisant la queue"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 720px"
+              draggable={false}
+            />
           </div>
 
-          <QueueScene animate={avantVisible} />
+          {/* ── Labels on images ── */}
+          <div
+            className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1.5 shadow-sm pointer-events-none"
+            style={{ opacity: sliderPos > 15 ? 1 : 0, transition: "opacity 200ms" }}
+          >
+            <span className="text-sm">❌</span>
+            <span className="font-space text-xs font-bold uppercase tracking-wider text-red-500">
+              Sans taapr
+            </span>
+          </div>
+          <div
+            className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1.5 shadow-sm pointer-events-none"
+            style={{ opacity: sliderPos < 85 ? 1 : 0, transition: "opacity 200ms" }}
+          >
+            <span className="text-sm">✅</span>
+            <span className="font-ferron text-xs tracking-wider text-[var(--landing-primary)]">
+              avec taapr
+            </span>
+          </div>
 
-          <div className="mt-4 flex items-center justify-center gap-6 text-center">
+          {/* ── Slider line + handle ── */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.3)] pointer-events-none"
+            style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
+          />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-10"
+            style={{ left: `${sliderPos}%`, transform: `translate(-50%, -50%)` }}
+          >
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg border border-white/80 transition-transform ${
+                dragging ? "scale-110" : "scale-100"
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M7 4L3 10L7 16M13 4L17 10L13 16"
+                  stroke="#666"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats comparison below ── */}
+      <div className="mt-6 grid grid-cols-2 gap-4">
+        {/* Sans stats */}
+        <div className="rounded-xl border border-red-200/60 bg-red-50/30 px-4 py-4 text-center">
+          <p className="font-space text-xs font-bold uppercase tracking-wider text-red-400 mb-2">
+            Sans taapr
+          </p>
+          <div className="flex items-center justify-center gap-4">
             <div>
-              <p className="font-space text-2xl font-bold text-red-500/80">~12 min</p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
-                d&apos;attente par client
+              <p className="font-space text-xl sm:text-2xl font-bold text-red-500/80">~12 min</p>
+              <p
+                className="text-[11px] text-[var(--landing-muted-fg)]"
+                style={{ fontFamily: "var(--font-inter), system-ui" }}
+              >
+                d&apos;attente
               </p>
             </div>
-            <div className="h-8 w-px bg-[var(--landing-border)]" />
+            <div className="h-8 w-px bg-red-200/40" />
             <div>
-              <p className="font-space text-2xl font-bold text-[var(--landing-fg)]/60">1 seule</p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
+              <p className="font-space text-xl sm:text-2xl font-bold text-[var(--landing-fg)]/50">1</p>
+              <p
+                className="text-[11px] text-[var(--landing-muted-fg)]"
+                style={{ fontFamily: "var(--font-inter), system-ui" }}
+              >
                 borne pour tous
               </p>
             </div>
           </div>
         </div>
 
-        {/* Spacer — gives scroll room for the overlay to happen */}
-        <div className="h-[40vh]" />
-
-        {/* APRÈS — slides up over Avant */}
+        {/* Avec stats */}
         <div
-          ref={apresRef}
-          className="relative z-10 rounded-2xl border border-[var(--landing-primary)]/20 bg-[var(--landing-primary)]/[0.03] p-5 sm:p-8 shadow-xl shadow-black/[0.04]"
+          className="rounded-xl border border-[var(--landing-primary)]/20 px-4 py-4 text-center"
           style={{
             backgroundColor: `color-mix(in oklch, var(--landing-bg) 97%, var(--landing-primary))`,
           }}
         >
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-base">
-              ✅
-            </span>
+          <p className="font-ferron text-xs tracking-wider text-[var(--landing-primary)] mb-2">
+            avec taapr
+          </p>
+          <div className="flex items-center justify-center gap-4">
             <div>
-              <p className="font-ferron text-base tracking-wider text-[var(--landing-primary)]">
-                avec taapr
-              </p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
-                Chaque client commande depuis son téléphone
-              </p>
-            </div>
-          </div>
-
-          <PhoneScene animate={apresVisible} />
-
-          <div className="mt-4 flex items-center justify-center gap-6 text-center">
-            <div>
-              <p className="font-space text-2xl font-bold text-emerald-500">~30 sec</p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
+              <p className="font-space text-xl sm:text-2xl font-bold text-emerald-500">~30 sec</p>
+              <p
+                className="text-[11px] text-[var(--landing-muted-fg)]"
+                style={{ fontFamily: "var(--font-inter), system-ui" }}
+              >
                 pour commander
               </p>
             </div>
             <div className="h-8 w-px bg-[var(--landing-border)]" />
             <div>
-              <p className="font-space text-2xl font-bold text-[var(--landing-primary)]">x5</p>
-              <p className="text-xs text-[var(--landing-muted-fg)]" style={{ fontFamily: "var(--font-inter), system-ui" }}>
+              <p className="font-space text-xl sm:text-2xl font-bold text-[var(--landing-primary)]">x5</p>
+              <p
+                className="text-[11px] text-[var(--landing-muted-fg)]"
+                style={{ fontFamily: "var(--font-inter), system-ui" }}
+              >
                 commandes simultanées
               </p>
             </div>
