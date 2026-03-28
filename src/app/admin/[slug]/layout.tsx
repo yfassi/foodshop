@@ -18,11 +18,12 @@ export default async function AdminLayout({
   const supabase = await createClient();
 
   let restaurant;
+  let userEmail = "";
 
   if (isDemo) {
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours")
       .eq("slug", slug)
       .single();
 
@@ -34,10 +35,11 @@ export default async function AdminLayout({
     } = await supabase.auth.getUser();
 
     if (!user) redirect("/admin/login");
+    userEmail = user.email || "";
 
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours")
       .eq("slug", slug)
       .eq("owner_id", user.id)
       .single();
@@ -52,6 +54,9 @@ export default async function AdminLayout({
       restaurantName={restaurant.name}
       verificationStatus={restaurant.verification_status}
       isDemo={isDemo}
+      userEmail={userEmail}
+      openingHours={restaurant.opening_hours as Record<string, unknown> | null}
+      isAcceptingOrders={restaurant.is_accepting_orders}
     >
       {children}
     </AdminShell>

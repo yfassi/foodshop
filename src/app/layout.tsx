@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins, Space_Grotesk, Space_Mono, Caveat } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -32,6 +33,12 @@ const caveat = Caveat({
   weight: ["400", "700"],
 });
 
+const ferron = localFont({
+  src: "../../public/fonts/Ferron-Regular.otf",
+  variable: "--font-ferron",
+  display: "swap",
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -53,7 +60,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${inter.variable} ${poppins.variable} ${spaceGrotesk.variable} ${spaceMono.variable} ${caveat.variable} antialiased`}
+        className={`${inter.variable} ${poppins.variable} ${spaceGrotesk.variable} ${spaceMono.variable} ${caveat.variable} ${ferron.variable} antialiased`}
       >
         {children}
         <Toaster position="top-center" richColors />

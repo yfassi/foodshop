@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ClipboardList,
   UtensilsCrossed,
@@ -11,9 +11,21 @@ import {
   Clock,
   PanelLeftClose,
   PanelLeft,
+  LogOut,
+  ChevronsUpDown,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { getRestaurantStatusLabel } from "@/lib/constants";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const NAV_ITEMS = [
   { icon: ClipboardList, label: "Commandes", href: "" },
@@ -28,23 +40,56 @@ export function AdminShell({
   restaurantName,
   verificationStatus,
   isDemo,
+  userEmail,
+  openingHours,
+  isAcceptingOrders,
   children,
 }: {
   slug: string;
   restaurantName: string;
   verificationStatus: string;
   isDemo: boolean;
+  userEmail: string;
+  openingHours: Record<string, unknown> | null;
+  isAcceptingOrders: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const qs = isDemo ? "?demo=true" : "";
   const [collapsed, setCollapsed] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  // Live restaurant status (re-check every 60s)
+  const getStatus = useCallback(
+    () => {
+      if (!isAcceptingOrders) {
+        return { isOpen: false, label: "Commandes suspendues" };
+      }
+      return getRestaurantStatusLabel(openingHours);
+    },
+    [openingHours, isAcceptingOrders]
+  );
+
+  const [status, setStatus] = useState(getStatus);
+
+  useEffect(() => {
+    setStatus(getStatus());
+    const interval = setInterval(() => setStatus(getStatus()), 60_000);
+    return () => clearInterval(interval);
+  }, [getStatus]);
 
   function isActive(href: string) {
     const full = `/admin/${slug}${href}`;
     if (href === "") return pathname === `/admin/${slug}`;
     return pathname.startsWith(full);
   }
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/admin/login");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,7 +119,7 @@ export function AdminShell({
         {/* Sidebar (desktop) */}
         <aside
           className={cn(
-            "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
+            "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 sticky top-0 h-screen",
             collapsed ? "w-[68px]" : "w-[240px]"
           )}
         >
@@ -112,11 +157,63 @@ export function AdminShell({
             })}
           </nav>
 
-          {/* Collapse toggle */}
-          <div className="border-t border-sidebar-border p-3">
+          {/* Bottom section: status + profile */}
+          <div className="border-t border-sidebar-border p-3 space-y-2">
+            {/* Restaurant status */}
+            <div
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 shrink-0 rounded-full",
+                  status.isOpen
+                    ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                    : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                )}
+              />
+              {!collapsed && (
+                <span className="truncate text-sidebar-foreground/70">
+                  {status.label}
+                </span>
+              )}
+            </div>
+
+            {/* Profile card */}
+            <button
+              onClick={() => setAccountOpen(true)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent/50",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
+                {(userEmail?.charAt(0) || restaurantName.charAt(0)).toUpperCase()}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="truncate text-sm font-medium text-sidebar-foreground">
+                      {restaurantName}
+                    </p>
+                    <p className="truncate text-xs text-sidebar-foreground/50">
+                      {userEmail || "demo@taapr.com"}
+                    </p>
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/40" />
+                </>
+              )}
+            </button>
+
+            {/* Collapse toggle */}
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                collapsed && "justify-center px-0"
+              )}
             >
               {collapsed ? (
                 <PanelLeft className="h-4 w-4 shrink-0" />
@@ -159,6 +256,70 @@ export function AdminShell({
           );
         })}
       </nav>
+
+      {/* Account dialog */}
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mon compte</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Profile info */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                {(userEmail?.charAt(0) || restaurantName.charAt(0)).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{restaurantName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {userEmail || "demo@taapr.com"}
+                </p>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2.5">
+              <span
+                className={cn(
+                  "h-2 w-2 shrink-0 rounded-full",
+                  status.isOpen
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                )}
+              />
+              <span className="text-xs font-medium text-muted-foreground">
+                {status.label}
+              </span>
+            </div>
+
+            <Separator />
+
+            {/* Manage settings link */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setAccountOpen(false);
+                router.push(`/admin/${slug}/settings${qs}`);
+              }}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Gérer mon compte
+            </Button>
+
+            {/* Logout */}
+            <Button
+              variant="ghost"
+              className="w-full text-destructive hover:bg-destructive/5 hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Déconnexion
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

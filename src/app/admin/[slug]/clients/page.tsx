@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { TypographyH2, TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { Loader2, Plus, Wallet } from "lucide-react";
 
 interface ClientEntry {
@@ -99,7 +100,7 @@ export default function ClientsPage() {
     <div className="px-4 py-4 md:px-6">
       <div className="mx-auto max-w-lg">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Clients</h2>
+          <TypographyH2>Clients</TypographyH2>
           <Button
             onClick={() => setShowCreditForm(!showCreditForm)}
             variant="outline"
@@ -116,9 +117,9 @@ export default function ClientsPage() {
             onSubmit={handleCredit}
             className="mb-4 rounded-xl border border-border bg-card p-4"
           >
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+            <TypographyH4 className="mb-3 text-muted-foreground">
               Crediter un client
-            </h3>
+            </TypographyH4>
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="c-email" className="text-xs">
@@ -177,9 +178,7 @@ export default function ClientsPage() {
         {clients.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center">
             <Wallet className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Aucun client avec un solde pour le moment.
-            </p>
+            <TypographyMuted>Aucun client avec un solde pour le moment.</TypographyMuted>
           </div>
         ) : (
           <div className="space-y-2">
@@ -189,10 +188,8 @@ export default function ClientsPage() {
                 className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
               >
                 <div>
-                  <p className="text-sm font-semibold">{client.full_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {client.email}
-                  </p>
+                  <TypographySmall className="font-semibold">{client.full_name}</TypographySmall>
+                  <TypographyMuted className="text-xs">{client.email}</TypographyMuted>
                 </div>
                 <p className="text-sm font-bold text-primary">
                   {formatPrice(client.balance)}

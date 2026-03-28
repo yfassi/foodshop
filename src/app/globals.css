@@ -289,6 +289,9 @@ html {
   .font-caveat {
     font-family: var(--font-caveat), cursive;
   }
+  .font-ferron {
+    font-family: var(--font-ferron), serif;
+  }
   .text-landing-primary {
     color: var(--landing-primary);
   }

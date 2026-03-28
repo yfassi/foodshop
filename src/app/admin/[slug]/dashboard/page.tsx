@@ -36,6 +36,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { TypographyH2, TypographyH3, TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -85,8 +86,8 @@ function MetricCard({
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+      <TypographyMuted className="text-xs">{label}</TypographyMuted>
+      {sub && <TypographyMuted className="mt-0.5 text-xs">{sub}</TypographyMuted>}
     </div>
   );
 }
@@ -315,7 +316,7 @@ export default function DashboardPage() {
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-bold">Tableau de bord</h2>
+          <TypographyH2>Tableau de bord</TypographyH2>
 
           {/* ─── Date filter ─── */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -441,7 +442,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Commandes par heure</h3>
+              <TypographyH4>Commandes par heure</TypographyH4>
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
@@ -481,7 +482,7 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">CA par jour</h3>
+                <TypographyH4>CA par jour</TypographyH4>
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -534,7 +535,7 @@ export default function DashboardPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <Sparkles className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-base font-bold">Analyse IA</h3>
+              <TypographyH3>Analyse IA</TypographyH3>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -543,7 +544,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <h4 className="text-sm font-semibold">Articles populaires</h4>
+                    <TypographyH4>Articles populaires</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.topProducts.map((p, i) => (
@@ -568,7 +569,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <h4 className="text-sm font-semibold">À surveiller</h4>
+                    <TypographyH4>À surveiller</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.bottomProducts.map((p) => (
@@ -588,7 +589,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Sun className="h-4 w-4 text-orange-500" />
-                    <h4 className="text-sm font-semibold">Heures de pointe</h4>
+                    <TypographyH4>Heures de pointe</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.peakHours.map((h) => (
@@ -608,7 +609,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Moon className="h-4 w-4 text-blue-400" />
-                    <h4 className="text-sm font-semibold">Heures creuses</h4>
+                    <TypographyH4>Heures creuses</TypographyH4>
                   </div>
                   <div className="space-y-2">
                     {analysis.slowHours.map((h) => (
@@ -629,7 +630,7 @@ export default function DashboardPage() {
               <div className="mt-4 rounded-xl bg-muted/50 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <Trophy className="h-4 w-4 text-orange-500" />
-                  <h4 className="text-sm font-semibold">Meilleurs clients</h4>
+                  <TypographyH4>Meilleurs clients</TypographyH4>
                 </div>
                 <div className="space-y-2">
                   {analysis.bestClients.map((c, i) => (
@@ -657,7 +658,7 @@ export default function DashboardPage() {
           <div className="mb-6 rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Top clients</h3>
+              <TypographyH4>Top clients</TypographyH4>
             </div>
             <div className="divide-y divide-border">
               {topClients.map((client, i) => (
@@ -687,12 +688,12 @@ export default function DashboardPage() {
 
         {/* ─── Order history ─── */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-semibold">Historique des commandes</h3>
+          <TypographyH4 className="mb-3">Historique des commandes</TypographyH4>
 
           {orders.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <TypographyMuted className="py-8 text-center">
               Aucune commande sur cette période.
-            </p>
+            </TypographyMuted>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
