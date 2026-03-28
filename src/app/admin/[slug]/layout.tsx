@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import { ClipboardList, UtensilsCrossed, Settings, Users, BarChart3, Clock } from "lucide-react";
-
+import { AdminShell } from "@/components/admin/admin-shell";
 
 export default async function AdminLayout({
   children,
@@ -22,7 +20,6 @@ export default async function AdminLayout({
   let restaurant;
 
   if (isDemo) {
-    // Demo mode (dev only): skip auth, fetch restaurant by slug only
     const { data } = await supabase
       .from("restaurants")
       .select("id, name, is_accepting_orders, verification_status")
@@ -50,126 +47,13 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="border-b border-border bg-card px-4 py-3 md:px-6">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-              {restaurant.name.charAt(0).toUpperCase()}
-            </div>
-            <h1 className="text-lg font-bold tracking-tight">{restaurant.name}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Desktop nav (hidden on mobile) */}
-            <nav className="hidden items-center gap-0.5 md:flex">
-              <Link
-                href={`/admin/${slug}${isDemo ? "?demo=true" : ""}`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <ClipboardList className="h-4 w-4" />
-                Commandes
-              </Link>
-              <Link
-                href={`/admin/${slug}/menu${isDemo ? "?demo=true" : ""}`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <UtensilsCrossed className="h-4 w-4" />
-                Articles
-              </Link>
-              <Link
-                href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Tableau de bord
-              </Link>
-              <Link
-                href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Users className="h-4 w-4" />
-                Clients
-              </Link>
-              <Link
-                href={`/admin/${slug}/settings${isDemo ? "?demo=true" : ""}`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Settings className="h-4 w-4" />
-                Réglages
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Demo banner */}
-      {isDemo && (
-        <div className="bg-primary/10 px-4 py-2 text-center text-xs font-medium text-primary">
-          Mode Démo
-        </div>
-      )}
-
-      {/* Verification pending banner */}
-      {restaurant.verification_status === "pending" && (
-        <div className="flex items-center justify-center gap-2 bg-amber-50 px-4 py-2.5 text-center text-xs font-medium text-amber-700">
-          <Clock className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            Votre compte est en cours de vérification par les équipes TaapR.
-            Votre page client sera accessible une fois validé.
-          </span>
-        </div>
-      )}
-
-      {/* Verification rejected banner */}
-      {restaurant.verification_status === "rejected" && (
-        <div className="bg-destructive/10 px-4 py-2.5 text-center text-xs font-medium text-destructive">
-          Votre vérification a été refusée. Veuillez nous contacter pour plus
-          d&apos;informations.
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="mx-auto max-w-7xl pb-20 md:pb-6">{children}</div>
-
-      {/* Bottom nav (mobile only) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-card/95 backdrop-blur-sm md:hidden">
-        <Link
-          href={`/admin/${slug}${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors active:text-primary"
-        >
-          <ClipboardList className="h-5 w-5" />
-          Commandes
-        </Link>
-        <Link
-          href={`/admin/${slug}/menu${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors active:text-primary"
-        >
-          <UtensilsCrossed className="h-5 w-5" />
-          Articles
-        </Link>
-        <Link
-          href={`/admin/${slug}/dashboard${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors active:text-primary"
-        >
-          <BarChart3 className="h-5 w-5" />
-          Stats
-        </Link>
-        <Link
-          href={`/admin/${slug}/clients${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors active:text-primary"
-        >
-          <Users className="h-5 w-5" />
-          Clients
-        </Link>
-        <Link
-          href={`/admin/${slug}/settings${isDemo ? "?demo=true" : ""}`}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors active:text-primary"
-        >
-          <Settings className="h-5 w-5" />
-          Réglages
-        </Link>
-      </nav>
-    </div>
+    <AdminShell
+      slug={slug}
+      restaurantName={restaurant.name}
+      verificationStatus={restaurant.verification_status}
+      isDemo={isDemo}
+    >
+      {children}
+    </AdminShell>
   );
 }
