@@ -915,14 +915,16 @@ export function ProductFormSheet({
       <SheetContent className="sm:max-w-md p-0 gap-0" showCloseButton={false}>
         {/* Fixed header */}
         <SheetHeader className="border-b px-4 py-3 flex-row items-center justify-between">
-          <SheetTitle className="text-base">
-            {product ? "Modifier le produit" : "Nouveau produit"}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            {product
-              ? "Modifier les détails du produit"
-              : "Créer un nouveau produit"}
-          </SheetDescription>
+          <div>
+            <SheetTitle className="text-base">
+              {product ? "Modifier le produit" : "Nouveau produit"}
+            </SheetTitle>
+            <SheetDescription className="text-[11px]">
+              {product
+                ? "Modifiez les informations, le prix et les options de cet article."
+                : "Ajoutez un article à votre carte. Vous pourrez ensuite lui ajouter des options et une photo."}
+            </SheetDescription>
+          </div>
           <button
             onClick={onClose}
             aria-label="Fermer"
@@ -983,6 +985,11 @@ export function ProductFormSheet({
                     <span className="text-xs font-medium">
                       {dragging ? "Déposez l'image" : "Ajouter une photo"}
                     </span>
+                    {!dragging && (
+                      <span className="text-[10px] opacity-60">
+                        JPG, PNG ou WebP — glissez ou cliquez
+                      </span>
+                    )}
                   </div>
                 )}
                 <input
@@ -1112,7 +1119,10 @@ export function ProductFormSheet({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Proposer en Menu</Label>
+                  <div>
+                    <Label className="text-sm">Proposer en Menu</Label>
+                    <p className="text-[11px] text-muted-foreground">Le client peut composer un menu autour de cet article</p>
+                  </div>
                   <Switch
                     checked={menuEnabled}
                     onCheckedChange={setMenuEnabled}
@@ -1144,9 +1154,14 @@ export function ProductFormSheet({
                     {/* Dynamic menu composition */}
                     <div className="space-y-2 pt-1">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs text-muted-foreground">
-                            Composition du menu
-                          </Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">
+                              Composition du menu
+                            </Label>
+                            <p className="text-[10px] text-muted-foreground/70">
+                              Ajoutez des groupes (ex: Boisson, Accompagnement) et sélectionnez les articles proposés
+                            </p>
+                          </div>
                           <button
                             onClick={addMenuChoiceGroup}
                             className="flex items-center gap-1 text-[11px] text-primary hover:underline"
@@ -1360,8 +1375,8 @@ export function ProductFormSheet({
                         ))}
 
                         {menuChoiceGroups.length === 0 && (
-                          <p className="py-1 text-center text-[11px] text-muted-foreground">
-                            Ajoutez des groupes pour composer le menu
+                          <p className="py-2 text-center text-[11px] text-muted-foreground">
+                            Aucun groupe ajouté. Cliquez sur &laquo;&nbsp;Groupe&nbsp;&raquo; pour définir ce que le client peut choisir dans son menu (ex: boisson, accompagnement).
                           </p>
                         )}
                       </div>
@@ -1372,7 +1387,7 @@ export function ProductFormSheet({
 
             {/* Options */}
             <div>
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-1 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Options</h3>
                   <Button
                     variant="ghost"
@@ -1384,12 +1399,18 @@ export function ProductFormSheet({
                     Ajouter
                   </Button>
                 </div>
+                <p className="mb-3 text-[11px] text-muted-foreground">
+                  Proposez des choix au client lors de la commande : sauces, suppléments, cuisson...
+                </p>
 
                 {/* Shared sections chips */}
                 {allSharedGroups.length > 0 && (
                   <div className="mb-4">
-                    <p className="mb-2 text-xs text-muted-foreground">
+                    <p className="mb-1 text-xs text-muted-foreground">
                       Sections partagées
+                    </p>
+                    <p className="mb-2 text-[10px] text-muted-foreground/70">
+                      Activez une section pour ajouter ses options à cet article. Gérez-les dans l&apos;onglet Sections.
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {allSharedGroups.map((sg) => {
@@ -1705,9 +1726,14 @@ export function ProductFormSheet({
 
                 {linkedSharedGroupIds.length === 0 &&
                   modifierGroups.length === 0 && (
-                    <p className="py-4 text-center text-xs text-muted-foreground">
-                      Aucune option configurée.
-                    </p>
+                    <div className="rounded-lg border border-dashed border-border py-4 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Aucune option configurée.
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                        Cliquez sur &laquo;&nbsp;Ajouter&nbsp;&raquo; pour créer un groupe d&apos;options, ou activez une section partagée ci-dessus.
+                      </p>
+                    </div>
                   )}
             </div>
           </div>
@@ -1715,6 +1741,11 @@ export function ProductFormSheet({
 
         {/* Sticky footer */}
         <div className="border-t bg-background p-4">
+          {!isEditing && (
+            <p className="mb-2 text-center text-[10px] text-muted-foreground">
+              Après la création, vous pourrez ajouter une photo et des options.
+            </p>
+          )}
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEditing ? "Enregistrer" : "Créer le produit"}
