@@ -28,6 +28,8 @@ import {
   X,
   Copy,
   Layers,
+  UtensilsCrossed,
+  Info,
 } from "lucide-react";
 import { ProductFormSheet } from "@/components/admin/product-form-sheet";
 import type { Category, Product, SharedModifierGroup, SharedModifier } from "@/lib/types";
@@ -215,10 +217,11 @@ function SortableCategorySection({
         {category.products.length === 0 && (
           <button
             onClick={() => onAddProduct(category.id)}
-            className="flex w-full items-center justify-center gap-2 p-6 text-sm text-muted-foreground transition-colors hover:text-primary"
+            className="flex w-full flex-col items-center justify-center gap-1 p-6 text-muted-foreground transition-colors hover:text-primary"
           >
             <Plus className="h-4 w-4" />
-            Ajouter un produit
+            <span className="text-sm">Ajouter un produit</span>
+            <span className="text-[11px] opacity-70">Nom, prix, photo, options...</span>
           </button>
         )}
       </div>
@@ -763,6 +766,7 @@ export default function MenuManagementPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
+            <UtensilsCrossed className="mr-1.5 inline h-3.5 w-3.5" />
             Articles
           </button>
           <button
@@ -774,19 +778,24 @@ export default function MenuManagementPage() {
             }`}
           >
             <Layers className="mr-1.5 inline h-3.5 w-3.5" />
-            Sections
+            Sections partagées
           </button>
         </div>
 
         {/* === Articles tab === */}
         {activeTab === "articles" && (
           <>
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Articles</h2>
-          <Button variant="outline" size="sm" onClick={openNewCategory}>
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Catégorie
-          </Button>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold">Articles</h2>
+            <Button variant="outline" size="sm" onClick={openNewCategory}>
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Catégorie
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Organisez votre carte en catégories (ex: Plats, Boissons, Desserts) puis ajoutez vos produits dans chacune d&apos;elles.
+          </p>
         </div>
 
         <DndContext
@@ -815,12 +824,16 @@ export default function MenuManagementPage() {
 
               {categories.length === 0 && (
                 <div className="py-12 text-center">
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Aucune catégorie pour le moment.
+                  <UtensilsCrossed className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+                  <p className="mb-1 text-sm font-medium text-foreground">
+                    Commencez par créer une catégorie
+                  </p>
+                  <p className="mx-auto mb-4 max-w-xs text-xs text-muted-foreground">
+                    Les catégories permettent d&apos;organiser votre carte : Plats, Boissons, Desserts... Vous pourrez ensuite y ajouter vos produits.
                   </p>
                   <Button variant="outline" onClick={openNewCategory}>
                     <Plus className="mr-1 h-3.5 w-3.5" />
-                    Créer une catégorie
+                    Créer ma première catégorie
                   </Button>
                 </div>
               )}
@@ -834,18 +847,31 @@ export default function MenuManagementPage() {
         {/* === Sections tab === */}
         {activeTab === "sections" && (
           <>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold">Sections partagées</h2>
-                <p className="text-xs text-muted-foreground">
-                  Créez des options réutilisables (sauces, protéines...) et
-                  attribuez-les à vos articles.
-                </p>
+                <Button variant="outline" size="sm" onClick={addSharedGroup}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Section
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={addSharedGroup}>
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Section
-              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Les sections sont des groupes d&apos;options réutilisables que vous pouvez attacher à plusieurs articles.
+              </p>
+            </div>
+
+            {/* How it works banner */}
+            <div className="mb-6 rounded-xl border border-border bg-muted/30 p-3">
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Info className="h-3.5 w-3.5 text-primary" />
+                Comment ça marche ?
+              </div>
+              <ol className="ml-5 list-decimal space-y-0.5 text-[11px] text-muted-foreground">
+                <li><span className="font-medium text-foreground/80">Créez une section</span> — par ex. &laquo;&nbsp;Choix de sauce&nbsp;&raquo; ou &laquo;&nbsp;Choix de protéine&nbsp;&raquo;</li>
+                <li><span className="font-medium text-foreground/80">Ajoutez des options</span> — chaque option peut avoir un supplément de prix</li>
+                <li><span className="font-medium text-foreground/80">Réglez Min/Max</span> — combien d&apos;options le client doit/peut choisir</li>
+                <li><span className="font-medium text-foreground/80">Liez à vos articles</span> — dans la fiche produit, activez les sections souhaitées</li>
+              </ol>
             </div>
 
             {loadingSections ? (
@@ -855,12 +881,15 @@ export default function MenuManagementPage() {
             ) : sharedGroups.length === 0 ? (
               <div className="py-12 text-center">
                 <Layers className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Aucune section partagée.
+                <p className="mb-1 text-sm font-medium text-foreground">
+                  Aucune section partagée
+                </p>
+                <p className="mx-auto mb-4 max-w-xs text-xs text-muted-foreground">
+                  Exemple : créez une section &laquo;&nbsp;Sauces&nbsp;&raquo; avec Ketchup, Mayo, Algérienne... puis attribuez-la à tous les articles concernés en un clic.
                 </p>
                 <Button variant="outline" onClick={addSharedGroup}>
                   <Plus className="mr-1 h-3.5 w-3.5" />
-                  Créer une section
+                  Créer ma première section
                 </Button>
               </div>
             ) : (
@@ -911,7 +940,7 @@ export default function MenuManagementPage() {
                     <div className="mb-3 flex gap-2">
                       <div className="flex-1">
                         <Label className="text-xs text-muted-foreground">
-                          Min
+                          Min. requis
                         </Label>
                         <Input
                           type="number"
@@ -937,7 +966,7 @@ export default function MenuManagementPage() {
                       </div>
                       <div className="flex-1">
                         <Label className="text-xs text-muted-foreground">
-                          Max
+                          Max. autorisé
                         </Label>
                         <Input
                           type="number"
@@ -1069,13 +1098,20 @@ export default function MenuManagementPage() {
                       ))}
                     </div>
 
-                    <button
-                      onClick={() => addSharedModifier(group.id)}
-                      className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Ajouter une option
-                    </button>
+                    <div className="mt-2 flex items-center justify-between">
+                      <button
+                        onClick={() => addSharedModifier(group.id)}
+                        className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Ajouter une option
+                      </button>
+                      {group.shared_modifiers.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground/60">
+                          Prix = supplément facturé au client
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1107,7 +1143,7 @@ export default function MenuManagementPage() {
             <DialogDescription>
               {editingCategory
                 ? "Modifiez le nom et l'icône de cette catégorie."
-                : "Ajoutez une catégorie pour organiser vos produits."}
+                : "Les catégories structurent votre carte. Vos clients les verront comme des onglets pour naviguer dans votre menu."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
