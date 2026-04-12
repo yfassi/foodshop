@@ -29,27 +29,30 @@ export function CartItem({ item }: { item: CartItemType }) {
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-2">
         <button
           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
+          aria-label="Diminuer la quantité"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
         >
-          <Minus className="h-3 w-3" />
+          <Minus className="h-3.5 w-3.5" />
         </button>
-        <span className="min-w-[1.5rem] text-center text-sm font-semibold">
+        <span className="min-w-[1.5rem] text-center text-sm font-semibold tabular-nums">
           {item.quantity}
         </span>
         <button
           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
+          aria-label="Augmenter la quantité"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => removeItem(item.id)}
-          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors active:text-destructive"
+          aria-label="Supprimer du panier"
+          className="ml-1 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors active:text-destructive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
     </div>

@@ -228,11 +228,11 @@ export function AdminShell({
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" role="region" aria-label="Contenu principal">
           <div className="mx-auto max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-8">
             {children}
           </div>
-        </main>
+        </div>
       </div>
 
       {/* Bottom nav (mobile only) */}

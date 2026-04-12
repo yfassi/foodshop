@@ -42,14 +42,36 @@ const ferron = localFont({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export const metadata: Metadata = {
-  title: "Taapr - La commande en ligne pour les restaurants",
+  title: "TaapR - La commande en ligne pour les restaurants | 0% commission",
   description:
-    "Taapr permet à vos clients de commander depuis leur smartphone via QR code. Paiement sécurisé Stripe, 0% de commission, abonnement fixe à 29€/mois.",
+    "TaapR permet à vos clients de commander depuis leur smartphone via QR code. Paiement sécurisé Stripe, 0% de commission, abonnement fixe à partir de 29€/mois.",
+  keywords: [
+    "commande en ligne restaurant",
+    "QR code restaurant",
+    "menu digital",
+    "commande smartphone restaurant",
+    "0 commission restaurant",
+    "caisse enregistreuse",
+    "food truck commande en ligne",
+    "TaapR",
+  ],
+  openGraph: {
+    title: "TaapR - La commande en ligne pour les restaurants",
+    description:
+      "Vos clients scannent, commandent et paient depuis leur téléphone. 0% de commission, abonnement fixe.",
+    type: "website",
+    locale: "fr_FR",
+    siteName: "TaapR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TaapR - La commande en ligne pour les restaurants",
+    description:
+      "Vos clients scannent, commandent et paient depuis leur téléphone. 0% de commission.",
+  },
 };
 
 export default function RootLayout({
@@ -62,7 +84,15 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${poppins.variable} ${spaceGrotesk.variable} ${spaceMono.variable} ${caveat.variable} ${ferron.variable} antialiased`}
       >
-        {children}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          Aller au contenu principal
+        </a>
+        <main id="main-content">
+          {children}
+        </main>
         <Toaster position="top-center" richColors />
       </body>
     </html>
