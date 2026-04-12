@@ -7,6 +7,14 @@ import { TicketStrip } from "@/components/landing/ticket-strip";
 import { ReceiptCard } from "@/components/landing/receipt-card";
 import { PhoneMockup } from "@/components/landing/phone-mockup";
 import { QueueVsPhone } from "@/components/landing/queue-vs-phone";
+import { CountUp } from "@/components/landing/count-up";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Instagram, Linkedin } from "lucide-react";
 
 /* ─── Constants ─── */
 
@@ -126,6 +134,49 @@ const FEATURES_MENU = [
   },
 ];
 
+const FAQ_ITEMS = [
+  {
+    question: "Combien de temps pour mettre en place TaapR ?",
+    answer:
+      "Moins de 10 minutes. Créez votre compte, ajoutez vos produits, et imprimez votre QR code. Vos clients peuvent commander dès le premier jour.",
+  },
+  {
+    question: "Y a-t-il une commission sur les ventes ?",
+    answer:
+      "Non, 0% de commission. Vous payez uniquement votre abonnement mensuel fixe. Les seuls frais sont ceux de Stripe (~1,5% + 0,25€ par transaction), qui vont directement au prestataire de paiement.",
+  },
+  {
+    question: "Mes clients doivent-ils télécharger une application ?",
+    answer:
+      "Non. Vos clients scannent simplement le QR code avec leur téléphone et accèdent directement au menu dans leur navigateur. Aucune app à installer.",
+  },
+  {
+    question: "Puis-je personnaliser mon menu en temps réel ?",
+    answer:
+      "Oui, depuis votre tableau de bord. Ajoutez, modifiez ou désactivez des produits instantanément. Les changements sont visibles en temps réel pour vos clients.",
+  },
+  {
+    question: "Quels types de paiement sont acceptés ?",
+    answer:
+      "Carte bancaire (Visa, Mastercard, CB), Apple Pay, et Google Pay via Stripe. L'argent est versé directement sur votre compte bancaire.",
+  },
+  {
+    question: "Est-ce adapté pour un food truck ou un petit restaurant ?",
+    answer:
+      "Absolument. TaapR est conçu pour tous les formats : food trucks, snacks, restaurants, boulangeries, cafés. Le plan Essentiel à 29€/mois est parfait pour démarrer.",
+  },
+  {
+    question: "Puis-je essayer avant de m'engager ?",
+    answer:
+      "Oui, vous pouvez tester la démo complète sans créer de compte. Et tous nos plans sont sans engagement — vous pouvez annuler à tout moment.",
+  },
+  {
+    question: "Comment fonctionne le programme de fidélité ?",
+    answer:
+      "Disponible à partir du plan Pro, il permet à vos clients de cumuler des points à chaque commande et de débloquer des récompenses que vous définissez. Tout est automatique.",
+  },
+];
+
 /* ─── Hooks ─── */
 
 function useScrollReveal(threshold = 0.15) {
@@ -217,7 +268,11 @@ export default function Home() {
         }`}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="font-ferron text-2xl text-landing-primary tracking-wider">
+          <span
+            className={`font-ferron text-2xl text-landing-primary transition-all duration-700 ${
+              mounted ? "opacity-100 tracking-wider" : "opacity-0 tracking-[0.5em]"
+            }`}
+          >
             taapr
           </span>
 
@@ -302,6 +357,39 @@ export default function Home() {
                   >
                     C&apos;est parti chef ! {">>>>"}
                   </p>
+
+                  <div className="my-3 border-t border-dashed border-black/15" />
+
+                  {/* Social proof stats */}
+                  <div className="flex items-center justify-between gap-2 text-center">
+                    <div>
+                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
+                        <CountUp end={50} suffix="+" />
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                        Restaurants
+                      </p>
+                    </div>
+                    <div className="h-8 w-px bg-black/10" />
+                    <div>
+                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
+                        <CountUp end={10} suffix="K+" />
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                        Commandes
+                      </p>
+                    </div>
+                    <div className="h-8 w-px bg-black/10" />
+                    <div>
+                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
+                        <CountUp end={4.9} decimals={1} />
+                        <span className="text-sm">/5</span>
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                        Satisfaction
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -520,7 +608,38 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Section 6: "Service !" — Final CTA ─── */}
+      {/* ─── Section 6: "La FAQ" — Frequently Asked Questions ─── */}
+      <section className="py-16 sm:py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase text-center tracking-wider text-landing-fg">
+            QUESTIONS FRÉQUENTES
+          </h2>
+          <p className="mt-3 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+            Tout ce que vous devez savoir avant de commencer
+          </p>
+
+          <div className="mt-10">
+            <Accordion type="single" collapsible className="space-y-3">
+              {FAQ_ITEMS.map((item, i) => (
+                <AccordionItem
+                  key={i}
+                  value={`faq-${i}`}
+                  className="bg-landing-ticket border-none px-5 sm:px-6 data-[state=open]:shadow-md transition-shadow"
+                >
+                  <AccordionTrigger className="py-4 text-left font-space text-sm font-semibold tracking-wide text-landing-fg hover:no-underline [&[data-state=open]]:text-[var(--landing-primary)]">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4 text-sm leading-relaxed text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Section 8: "Service !" — Final CTA ─── */}
       <section className="bg-landing-primary py-20 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
           <div ref={serviceRef} className="mb-8">
@@ -555,7 +674,7 @@ export default function Home() {
           </p>
 
           <div
-            className={`mt-8 flex flex-col items-center gap-4 transition-all duration-700 ${
+            className={`mt-8 flex flex-col items-center gap-6 transition-all duration-700 ${
               serviceAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
             style={{ transitionDelay: "800ms" }}
@@ -566,6 +685,42 @@ export default function Home() {
             >
               COMMENCER MAINTENANT
             </Link>
+
+            {/* Newsletter signup */}
+            <div className="w-full max-w-md">
+              <p className="mb-3 text-sm text-white/60" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                Ou recevez nos actus et conseils pour restaurateurs
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const email = new FormData(form).get("email") as string;
+                  if (email) {
+                    form.reset();
+                    // TODO: hook up to newsletter API
+                    alert("Merci ! Vous êtes inscrit(e) ✓");
+                  }
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="votre@email.com"
+                  className="h-12 flex-1 rounded-full border-2 border-white/20 bg-white/10 px-5 text-sm text-white placeholder:text-white/40 outline-none focus:border-white/50 transition-colors"
+                  style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+                />
+                <button
+                  type="submit"
+                  className="h-12 shrink-0 rounded-full bg-white px-6 text-sm font-bold uppercase tracking-wider text-[var(--landing-primary)] hover:scale-[1.02] active:scale-[0.97] transition-transform"
+                >
+                  S&apos;inscrire
+                </button>
+              </form>
+            </div>
+
             <Link
               href="/admin/login"
               className="text-sm text-white/60 hover:text-white transition-colors underline-offset-4 hover:underline"
@@ -585,32 +740,101 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Section 7: Footer ─── */}
-      <footer className="py-10 border-t border-landing">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center font-space-mono space-y-3">
-          <p className="text-xs text-landing-muted tracking-widest">
-            ═══════ MERCI DE VOTRE VISITE ═══════
-          </p>
-          <p className="font-ferron text-base text-landing-fg">taapr <span className="font-sans text-sm">© 2026</span></p>
-          <p className="text-xs text-landing-muted space-x-3">
-            <a href="#" className="hover:text-landing-fg transition-colors">
-              Mentions légales
-            </a>
-            <span>|</span>
-            <a href="#" className="hover:text-landing-fg transition-colors">
-              CGV
-            </a>
-            <span>|</span>
-            <a href="#" className="hover:text-landing-fg transition-colors">
-              Contact
-            </a>
-          </p>
-          <p className="text-xs text-landing-muted">
-            Paiement sécurisé par Stripe
-          </p>
-          <p className="text-xs text-landing-muted tracking-widest">
-            ─── CONSERVEZ VOTRE TICKET ───
-          </p>
+      {/* ─── Section 9: Footer ─── */}
+      <footer className="border-t border-landing py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          {/* Multi-column layout */}
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Brand */}
+            <div>
+              <span className="font-ferron text-2xl text-landing-primary tracking-wider">
+                taapr
+              </span>
+              <p className="mt-3 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                La commande en ligne pour les restaurants.
+                <br />
+                0% commission. Abonnement fixe.
+              </p>
+              {/* Socials */}
+              <div className="mt-4 flex items-center gap-3">
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
+                >
+                  <Instagram className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://tiktok.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="TikTok"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.88-2.88 2.89 2.89 0 0 1 2.88-2.88c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.2a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.73a8.19 8.19 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.16Z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://linkedin.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
+                >
+                  <Linkedin className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
+                Produit
+              </h4>
+              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                <li><a href="#pass" className="hover:text-landing-fg transition-colors">Fonctionnalités</a></li>
+                <li><Link href="/admin/chez-momo?demo=true" className="hover:text-landing-fg transition-colors">Démo</Link></li>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">Tarifs</a></li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
+                Ressources
+              </h4>
+              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">Centre d&apos;aide</a></li>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">Blog</a></li>
+                <li><a href="mailto:contact@taapr.com" className="hover:text-landing-fg transition-colors">Contact</a></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
+                Légal
+              </h4>
+              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">Mentions légales</a></li>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">CGV</a></li>
+                <li><a href="#" className="hover:text-landing-fg transition-colors">Politique de confidentialité</a></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="mt-10 border-t border-landing pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="font-space-mono text-xs text-landing-muted">
+              © 2026 TaapR. Tous droits réservés.
+            </p>
+            <p className="font-space-mono text-xs text-landing-muted">
+              Paiement sécurisé par Stripe
+            </p>
+          </div>
         </div>
       </footer>
     </div>

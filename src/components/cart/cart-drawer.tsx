@@ -107,9 +107,9 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
                   },
                 });
               }}
-              className="flex items-center gap-1 text-xs font-medium text-destructive hover:underline"
+              className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-destructive transition-colors active:bg-destructive/10"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3.5 w-3.5" />
               Vider
             </button>
           )}
@@ -118,10 +118,21 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
         <div className="overflow-y-auto px-4">
           {items.length === 0 ? (
             <div className="flex flex-col items-center py-12">
-              <ShoppingBag className="mb-2 h-6 w-6 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                Votre panier est vide.
+              <ShoppingBag className="mb-3 h-10 w-10 text-muted-foreground/30" />
+              <p className="mb-1 text-sm font-medium text-muted-foreground">
+                Votre panier est vide
               </p>
+              <p className="mb-4 text-xs text-muted-foreground/70">
+                Parcourez le menu pour ajouter des articles
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="rounded-lg"
+              >
+                Voir le menu
+              </Button>
             </div>
           ) : (
             <>
@@ -170,9 +181,9 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
                 </Button>
                 <button
                   onClick={onClose}
-                  className="flex w-full items-center justify-center gap-1 py-2 text-sm text-muted-foreground transition-colors active:text-foreground"
+                  className="flex h-11 w-full items-center justify-center gap-1 rounded-lg text-sm text-muted-foreground transition-colors active:bg-accent active:text-foreground"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <ChevronLeft className="h-4 w-4" />
                   Continuer mes achats
                 </button>
               </>

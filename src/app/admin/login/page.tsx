@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { AnimatedBackground } from "@/components/animated-background";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -104,14 +105,25 @@ export default function AdminLoginPage() {
             <Label htmlFor="password" className="text-sm font-medium">
               Mot de passe
             </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1.5 h-12"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="h-12 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <Button
@@ -131,7 +143,7 @@ export default function AdminLoginPage() {
           type="button"
           onClick={handleResetPassword}
           disabled={loading || resetSent}
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         >
           {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
         </button>

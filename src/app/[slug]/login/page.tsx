@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { AnimatedBackground } from "@/components/animated-background";
 
@@ -17,6 +17,7 @@ export default function CustomerLoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -69,7 +70,7 @@ export default function CustomerLoginPage() {
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
         <Link
           href={`/${slug}`}
-          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour
@@ -86,6 +87,7 @@ export default function CustomerLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="votre@email.com"
+              autoComplete="email"
               required
               className="mt-1.5 h-12"
             />
@@ -93,15 +95,26 @@ export default function CustomerLoginPage() {
 
           <div>
             <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mot de passe"
-              required
-              className="mt-1.5 h-12"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mot de passe"
+                autoComplete="current-password"
+                required
+                className="h-12 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <Button
@@ -118,12 +131,12 @@ export default function CustomerLoginPage() {
           type="button"
           onClick={handleResetPassword}
           disabled={loading || resetSent}
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         >
           {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
         </button>
 
-        <p className="mt-4 text-center text-sm text-muted-foreground">
+        <p className="mt-3 text-center text-sm text-muted-foreground">
           Pas encore de compte ?{" "}
           <Link
             href={`/${slug}/signup`}

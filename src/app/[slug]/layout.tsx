@@ -50,7 +50,7 @@ export default async function RestaurantLayout({
         isAcceptingOrders={restaurant.is_accepting_orders}
         openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       />
-      <main className="pb-24">{children}</main>
+      <div className="pb-24">{children}</div>
       <footer className="border-t border-border py-4 text-center text-[10px] text-muted-foreground/50">
         Propulsé par TaapR — Tous droits réservés
       </footer>
