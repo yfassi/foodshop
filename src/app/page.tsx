@@ -1,839 +1,840 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-import { TornEdgeBottom } from "@/components/landing/torn-edge";
-import { TicketStrip } from "@/components/landing/ticket-strip";
-import { ReceiptCard } from "@/components/landing/receipt-card";
-import { PhoneMockup } from "@/components/landing/phone-mockup";
-import { QueueVsPhone } from "@/components/landing/queue-vs-phone";
-import { CountUp } from "@/components/landing/count-up";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Instagram, Linkedin } from "lucide-react";
+import { useState } from "react";
+import "./landing-v3.css";
 
-/* ─── Constants ─── */
+const CheckIcon = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={className}>
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
 
 const PLANS = [
   {
     name: "Essentiel",
+    sub: "Démarrer sereinement",
     price: 29,
-    description: "Pour démarrer sereinement",
-    highlighted: false,
+    cta: "Commencer",
+    ctaPrimary: false,
     features: [
-      { text: "300 commandes/mois", included: true },
-      { text: "50 produits", included: true },
-      { text: "QR Code personnalisé", included: true },
-      { text: "Paiement Stripe", included: true },
-      { text: "Dashboard basique", included: true },
-      { text: "Support email", included: true },
-      { text: "Programme fidélité", included: false },
-      { text: "Modificateurs partagés", included: false },
+      "300 commandes / mois",
+      "Menu jusqu'à 50 produits",
+      "Paiement Stripe inclus",
+      "QR codes illimités",
+      "Support par email",
     ],
+    featured: false,
   },
   {
     name: "Pro",
+    sub: "Pour les restaurants qui tournent",
     price: 49,
-    description: "Pour les restaurants ambitieux",
-    highlighted: true,
-    badge: "POPULAIRE",
-    annotation: "le choix du chef !",
+    cta: "Commencer avec Pro →",
+    ctaPrimary: true,
     features: [
-      { text: "Commandes illimitées", included: true },
-      { text: "Produits illimités", included: true },
-      { text: "QR Code personnalisé", included: true },
-      { text: "Paiement Stripe", included: true },
-      { text: "Dashboard avancé", included: true },
-      { text: "Programme fidélité", included: true },
-      { text: "Modificateurs partagés", included: true },
-      { text: "Support prioritaire", included: true },
+      "Commandes illimitées",
+      "Menu illimité",
+      "Programme de fidélité",
+      "Statistiques avancées",
+      "Support prioritaire",
     ],
+    featured: true,
+    badge: "Le plus populaire",
   },
   {
     name: "Business",
+    sub: "Multi-établissements",
     price: 79,
-    description: "Multi-établissements",
-    highlighted: false,
+    cta: "Nous contacter",
+    ctaPrimary: false,
     features: [
-      { text: "Tout le plan Pro", included: true },
-      { text: "Jusqu'à 3 établissements", included: true },
-      { text: "Analyse IA", included: true },
-      { text: "Export de données", included: true },
-      { text: "Personnalisation avancée", included: true },
-      { text: "Support dédié", included: true },
+      "Jusqu'à 3 établissements",
+      "Tout le plan Pro",
+      "Analyse IA des ventes",
+      "Vue consolidée",
+      "Support dédié",
     ],
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    quote:
-      "On a divisé notre temps de service par deux. Les clients adorent.",
-    name: "Karim",
-    restaurant: "Le Petit Gourmand",
-    rotate: -2,
-  },
-  {
-    quote:
-      "Enfin une solution sans commission. Ça change tout pour notre marge.",
-    name: "Sophie",
-    restaurant: "Bistrot des Halles",
-    rotate: 1.5,
-  },
-  {
-    quote:
-      "Mis en place en 10 minutes. Le QR code était sur les tables le soir même.",
-    name: "Marco",
-    restaurant: "Pizza Express",
-    rotate: -1,
-  },
-  {
-    quote:
-      "Le programme de fidélité a boosté nos retours clients de 40%.",
-    name: "Léa",
-    restaurant: "Green Bowl",
-    rotate: 2,
-  },
-];
-
-const FEATURES_MENU = [
-  {
-    category: "LES ENTRÉES",
-    subtitle: "Pour démarrer",
-    icon: "🥗",
-    items: [
-      { name: "Menu en ligne instantané", annotation: null },
-      { name: "QR Code personnalisé", annotation: "le best-seller !" },
-      { name: "Zéro app à télécharger", annotation: null },
-    ],
-  },
-  {
-    category: "LES PLATS",
-    subtitle: "Le cœur du service",
-    icon: "🍽️",
-    items: [
-      { name: "Paiement sécurisé Stripe", annotation: null },
-      { name: "Tableau de bord temps réel", annotation: null },
-      { name: "Programme de fidélité", annotation: "nouveau !" },
-      { name: "Notifications push", annotation: null },
-    ],
-  },
-  {
-    category: "LES DESSERTS",
-    subtitle: "Les bonus",
-    icon: "🍰",
-    items: [
-      { name: "0% de commission", annotation: null },
-      { name: "Personnalisation complète", annotation: null },
-      { name: "Support prioritaire", annotation: null },
-    ],
+    featured: false,
   },
 ];
 
 const FAQ_ITEMS = [
   {
-    question: "Combien de temps pour mettre en place TaapR ?",
-    answer:
-      "Moins de 10 minutes. Créez votre compte, ajoutez vos produits, et imprimez votre QR code. Vos clients peuvent commander dès le premier jour.",
+    q: "Combien de temps pour mettre TaapR en place ?",
+    a: "Entre 5 et 10 minutes. Vous créez votre restaurant, importez votre menu, générez votre QR code — puis vous l'imprimez et le collez sur vos tables. Nos gabarits d'impression sont inclus.",
   },
   {
-    question: "Y a-t-il une commission sur les ventes ?",
-    answer:
-      "Non, 0% de commission. Vous payez uniquement votre abonnement mensuel fixe. Les seuls frais sont ceux de Stripe (~1,5% + 0,25€ par transaction), qui vont directement au prestataire de paiement.",
+    q: "Prenez-vous une commission sur les ventes ?",
+    a: "Non, aucune commission — quel que soit votre plan ou votre volume. Seuls les frais Stripe s'appliquent (~1,5% + 0,25€ par transaction), prélevés directement par votre processeur de paiement.",
   },
   {
-    question: "Mes clients doivent-ils télécharger une application ?",
-    answer:
-      "Non. Vos clients scannent simplement le QR code avec leur téléphone et accèdent directement au menu dans leur navigateur. Aucune app à installer.",
+    q: "Mes clients doivent-ils télécharger une application ?",
+    a: "Jamais. TaapR fonctionne entièrement dans le navigateur. Un scan, et le menu s'ouvre.",
   },
   {
-    question: "Puis-je personnaliser mon menu en temps réel ?",
-    answer:
-      "Oui, depuis votre tableau de bord. Ajoutez, modifiez ou désactivez des produits instantanément. Les changements sont visibles en temps réel pour vos clients.",
+    q: "Est-ce adapté à un food truck ?",
+    a: "Oui. TaapR est pensé pour les food trucks, snacks et petits restaurants. Pas de matériel spécifique — un smartphone ou tablette suffit.",
   },
   {
-    question: "Quels types de paiement sont acceptés ?",
-    answer:
-      "Carte bancaire (Visa, Mastercard, CB), Apple Pay, et Google Pay via Stripe. L'argent est versé directement sur votre compte bancaire.",
+    q: "Puis-je essayer avant de m'engager ?",
+    a: "Oui, 14 jours offerts, sans carte bancaire. Vous pouvez annuler à tout moment, sans frais ni justificatif.",
   },
   {
-    question: "Est-ce adapté pour un food truck ou un petit restaurant ?",
-    answer:
-      "Absolument. TaapR est conçu pour tous les formats : food trucks, snacks, restaurants, boulangeries, cafés. Le plan Essentiel à 29€/mois est parfait pour démarrer.",
-  },
-  {
-    question: "Puis-je essayer avant de m'engager ?",
-    answer:
-      "Oui, vous pouvez tester la démo complète sans créer de compte. Et tous nos plans sont sans engagement — vous pouvez annuler à tout moment.",
-  },
-  {
-    question: "Comment fonctionne le programme de fidélité ?",
-    answer:
-      "Disponible à partir du plan Pro, il permet à vos clients de cumuler des points à chaque commande et de débloquer des récompenses que vous définissez. Tout est automatique.",
+    q: "Quels moyens de paiement acceptez-vous ?",
+    a: "Cartes bancaires (Visa, Mastercard, Amex), Apple Pay, Google Pay, Link — tout ce que Stripe prend en charge.",
   },
 ];
 
-/* ─── Hooks ─── */
+const TESTIMONIALS = [
+  {
+    q: "« Enfin une solution sans commission. Ça change tout pour notre marge. Paramétrage en un après-midi. »",
+    n: "Sophie Marchand",
+    r: "Bistrot des Halles",
+    avBg: "#172846",
+    initial: "S",
+  },
+  {
+    q: "« Mis en place en 10 minutes. Le QR code sur les tables le soir même, on a commencé à encaisser aussitôt. »",
+    n: "Marco Rossi",
+    r: "Pizza Express, Marseille",
+    avBg: "#0a0a0a",
+    initial: "M",
+  },
+  {
+    q: "« Le programme de fidélité a boosté nos retours clients de 40%. Un vrai outil, pas un gadget. »",
+    n: "Léa Tanguy",
+    r: "Green Bowl, Nantes",
+    avBg: "#d7352d",
+    initial: "L",
+  },
+];
 
-function useScrollReveal(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return { ref, isVisible };
-}
-
-/* ─── Component ─── */
+const LOGOS = [
+  "Le Gourmet",
+  "Chez Marco",
+  "Street Wok",
+  "Bistrot des Halles",
+  "Green Bowl",
+  "Pizza Express",
+];
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [orderCount, setOrderCount] = useState(243);
-
-  // Scroll listener for sticky nav
-  useEffect(() => {
-    setMounted(true);
-    const onScroll = () => setScrolled(window.scrollY > 80);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Live order counter
-  useEffect(() => {
-    const tick = () => {
-      setOrderCount((c) => c + 1);
-      const delay = 3000 + Math.random() * 2000;
-      timer = window.setTimeout(tick, delay);
-    };
-    let timer = window.setTimeout(tick, 3000 + Math.random() * 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Scroll reveal refs
-  const phoneSection = useScrollReveal(0.1);
-  const featuresSection = useScrollReveal(0.1);
-  const pricingSection = useScrollReveal(0.1);
-  const testimonialsSection = useScrollReveal(0.1);
-  const ctaSection = useScrollReveal(0.2);
-
-  // SERVICE! letter animation
-  const [serviceAnimated, setServiceAnimated] = useState(false);
-  const serviceRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = serviceRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setServiceAnimated(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold: 0.3 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const serviceLetters = "SERVICE !".split("");
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="landing min-h-screen">
-      {/* ─── Section 0: Navigation ─── */}
-      <nav
-        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "bg-[var(--landing-muted)]/90 backdrop-blur-md border-b border-landing"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <span
-            className={`font-ferron text-2xl text-landing-primary transition-all duration-700 ${
-              mounted ? "opacity-100 tracking-wider" : "opacity-0 tracking-[0.5em]"
-            }`}
-          >
-            taapr
-          </span>
-
-          {/* Center counter — hidden on mobile */}
-          <div className="hidden md:block font-space-mono text-xs text-landing-muted tabular-nums tracking-wide">
-            <span className="text-landing-primary font-bold">{orderCount}</span>{" "}
-            commandes passées aujourd&apos;hui
+    <div className="landing-v3">
+      {/* NAV */}
+      <nav className="lv3-nav">
+        <div className="lv3-wrap lv3-nav-inner">
+          <Link href="/" className="lv3-brand">taapr</Link>
+          <div className="lv3-nav-links">
+            <a href="#product">Produit</a>
+            <a href="#pricing">Tarifs</a>
+            <a href="#customers">Clients</a>
+            <a href="#faq">FAQ</a>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin/login"
-              className="hidden sm:block text-landing-muted hover:text-landing-fg uppercase text-sm tracking-wider transition-colors"
-            >
-              CONNEXION
-            </Link>
-            <Link
-              href="/admin/onboarding"
-              className="bg-landing-primary text-white rounded-full px-5 py-2 text-sm font-bold uppercase tracking-wider glow-primary hover:scale-[1.02] active:scale-[0.97] transition-transform"
-            >
-              COMMENCER
-            </Link>
+          <div className="lv3-nav-cta">
+            <Link href="/admin/login" className="lv3-nav-login">Connexion</Link>
+            <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary">Commencer gratuitement</Link>
           </div>
         </div>
       </nav>
 
-      {/* ─── Section 1: Hero "Le Ticket" ─── */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 pt-16 pb-12 overflow-hidden">
-        {/* Noise overlay */}
-        <div className="absolute inset-0 noise-overlay pointer-events-none" />
+      {/* HERO */}
+      <header className="lv3-wrap lv3-hero">
+        <div className="lv3-pill">
+          <span className="tag">Alternative</span>
+          <span>À la borne de commande classique</span>
+        </div>
+        <h1>
+          La borne de commande,<br />dans la poche de <span className="accent">vos clients.</span>
+        </h1>
+        <p>
+          Pas la place pour une borne ? Pas le budget ? TaapR transforme chaque table, chaque comptoir en point
+          de commande. Vos clients scannent, commandent, paient — avec leur propre téléphone.
+        </p>
+        <div className="lv3-hero-ctas">
+          <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-btn-lg">
+            Commencer gratuitement
+          </Link>
+          <Link href="/admin/chez-momo?demo=true" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
+            Voir la démo →
+          </Link>
+        </div>
+        <div className="lv3-hero-note">
+          <span className="lv3-chk">
+            <CheckIcon />
+          </span>
+          14 jours d&apos;essai · Sans carte bancaire · Annulable à tout moment
+        </div>
+      </header>
 
-        <div className="relative z-10 w-full max-w-5xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-          {/* Left: Ticket */}
-          <div className="w-full max-w-md mx-auto lg:mx-0">
-            <div
-              className={`${
-                mounted
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 -translate-y-16"
-              }`}
-              style={{
-                transition: "all 800ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-              }}
-            >
-              <div className="bg-landing-ticket text-landing-ticket">
-                <div className="px-6 py-8 sm:px-8 sm:py-10">
-                  <p className="text-center font-ferron text-base tracking-[0.3em] opacity-40 text-landing-ticket">
-                    taapr
-                  </p>
+      {/* PRODUCT SHOT */}
+      <div className="lv3-product-stage">
+        <div className="lv3-product-bg">
+          <div className="lv3-float lv3-float-left">
+            <div className="lbl">Commandes aujourd&apos;hui</div>
+            <div className="val">247</div>
+            <div className="hint" style={{ color: "var(--green)" }}>▲ 18% vs hier</div>
+          </div>
 
-                  <div className="my-3 border-t border-dashed border-black/15" />
+          <div className="lv3-float lv3-float-right">
+            <div className="lbl">Commission TaapR</div>
+            <div className="val">
+              0<span style={{ fontSize: 24, color: "var(--muted)", fontWeight: 500 }}>%</span>
+            </div>
+            <div className="hint">sur tout votre CA</div>
+          </div>
 
-                  <h1 className="font-space text-3xl sm:text-4xl font-bold uppercase leading-[0.95] tracking-tight text-landing-ticket">
-                    VOS CLIENTS COMMANDENT DÉJÀ DEPUIS LEUR TÉLÉPHONE
-                  </h1>
+          <div className="lv3-phone">
+            <div className="lv3-phone-screen">
+              <div className="lv3-ph-top"><span>9:41</span><span>●●●●</span></div>
+              <div className="lv3-ph-rest">
+                <div className="av">🍽️</div>
+                <div>
+                  <div className="n">Le Gourmet</div>
+                  <div className="s">Table 3 · Sur place</div>
+                </div>
+                <div className="b">OUVERT</div>
+              </div>
+              <div className="lv3-ph-cats">
+                <div className="lv3-ph-cat on">Tout</div>
+                <div className="lv3-ph-cat">Burgers</div>
+                <div className="lv3-ph-cat">Tacos</div>
+                <div className="lv3-ph-cat">Boissons</div>
+              </div>
+              <div className="lv3-ph-h">🍔 Burgers</div>
+              <div className="lv3-ph-row">
+                <div className="img">🍔</div>
+                <div className="meta"><div className="t">Classic Burger</div><div className="d">Bœuf, cheddar, salade</div><div className="p">9,90 €</div></div>
+                <div className="add">+</div>
+              </div>
+              <div className="lv3-ph-row">
+                <div className="img">🧀</div>
+                <div className="meta"><div className="t">Cheese Burger</div><div className="d">Double cheddar</div><div className="p">10,90 €</div></div>
+                <div className="add">+</div>
+              </div>
+              <div className="lv3-ph-row">
+                <div className="img">🌮</div>
+                <div className="meta"><div className="t">Tacos XL</div><div className="d">2 viandes au choix</div><div className="p">11,50 €</div></div>
+                <div className="add">+</div>
+              </div>
+              <div className="lv3-ph-row">
+                <div className="img">🥤</div>
+                <div className="meta"><div className="t">Coca-Cola</div><div className="d">33cl</div><div className="p">2,50 €</div></div>
+                <div className="add">+</div>
+              </div>
+              <div className="lv3-ph-fab">
+                <span className="badge">3</span>
+                Voir mon panier
+                <span style={{ marginLeft: "auto" }}>23,90 €</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                  <div className="my-3 border-t border-dashed border-black/15" />
+      {/* LOGOS */}
+      <section className="lv3-logos-section">
+        <div className="lv3-wrap">
+          <div className="lv3-logos-label">Déjà utilisé par 800+ restaurants indépendants en France</div>
+          <div className="lv3-logos-row">
+            {LOGOS.map((l) => (<span key={l}>{l}</span>))}
+          </div>
+        </div>
+      </section>
 
-                  <p className="text-sm text-landing-ticket opacity-70" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                    Menu en ligne. QR code. Paiement sécurisé. Zéro commission. À
-                    partir de 29€/mois.
-                  </p>
+      {/* METRICS */}
+      <section className="lv3-metrics">
+        <div className="lv3-wrap lv3-metrics-grid">
+          <div className="lv3-metric">
+            <div className="v">0<span className="unit">€</span></div>
+            <div className="l">de matériel à acheter. Vos clients utilisent leur propre téléphone.</div>
+          </div>
+          <div className="lv3-metric">
+            <div className="v">0<span className="unit">m²</span></div>
+            <div className="l">d&apos;espace au sol. Un QR code remplace une borne entière.</div>
+          </div>
+          <div className="lv3-metric">
+            <div className="v">29<span className="unit">€/mois</span></div>
+            <div className="l">contre ~3 000 € pour une borne physique. Amorti en 1 mois.</div>
+          </div>
+        </div>
+      </section>
 
-                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                    <Link
-                      href="/admin/onboarding"
-                      className="bg-[var(--landing-primary)] text-white rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-[0.97] transition-transform shadow-[0_0_20px_oklch(0.58_0.20_28_/_0.3)] text-center"
-                    >
-                      CRÉER MON RESTAURANT
-                    </Link>
-                    <a
-                      href="#pass"
-                      className="border-2 border-dashed border-black/30 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wider hover:border-black/60 transition-colors text-landing-ticket text-center"
-                    >
-                      VOIR LA DÉMO
-                    </a>
+      {/* VS BORNE */}
+      <section id="why" className="lv3-block" style={{ paddingBottom: 80 }}>
+        <div className="lv3-wrap">
+          <div className="lv3-sec-h">
+            <div className="lv3-sec-tag">Pensé pour les petits commerces</div>
+            <h2>
+              Une borne coûte cher.<br />Et prend de la place.
+            </h2>
+            <p>
+              Pour les snacks, food trucks, cafés et restaurants de quartier, une borne de commande
+              n&apos;est souvent ni viable, ni réaliste. TaapR remplace ce matériel par un simple QR code.
+            </p>
+          </div>
+
+          <div className="lv3-vs-grid">
+            <div className="lv3-vs-col bad">
+              <div className="lv3-vs-hdr">
+                <div className="lv3-vs-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="6" y="2" width="12" height="20" rx="1" />
+                    <rect x="8" y="4" width="8" height="11" rx="0.5" fill="currentColor" opacity="0.1" />
+                    <circle cx="12" cy="18.5" r="0.8" fill="currentColor" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="lv3-vs-k">Borne de commande classique</div>
+                  <div className="lv3-vs-t">À partir de 3 000 €</div>
+                </div>
+              </div>
+              <ul className="lv3-vs-ul">
+                <li><span className="lv3-vs-x">×</span>Investissement initial de 2 500 à 5 000 €</li>
+                <li><span className="lv3-vs-x">×</span>1 m² d&apos;espace au sol minimum</li>
+                <li><span className="lv3-vs-x">×</span>Une seule commande à la fois, file d&apos;attente</li>
+                <li><span className="lv3-vs-x">×</span>Maintenance, pannes, obsolescence</li>
+                <li><span className="lv3-vs-x">×</span>Prise secteur, branchements, câblage</li>
+                <li><span className="lv3-vs-x">×</span>Écran partagé, hygiène délicate</li>
+              </ul>
+            </div>
+
+            <div className="lv3-vs-col good">
+              <div className="lv3-vs-hdr">
+                <div className="lv3-vs-icon lv3-vs-icon-good">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <rect x="7" y="2" width="10" height="20" rx="2" />
+                    <circle cx="12" cy="19" r="0.8" fill="currentColor" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="lv3-vs-k">TaapR</div>
+                  <div className="lv3-vs-t">29 € / mois</div>
+                </div>
+              </div>
+              <ul className="lv3-vs-ul">
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Aucun matériel — vos clients utilisent leur téléphone</li>
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Zéro m² au sol, un QR code par table</li>
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Commandes en parallèle, sans file</li>
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Mises à jour automatiques, pas de SAV</li>
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Aucune installation physique</li>
+                <li><span className="lv3-vs-ok"><CheckIcon /></span>Chacun son écran, zéro contact</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="lv3-vs-who">
+            <div className="lv3-vs-who-title">Conçu pour :</div>
+            <div className="lv3-vs-who-row">
+              <span>🥪 Snacks</span>
+              <span>🚚 Food trucks</span>
+              <span>☕ Cafés</span>
+              <span>🍕 Pizzerias de quartier</span>
+              <span>🥗 Ghost kitchens</span>
+              <span>🍜 Petits restaurants</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CLIENT APP */}
+      <section id="client-app" className="lv3-client-app">
+        <div className="lv3-wrap">
+          <div className="lv3-sec-h">
+            <div className="lv3-sec-tag">Côté client</div>
+            <h2>Scanner. Commander. Payer.</h2>
+            <p>Aucune application à télécharger. Le menu s&apos;ouvre directement dans le navigateur, en 2 secondes. C&apos;est tout.</p>
+          </div>
+
+          <div className="lv3-client-flow">
+            {/* Step 1 - Scan */}
+            <div className="lv3-client-step">
+              <div className="lv3-client-step-h">
+                <div className="lv3-cs-num">01</div>
+                <div>
+                  <div className="lv3-cs-t">Il scanne le QR code</div>
+                  <div className="lv3-cs-d">Depuis son téléphone. Aucune app.</div>
+                </div>
+              </div>
+              <div className="lv3-ph-mini">
+                <div className="lv3-ph-mini-screen lv3-ph-scan">
+                  <div className="lv3-ph-scan-frame">
+                    <span className="lv3-corn tl" /><span className="lv3-corn tr" />
+                    <span className="lv3-corn bl" /><span className="lv3-corn br" />
+                    <div className="lv3-ph-scan-qr">
+                      <svg width="70" height="70" viewBox="0 0 70 70">
+                        <rect width="70" height="70" fill="#fff" />
+                        <g fill="#0a0a0a">
+                          <rect x="5" y="5" width="18" height="18" /><rect x="9" y="9" width="10" height="10" fill="#fff" /><rect x="12" y="12" width="4" height="4" />
+                          <rect x="47" y="5" width="18" height="18" /><rect x="51" y="9" width="10" height="10" fill="#fff" /><rect x="54" y="12" width="4" height="4" />
+                          <rect x="5" y="47" width="18" height="18" /><rect x="9" y="51" width="10" height="10" fill="#fff" /><rect x="12" y="54" width="4" height="4" />
+                          <rect x="28" y="8" width="3" height="3" /><rect x="34" y="8" width="3" height="3" /><rect x="40" y="14" width="3" height="3" />
+                          <rect x="28" y="20" width="3" height="3" /><rect x="37" y="26" width="3" height="3" /><rect x="31" y="32" width="3" height="3" />
+                          <rect x="8" y="30" width="3" height="3" /><rect x="14" y="36" width="3" height="3" /><rect x="20" y="30" width="3" height="3" />
+                          <rect x="43" y="30" width="3" height="3" /><rect x="49" y="36" width="3" height="3" /><rect x="55" y="30" width="3" height="3" /><rect x="61" y="36" width="3" height="3" />
+                          <rect x="28" y="42" width="3" height="3" /><rect x="37" y="48" width="3" height="3" /><rect x="43" y="54" width="3" height="3" /><rect x="52" y="60" width="3" height="3" /><rect x="58" y="52" width="3" height="3" />
+                        </g>
+                      </svg>
+                    </div>
+                    <div className="lv3-scanline" />
                   </div>
-
-                  <p
-                    className="mt-5 font-caveat text-base text-[var(--landing-primary)]"
-                    style={{ transform: "rotate(-3deg)" }}
-                  >
-                    C&apos;est parti chef ! {">>>>"}
-                  </p>
-
-                  <div className="my-3 border-t border-dashed border-black/15" />
-
-                  {/* Social proof stats */}
-                  <div className="flex items-center justify-between gap-2 text-center">
-                    <div>
-                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
-                        <CountUp end={50} suffix="+" />
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                        Restaurants
-                      </p>
-                    </div>
-                    <div className="h-8 w-px bg-black/10" />
-                    <div>
-                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
-                        <CountUp end={10} suffix="K+" />
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                        Commandes
-                      </p>
-                    </div>
-                    <div className="h-8 w-px bg-black/10" />
-                    <div>
-                      <p className="font-space text-xl font-bold text-[var(--landing-primary)]">
-                        <CountUp end={4.9} decimals={1} />
-                        <span className="text-sm">/5</span>
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                        Satisfaction
-                      </p>
-                    </div>
+                  <div className="lv3-ph-scan-cta">
+                    <div className="lv3-ph-scan-label">Ouvrir le menu de Le Gourmet</div>
+                    <div className="lv3-ph-scan-btn">Ouvrir →</div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <TornEdgeBottom className="-mt-px" />
+            <div className="lv3-flow-arrow">→</div>
+
+            {/* Step 2 - Browse */}
+            <div className="lv3-client-step">
+              <div className="lv3-client-step-h">
+                <div className="lv3-cs-num">02</div>
+                <div>
+                  <div className="lv3-cs-t">Il parcourt le menu</div>
+                  <div className="lv3-cs-d">Photos, allergènes, descriptions.</div>
+                </div>
+              </div>
+              <div className="lv3-ph-mini">
+                <div className="lv3-ph-mini-screen" style={{ background: "#fff" }}>
+                  <div style={{ padding: "18px 14px 8px", display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700 }}>
+                    <span>9:41</span><span>●●●●</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 8px" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--bg-3)", display: "grid", placeItems: "center", fontSize: 14 }}>🍽️</div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em" }}>Le Gourmet</div>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>Table 3 · Ouvert</div>
+                    </div>
+                  </div>
+                  <div style={{ padding: "0 12px 8px", display: "flex", gap: 4 }}>
+                    <span style={{ fontSize: 9, padding: "3px 8px", borderRadius: 999, background: "var(--ink)", color: "#fff", fontWeight: 500 }}>Tout</span>
+                    <span style={{ fontSize: 9, padding: "3px 8px", borderRadius: 999, background: "var(--bg-3)", color: "var(--ink-2)", fontWeight: 500 }}>Burgers</span>
+                    <span style={{ fontSize: 9, padding: "3px 8px", borderRadius: 999, background: "var(--bg-3)", color: "var(--ink-2)", fontWeight: 500 }}>Tacos</span>
+                  </div>
+                  <div className="lv3-mini-row" style={{ background: "#fff8f7" }}>
+                    <div className="mi">🍔</div>
+                    <div className="mm"><div className="mn">Classic Burger</div><div className="mp">9,90 €</div></div>
+                    <div className="madd on">+</div>
+                  </div>
+                  <div className="lv3-mini-row">
+                    <div className="mi">🧀</div>
+                    <div className="mm"><div className="mn">Cheese Burger</div><div className="mp">10,90 €</div></div>
+                    <div className="madd">+</div>
+                  </div>
+                  <div className="lv3-mini-row">
+                    <div className="mi">🌮</div>
+                    <div className="mm"><div className="mn">Tacos XL</div><div className="mp">11,50 €</div></div>
+                    <div className="madd">+</div>
+                  </div>
+                  <div style={{ position: "absolute", left: 10, right: 10, bottom: 10, background: "var(--ink)", color: "#fff", borderRadius: 10, padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontWeight: 600, boxShadow: "0 8px 16px -4px rgba(0,0,0,.25)" }}>
+                    <span style={{ background: "#fff", color: "var(--ink)", borderRadius: 5, padding: "1px 5px", fontSize: 9, fontWeight: 700 }}>1</span>
+                    Voir mon panier <span style={{ marginLeft: "auto" }}>9,90 €</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lv3-flow-arrow">→</div>
+
+            {/* Step 3 - Pay */}
+            <div className="lv3-client-step">
+              <div className="lv3-client-step-h">
+                <div className="lv3-cs-num">03</div>
+                <div>
+                  <div className="lv3-cs-t">Il paie en un tap</div>
+                  <div className="lv3-cs-d">Apple Pay, Google Pay, CB.</div>
+                </div>
+              </div>
+              <div className="lv3-ph-mini">
+                <div className="lv3-ph-mini-screen" style={{ background: "#fafafa" }}>
+                  <div style={{ padding: "18px 14px 8px", display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700 }}>
+                    <span>9:42</span><span>●●●●</span>
+                  </div>
+                  <div style={{ textAlign: "center", padding: "24px 16px 12px" }}>
+                    <div style={{ width: 48, height: 48, margin: "0 auto 12px", borderRadius: "50%", background: "var(--green)", display: "grid", placeItems: "center", boxShadow: "0 8px 16px -4px rgba(0,165,68,0.35)" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em" }}>Paiement confirmé</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>23,90 € · Apple Pay</div>
+                  </div>
+                  <div style={{ margin: "8px 12px", background: "#fff", border: "1px solid var(--rule)", borderRadius: 10, padding: "10px 12px", fontSize: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}><span>1× Classic Burger</span><span>9,90</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}><span>1× Tacos XL</span><span>11,50</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}><span>1× Coca-Cola</span><span>2,50</span></div>
+                    <div style={{ borderTop: "1px dashed var(--rule)", marginTop: 4, paddingTop: 6, display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                      <span>Total</span><span>23,90 €</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "center", padding: "4px 16px", fontSize: 9, color: "var(--muted)" }}>
+                    Votre commande #047 est envoyée en cuisine
+                  </div>
+                  <div style={{ position: "absolute", left: 14, right: 14, bottom: 14, display: "flex", alignItems: "center", gap: 6, justifyContent: "center", fontSize: 9, color: "var(--muted)" }}>
+                    <span style={{ background: "#635bff", color: "#fff", padding: "1px 5px", borderRadius: 3, fontWeight: 700, letterSpacing: "0.04em", fontSize: 8 }}>stripe</span>
+                    Paiement sécurisé
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right: Phone mockup */}
-          <div
-            ref={phoneSection.ref}
-            className={`hidden lg:flex justify-center ${
-              mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
-            }`}
-            style={{
-              transition: "all 1000ms cubic-bezier(0.34, 1.56, 0.64, 1) 400ms",
-            }}
-          >
-            <div className="animate-float-phone">
-              <PhoneMockup />
+          <div className="lv3-client-features">
+            <div className="lv3-cf">
+              <div className="lv3-cf-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="3" y="3" width="7" height="7" rx="0.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="0.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="0.5" />
+                  <path d="M14 14h3v3h-3zM14 18h3v3h-3zM18 14h3v3h-3zM18 18h3v3h-3z" />
+                </svg>
+              </div>
+              <div className="lv3-cf-t">Aucune app à installer</div>
+              <div className="lv3-cf-d">Le menu s&apos;ouvre directement dans le navigateur du téléphone.</div>
+            </div>
+            <div className="lv3-cf">
+              <div className="lv3-cf-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+              </div>
+              <div className="lv3-cf-t">30 secondes chrono</div>
+              <div className="lv3-cf-d">De l&apos;ouverture du menu à la confirmation de paiement.</div>
+            </div>
+            <div className="lv3-cf">
+              <div className="lv3-cf-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M12 2l2.39 6.95H22l-6.06 4.4 2.32 7.15L12 16.3l-6.26 4.2 2.32-7.15L2 8.95h7.61z" />
+                </svg>
+              </div>
+              <div className="lv3-cf-t">Fidélité automatique</div>
+              <div className="lv3-cf-d">Chaque commande cumule des points, sans carte à présenter.</div>
+            </div>
+            <div className="lv3-cf">
+              <div className="lv3-cf-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                </svg>
+              </div>
+              <div className="lv3-cf-t">Paiement fractionné</div>
+              <div className="lv3-cf-d">Partage de l&apos;addition entre convives, en un tap.</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─── Section 2: "Le Pass" — Order Ticket Strip ─── */}
-      <section id="pass" className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-6">
-          <p
-            className="font-caveat text-xl text-landing-muted"
-            style={{ transform: "rotate(-2deg)" }}
-          >
-            en ce moment en cuisine...
-          </p>
-        </div>
-        <TicketStrip />
-      </section>
+      {/* FEATURES */}
+      <section id="product" className="lv3-block">
+        <div className="lv3-wrap">
+          <div className="lv3-sec-h">
+            <div className="lv3-sec-tag">Produit</div>
+            <h2>Tout pour servir plus vite et mieux.</h2>
+            <p>Un menu, un QR code, un tableau de bord. Rien de plus, et c&apos;est exactement ce qu&apos;il faut.</p>
+          </div>
 
-      {/* ─── Section: Queue vs Phone comparison ─── */}
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-10 text-center">
-          <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase tracking-wider text-landing-fg">
-            FINI LA FILE D&apos;ATTENTE
-          </h2>
-          <p className="mt-3 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-            Que vous soyez food truck, snack ou petit restaurant
-          </p>
-        </div>
-        <QueueVsPhone />
-      </section>
+          {/* Feature 1 */}
+          <div className="lv3-f-row">
+            <div className="lv3-f-copy">
+              <div className="lv3-f-n">01 · Carte digitale</div>
+              <h3>Votre carte,<br />modifiable en&nbsp;direct.</h3>
+              <p>Créez, dupliquez, mettez en pause. Vos changements sont visibles instantanément sur le menu de vos clients, sans redéploiement.</p>
+              <ul>
+                <li><span className="dot"><CheckIcon /></span>Produits, options et modificateurs illimités</li>
+                <li><span className="dot"><CheckIcon /></span>Stock en temps réel, rupture automatique</li>
+                <li><span className="dot"><CheckIcon /></span>Photos, allergènes, traductions</li>
+              </ul>
+              <Link href="/admin/chez-momo/menu?demo=true" className="link">Découvrir l&apos;éditeur →</Link>
+            </div>
+            <div className="lv3-f-visual">
+              <div className="lv3-editor">
+                <div className="hdr">
+                  <div className="ph">🍔</div>
+                  <div>
+                    <div className="ti">Classic Burger</div>
+                    <div className="st">Publié · 142 commandes cette semaine</div>
+                  </div>
+                </div>
+                <div className="field">
+                  <div className="fl">Nom</div>
+                  <div className="fi focus">Classic Burger</div>
+                </div>
+                <div className="field">
+                  <div className="fl">Prix</div>
+                  <div className="fi">9,90 €</div>
+                </div>
+                <div className="field">
+                  <div className="fl">Disponibilité</div>
+                  <div className="tog">
+                    <span className="on">En vente</span>
+                    <span>Épuisé</span>
+                    <span>Masqué</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* ─── Mobile phone preview ─── */}
-      <section className="py-12 lg:hidden">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="text-center font-space text-lg font-bold uppercase tracking-wider text-landing-fg mb-2">
-            L&apos;expérience client
-          </p>
-          <p className="text-center text-sm text-landing-muted mb-8" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-            Vos clients scannent, commandent, paient.
-          </p>
-          <div className="flex justify-center">
-            <PhoneMockup />
+          {/* Feature 2 */}
+          <div className="lv3-f-row lv3-reverse">
+            <div className="lv3-f-copy">
+              <div className="lv3-f-n">02 · Pilotage</div>
+              <h3>Des chiffres clairs,<br />pas des graphiques.</h3>
+              <p>Chiffre d&apos;affaires, ticket moyen, produits stars. Un tableau de bord qui va droit à l&apos;essentiel, et s&apos;exporte d&apos;un clic pour votre comptable.</p>
+              <ul>
+                <li><span className="dot"><CheckIcon /></span>Ventes par jour, par produit, par canal</li>
+                <li><span className="dot"><CheckIcon /></span>Export CSV pour votre comptable</li>
+                <li><span className="dot"><CheckIcon /></span>Multi-établissements, vue consolidée</li>
+              </ul>
+              <Link href="/admin/chez-momo/dashboard?demo=true" className="link">Voir un tableau type →</Link>
+            </div>
+            <div className="lv3-f-visual dark">
+              <div className="lv3-chart">
+                <div className="lv3-chart-hdr">
+                  <div>
+                    <div className="ch-k">Chiffre d&apos;affaires · 7 jours</div>
+                    <div className="ch-v">4 287 €</div>
+                    <div className="ch-d">▲ 14,2% vs semaine précédente</div>
+                  </div>
+                  <div className="tabs">
+                    <span>24h</span><span className="on">7j</span><span>30j</span>
+                  </div>
+                </div>
+                <div className="lv3-chart-area">
+                  <svg viewBox="0 0 400 140" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="lv3grad" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0" stopColor="#00c758" stopOpacity="0.35" />
+                        <stop offset="1" stopColor="#00c758" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M 0 110 L 58 90 L 116 96 L 174 68 L 232 78 L 290 46 L 348 30 L 400 40 L 400 140 L 0 140 Z" fill="url(#lv3grad)" />
+                    <path d="M 0 110 L 58 90 L 116 96 L 174 68 L 232 78 L 290 46 L 348 30 L 400 40" fill="none" stroke="#00c758" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                    <circle cx="400" cy="40" r="5" fill="#00c758" />
+                    <circle cx="400" cy="40" r="10" fill="#00c758" opacity="0.2" />
+                  </svg>
+                </div>
+                <div className="lv3-chart-legend">
+                  <span>Lun 13</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim 19</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature 3 */}
+          <div className="lv3-f-row">
+            <div className="lv3-f-copy">
+              <div className="lv3-f-n">03 · Paiement</div>
+              <h3>Un QR code par table.<br />Zéro file d&apos;attente.</h3>
+              <p>Générez un QR code par table, par comptoir, par borne. Le paiement passe par Stripe — rien n&apos;est stocké chez nous, rien n&apos;est prélevé.</p>
+              <ul>
+                <li><span className="dot"><CheckIcon /></span>Apple Pay, Google Pay, CB</li>
+                <li><span className="dot"><CheckIcon /></span>Pourboires et paiement fractionné</li>
+                <li><span className="dot"><CheckIcon /></span>Gabarits d&apos;impression inclus</li>
+              </ul>
+              <a href="#client-app" className="link">Comment ça marche →</a>
+            </div>
+            <div className="lv3-f-visual">
+              <div className="lv3-qr-stack">
+                <div className="lv3-qr-card">
+                  <div className="n">taapr</div>
+                  <div className="s">LE GOURMET</div>
+                  <div className="qr">
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      <rect width="140" height="140" fill="#fff" />
+                      <g fill="#0a0a0a">
+                        <rect x="10" y="10" width="35" height="35" /><rect x="18" y="18" width="19" height="19" fill="#fff" /><rect x="24" y="24" width="7" height="7" />
+                        <rect x="95" y="10" width="35" height="35" /><rect x="103" y="18" width="19" height="19" fill="#fff" /><rect x="109" y="24" width="7" height="7" />
+                        <rect x="10" y="95" width="35" height="35" /><rect x="18" y="103" width="19" height="19" fill="#fff" /><rect x="24" y="109" width="7" height="7" />
+                      </g>
+                      <g fill="#0a0a0a">
+                        <rect x="55" y="14" width="6" height="6" /><rect x="67" y="14" width="6" height="6" /><rect x="79" y="14" width="6" height="6" />
+                        <rect x="55" y="26" width="6" height="6" /><rect x="67" y="26" width="6" height="6" /><rect x="85" y="26" width="6" height="6" />
+                        <rect x="61" y="38" width="6" height="6" /><rect x="73" y="38" width="6" height="6" /><rect x="85" y="38" width="6" height="6" />
+                        <rect x="14" y="55" width="6" height="6" /><rect x="26" y="55" width="6" height="6" /><rect x="38" y="55" width="6" height="6" />
+                        <rect x="55" y="55" width="6" height="6" /><rect x="79" y="55" width="6" height="6" /><rect x="103" y="55" width="6" height="6" /><rect x="115" y="55" width="6" height="6" />
+                        <rect x="20" y="67" width="6" height="6" /><rect x="32" y="67" width="6" height="6" /><rect x="55" y="67" width="6" height="6" /><rect x="67" y="67" width="6" height="6" /><rect x="91" y="67" width="6" height="6" /><rect x="109" y="67" width="6" height="6" />
+                        <rect x="14" y="79" width="6" height="6" /><rect x="38" y="79" width="6" height="6" /><rect x="61" y="79" width="6" height="6" /><rect x="79" y="79" width="6" height="6" /><rect x="97" y="79" width="6" height="6" /><rect x="115" y="79" width="6" height="6" />
+                        <rect x="55" y="91" width="6" height="6" /><rect x="73" y="91" width="6" height="6" /><rect x="103" y="91" width="6" height="6" />
+                        <rect x="55" y="103" width="6" height="6" /><rect x="67" y="103" width="6" height="6" /><rect x="91" y="103" width="6" height="6" /><rect x="115" y="103" width="6" height="6" />
+                        <rect x="61" y="115" width="6" height="6" /><rect x="79" y="115" width="6" height="6" /><rect x="97" y="115" width="6" height="6" /><rect x="109" y="115" width="6" height="6" />
+                      </g>
+                    </svg>
+                  </div>
+                  <div className="tnum">TABLE · 03</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, fontSize: 11, color: "var(--muted)", alignItems: "center" }}>
+                  <span style={{ background: "#635bff", color: "#fff", padding: "2px 6px", borderRadius: 3, fontWeight: 700, letterSpacing: "0.04em" }}>stripe</span>
+                  Paiement sécurisé · Fonds versés chaque jour
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── Section 3: "La Carte" — Features Menu ─── */}
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase text-center tracking-wider text-landing-fg">
-            LA CARTE DES SERVICES
-          </h2>
-          <p className="mt-3 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-            Tout ce qu&apos;il faut pour digitaliser votre restaurant
-          </p>
+      {/* PRICING */}
+      <section id="pricing" className="lv3-block lv3-pricing-block">
+        <div className="lv3-wrap">
+          <div className="lv3-sec-h">
+            <div className="lv3-sec-tag">Tarifs</div>
+            <h2>Un prix fixe.<br />Pas de surprise sur votre addition.</h2>
+            <p>Choisissez votre plan — changez à tout moment. Aucun engagement, aucune commission, jamais.</p>
+          </div>
 
-          <div
-            ref={featuresSection.ref}
-            className="mt-12 grid gap-8 md:grid-cols-3 max-w-4xl mx-auto"
-          >
-            {FEATURES_MENU.map((section, sIdx) => (
-              <div
-                key={section.category}
-                className={`bg-landing-ticket p-5 sm:p-6 ${
-                  featuresSection.isVisible
-                    ? "animate-print-in"
-                    : "opacity-0"
-                }`}
-                style={{
-                  animationDelay: featuresSection.isVisible
-                    ? `${sIdx * 150}ms`
-                    : undefined,
-                  animationFillMode: "both",
-                }}
-              >
-                <div className="text-2xl mb-2">{section.icon}</div>
-                <h3 className="font-space text-sm font-bold uppercase tracking-widest text-landing-primary">
-                  {section.category}
-                </h3>
-                <p className="text-xs text-landing-muted mt-0.5 mb-3" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                  {section.subtitle}
-                </p>
-                <div className="border-t border-dashed border-black/10 mb-3" />
-
-                <ul className="space-y-2.5">
-                  {section.items.map((item) => (
-                    <li
-                      key={item.name}
-                      className="flex items-start gap-2"
-                    >
-                      <span className="shrink-0 mt-0.5 text-[var(--landing-primary)] text-sm font-bold">✓</span>
-                      <span className="text-sm leading-snug text-[var(--landing-ticket-fg)]" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                        {item.name}
-                        {item.annotation && (
-                          <span
-                            className="ml-1.5 font-caveat text-sm text-[var(--landing-primary)]"
-                          >
-                            {item.annotation}
-                          </span>
-                        )}
-                      </span>
-                    </li>
+          <div className="lv3-price-grid">
+            {PLANS.map((plan) => (
+              <div key={plan.name} className={`lv3-plan${plan.featured ? " feat" : ""}`}>
+                {plan.badge && <div className="badge-top">{plan.badge}</div>}
+                <h3>{plan.name}</h3>
+                <div className="lv3-plan-sub">{plan.sub}</div>
+                <div className="price">
+                  <span className="v">{plan.price}€</span>
+                  <span className="lv3-plan-unit">/mois HT</span>
+                </div>
+                <Link
+                  href="/admin/onboarding"
+                  className={`lv3-btn ${plan.ctaPrimary ? "lv3-btn-primary feat-cta" : "lv3-btn-secondary"} lv3-plan-cta`}
+                >
+                  {plan.cta}
+                </Link>
+                <ul className="lv3-plan-ft">
+                  {plan.features.map((f) => (
+                    <li key={f}><span className="dot"><CheckIcon /></span>{f}</li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ─── Section 4: "L'Addition" — Pricing ─── */}
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div ref={pricingSection.ref}>
-            <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase text-center tracking-wider text-landing-fg">
-              L&apos;ADDITION
-            </h2>
-            <p className="mt-3 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-              Un prix fixe. Pas de pourcentage sur vos ventes.
-            </p>
-
-            <div
-              className={`mt-12 grid gap-6 lg:grid-cols-3 items-start ${
-                pricingSection.isVisible ? "" : "opacity-0"
-              }`}
-            >
-              {PLANS.map((plan, i) => (
-                <div
-                  key={plan.name}
-                  className={pricingSection.isVisible ? "animate-print-in" : "opacity-0"}
-                  style={{
-                    animationDelay: pricingSection.isVisible ? `${i * 120}ms` : undefined,
-                    animationFillMode: "both",
-                  }}
-                >
-                  <ReceiptCard
-                    name={plan.name}
-                    price={plan.price}
-                    description={plan.description}
-                    features={plan.features}
-                    highlighted={plan.highlighted}
-                    badge={plan.badge}
-                    annotation={plan.annotation}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-8 text-center text-xs text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-              Tous les plans incluent 0% de commission*.
-              <br />
-              <span className="opacity-60">
-                * Hors frais Stripe (~1,5% + 0,25€ par transaction).
-              </span>
-            </p>
+          <div className="lv3-price-foot">
+            TVA 20% non incluse · Frais Stripe ~1,5% + 0,25€ par transaction · Annulable à tout moment
           </div>
         </div>
       </section>
 
-      {/* ─── Section 5: "Le Comptoir" — Testimonials ─── */}
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase text-center tracking-wider text-landing-fg">
-            LE COMPTOIR
-          </h2>
-          <p className="mt-3 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-            Ce qu&apos;en disent nos restaurateurs
-          </p>
+      {/* TESTIMONIALS */}
+      <section id="customers" className="lv3-block">
+        <div className="lv3-wrap">
+          <div className="lv3-quote-block">
+            <blockquote>
+              « On a divisé notre temps de service par deux. Les clients s&apos;assoient, scannent, commandent — et nous, on cuisine. »
+            </blockquote>
+            <div className="lv3-quote-attr">
+              <div className="lv3-qa-av">K</div>
+              <div className="who">
+                <div className="n">Karim Benali</div>
+                <div className="r">Chef · Le Petit Gourmand, Lyon</div>
+              </div>
+            </div>
+          </div>
 
-          <div
-            ref={testimonialsSection.ref}
-            className="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-6"
-          >
-            {TESTIMONIALS.map((t, i) => (
-              <div
-                key={t.name}
-                className={`bg-landing-ticket text-landing-ticket p-5 transition-transform duration-300 hover:scale-[1.02] hover:shadow-lg ${
-                  testimonialsSection.isVisible ? "animate-print-in" : "opacity-0"
-                }`}
-                style={{
-                  transform: `rotate(${t.rotate}deg)`,
-                  animationDelay: testimonialsSection.isVisible ? `${i * 100}ms` : undefined,
-                  animationFillMode: "both",
-                }}
-              >
-                <div className="h-2.5 w-2.5 rounded-full bg-[var(--landing-primary)]" />
-                <p className="mt-3 text-sm italic leading-relaxed" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <p className="mt-3 font-space text-xs font-bold">{t.name}</p>
-                <p className="text-[10px] opacity-50" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                  {t.restaurant}
-                </p>
+          <div className="lv3-testi-grid">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.n} className="lv3-testi">
+                <p className="q">{t.q}</p>
+                <div className="who">
+                  <div className="lv3-qa-av" style={{ background: t.avBg }}>{t.initial}</div>
+                  <div>
+                    <div className="n">{t.n}</div>
+                    <div className="r">{t.r}</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Section 6: "La FAQ" — Frequently Asked Questions ─── */}
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="font-space text-2xl sm:text-3xl font-bold uppercase text-center tracking-wider text-landing-fg">
-            QUESTIONS FRÉQUENTES
-          </h2>
-          <p className="mt-3 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-            Tout ce que vous devez savoir avant de commencer
-          </p>
-
-          <div className="mt-10">
-            <Accordion type="single" collapsible className="space-y-3">
-              {FAQ_ITEMS.map((item, i) => (
-                <AccordionItem
-                  key={i}
-                  value={`faq-${i}`}
-                  className="bg-landing-ticket border-none px-5 sm:px-6 data-[state=open]:shadow-md transition-shadow"
-                >
-                  <AccordionTrigger className="py-4 text-left font-space text-sm font-semibold tracking-wide text-landing-fg hover:no-underline [&[data-state=open]]:text-[var(--landing-primary)]">
-                    {item.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4 text-sm leading-relaxed text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                    {item.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+      {/* FAQ */}
+      <section id="faq" className="lv3-block" style={{ paddingTop: 40 }}>
+        <div className="lv3-wrap">
+          <div className="lv3-sec-h">
+            <div className="lv3-sec-tag">Questions</div>
+            <h2>Tout ce qu&apos;il faut savoir.</h2>
           </div>
-        </div>
-      </section>
-
-      {/* ─── Section 8: "Service !" — Final CTA ─── */}
-      <section className="bg-landing-primary py-20 sm:py-28">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
-          <div ref={serviceRef} className="mb-8">
-            <div className="flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
-              {serviceLetters.map((letter, i) => (
-                <span
-                  key={i}
-                  className={`font-space text-6xl sm:text-8xl font-bold uppercase text-white inline-block ${
-                    serviceAnimated ? "animate-stamp" : "opacity-0"
-                  }`}
-                  style={{
-                    animationDelay: serviceAnimated ? `${i * 60}ms` : undefined,
-                    animationFillMode: "both",
-                  }}
-                >
-                  {letter === " " ? "\u00A0" : letter}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <p
-            className={`text-lg text-white/70 transition-all duration-700 ${
-              serviceAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
-            style={{
-              transitionDelay: "600ms",
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-            }}
-          >
-            Votre restaurant en ligne est prêt.
-          </p>
-
-          <div
-            className={`mt-8 flex flex-col items-center gap-6 transition-all duration-700 ${
-              serviceAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
-            style={{ transitionDelay: "800ms" }}
-          >
-            <Link
-              href="/admin/onboarding"
-              className="bg-[var(--landing-accent)] text-white rounded-full px-8 py-4 text-sm font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-[0.97] transition-transform shadow-[0_0_24px_oklch(0.28_0.06_260_/_0.4)]"
-            >
-              COMMENCER MAINTENANT
-            </Link>
-
-            {/* Newsletter signup */}
-            <div className="w-full max-w-md">
-              <p className="mb-3 text-sm text-white/60" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                Ou recevez nos actus et conseils pour restaurateurs
-              </p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const email = new FormData(form).get("email") as string;
-                  if (email) {
-                    form.reset();
-                    // TODO: hook up to newsletter API
-                    alert("Merci ! Vous êtes inscrit(e) ✓");
-                  }
-                }}
-                className="flex gap-2"
+          <div className="lv3-faq-list">
+            {FAQ_ITEMS.map((item, i) => (
+              <div
+                key={i}
+                className={`lv3-faq-item${openFaq === i ? " open" : ""}`}
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
               >
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder="votre@email.com"
-                  className="h-12 flex-1 rounded-full border-2 border-white/20 bg-white/10 px-5 text-sm text-white placeholder:text-white/40 outline-none focus:border-white/50 transition-colors"
-                  style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
-                />
-                <button
-                  type="submit"
-                  className="h-12 shrink-0 rounded-full bg-white px-6 text-sm font-bold uppercase tracking-wider text-[var(--landing-primary)] hover:scale-[1.02] active:scale-[0.97] transition-transform"
-                >
-                  S&apos;inscrire
-                </button>
-              </form>
-            </div>
-
-            <Link
-              href="/admin/login"
-              className="text-sm text-white/60 hover:text-white transition-colors underline-offset-4 hover:underline"
-            >
-              J&apos;ai déjà un compte
-            </Link>
+                <div className="lv3-faq-q">
+                  <span className="q">{item.q}</span>
+                  <span className="tog">+</span>
+                </div>
+                <div className="lv3-faq-a">
+                  <p>{item.a}</p>
+                </div>
+              </div>
+            ))}
           </div>
-
-          <p
-            className={`mt-6 font-space-mono text-xs text-white/50 transition-all duration-700 ${
-              serviceAnimated ? "opacity-100" : "opacity-0"
-            }`}
-            style={{ transitionDelay: "1000ms" }}
-          >
-            Pas de CB requise. Sans engagement. 5 minutes.
-          </p>
         </div>
       </section>
 
-      {/* ─── Section 9: Footer ─── */}
-      <footer className="border-t border-landing py-12 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          {/* Multi-column layout */}
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Brand */}
+      {/* CLOSING */}
+      <section className="lv3-close">
+        <div className="lv3-wrap">
+          <h2>Votre restaurant en ligne,<br />ce soir.</h2>
+          <p>Sans carte bancaire. Sans engagement. Et surtout, sans prélèvement sur vos ventes.</p>
+          <div className="ctas">
+            <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-btn-lg">
+              Commencer gratuitement
+            </Link>
+            <a href="mailto:contact@taapr.com" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
+              Parler à un expert
+            </a>
+          </div>
+          <div className="foot-note">
+            <span><span className="lv3-chk"><CheckIcon /></span>Setup en 5 min</span>
+            <span><span className="lv3-chk"><CheckIcon /></span>14 jours gratuits</span>
+            <span><span className="lv3-chk"><CheckIcon /></span>Annulable à tout moment</span>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="lv3-footer">
+        <div className="lv3-wrap">
+          <div className="lv3-foot-grid">
             <div>
-              <span className="font-ferron text-2xl text-landing-primary tracking-wider">
-                taapr
-              </span>
-              <p className="mt-3 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                La commande en ligne pour les restaurants.
-                <br />
-                0% commission. Abonnement fixe.
+              <div className="lv3-foot-brand">taapr</div>
+              <p className="lv3-foot-desc">
+                La commande en ligne pour les restaurants indépendants. 0% commission. Abonnement fixe. Sans engagement.
               </p>
-              {/* Socials */}
-              <div className="mt-4 flex items-center gap-3">
-                <a
-                  href="https://instagram.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Instagram"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
-                >
-                  <Instagram className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://tiktok.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="TikTok"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.88-2.88 2.89 2.89 0 0 1 2.88-2.88c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.2a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.73a8.19 8.19 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.16Z" />
-                  </svg>
-                </a>
-                <a
-                  href="https://linkedin.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="LinkedIn"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-landing-muted text-landing-muted-fg transition-colors hover:bg-[var(--landing-primary)] hover:text-white"
-                >
-                  <Linkedin className="h-4 w-4" />
-                </a>
-              </div>
             </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
-                Produit
-              </h4>
-              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                <li><a href="#pass" className="hover:text-landing-fg transition-colors">Fonctionnalités</a></li>
-                <li><Link href="/admin/chez-momo?demo=true" className="hover:text-landing-fg transition-colors">Démo</Link></li>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">Tarifs</a></li>
-              </ul>
+            <div className="lv3-foot-col">
+              <h6>Produit</h6>
+              <a href="#product">Fonctionnalités</a>
+              <a href="#pricing">Tarifs</a>
+              <Link href="/admin/chez-momo?demo=true">Démo</Link>
+              <a href="#client-app">Côté client</a>
             </div>
-
-            {/* Resources */}
-            <div>
-              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
-                Ressources
-              </h4>
-              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">Centre d&apos;aide</a></li>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">Blog</a></li>
-                <li><a href="mailto:contact@taapr.com" className="hover:text-landing-fg transition-colors">Contact</a></li>
-              </ul>
+            <div className="lv3-foot-col">
+              <h6>Ressources</h6>
+              <a href="#faq">Centre d&apos;aide</a>
+              <a href="mailto:contact@taapr.com">Contact</a>
+              <a href="#">Blog</a>
+              <a href="#">Statut</a>
             </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="font-space text-xs font-bold uppercase tracking-widest text-landing-fg">
-                Légal
-              </h4>
-              <ul className="mt-3 space-y-2 text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">Mentions légales</a></li>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">CGV</a></li>
-                <li><a href="#" className="hover:text-landing-fg transition-colors">Politique de confidentialité</a></li>
-              </ul>
+            <div className="lv3-foot-col">
+              <h6>Société</h6>
+              <a href="#">À propos</a>
+              <a href="#">Mentions légales</a>
+              <a href="#">CGV</a>
+              <a href="#">Confidentialité</a>
             </div>
           </div>
-
-          {/* Bottom bar */}
-          <div className="mt-10 border-t border-landing pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="font-space-mono text-xs text-landing-muted">
-              © 2026 TaapR. Tous droits réservés.
-            </p>
-            <p className="font-space-mono text-xs text-landing-muted">
-              Paiement sécurisé par Stripe
-            </p>
+          <div className="lv3-foot-bot">
+            <span>© 2026 TaapR — Tous droits réservés</span>
+            <span>Paiement sécurisé par Stripe</span>
           </div>
         </div>
       </footer>

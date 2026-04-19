@@ -21,6 +21,8 @@ import {
   Moon,
   CalendarIcon,
   ChevronDown,
+  ChefHat,
+  Package,
 } from "lucide-react";
 import {
   BarChart,
@@ -74,20 +76,142 @@ function MetricCard({
   label,
   value,
   sub,
+  trend,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   sub?: string;
+  trend?: "up" | "flat" | "down";
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <div className="rounded-xl border border-border bg-card p-[18px]">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        <span>{label}</span>
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <TypographyMuted className="text-xs">{label}</TypographyMuted>
-      {sub && <TypographyMuted className="mt-0.5 text-xs">{sub}</TypographyMuted>}
+      <p className="text-[26px] font-bold tracking-tight leading-none">{value}</p>
+      {sub && (
+        <p
+          className={cn(
+            "mt-1.5 text-xs font-medium",
+            trend === "up" && "text-emerald-700",
+            trend === "down" && "text-destructive",
+            (!trend || trend === "flat") && "text-muted-foreground"
+          )}
+        >
+          {sub}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Live orders (kitchen) widget ─── */
+function LiveOrdersCard({ orders }: { orders: Order[] }) {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        </span>
+        <span className="text-sm font-semibold">
+          En cuisine{" "}
+          <span className="font-normal text-muted-foreground">
+            — {orders.length} en cours
+          </span>
+        </span>
+      </div>
+      {orders.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center px-4 py-10 text-center">
+          <div>
+            <ChefHat className="mx-auto mb-2 h-6 w-6 text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground">Pas de commande en cours.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {orders.map((o) => {
+            const itemsLabel = o.items
+              .map((i) => `${i.quantity > 1 ? `${i.quantity}× ` : ""}${i.product_name}`)
+              .join(" · ");
+            const minutesAgo = Math.max(
+              0,
+              Math.floor((Date.now() - new Date(o.created_at).getTime()) / 60_000)
+            );
+            const orderType =
+              o.order_type === "dine_in"
+                ? "Sur place"
+                : o.order_type === "takeaway"
+                  ? "À emporter"
+                  : "Commande";
+            return (
+              <div key={o.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5">
+                <span className="font-mono text-xs text-muted-foreground">
+                  #{o.display_order_number ?? o.order_number}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-semibold">{itemsLabel}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {orderType} · il y a {minutesAgo} min · {formatPrice(o.total_price)}
+                  </div>
+                </div>
+                <OrderStatusBadge status={o.status} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Best sellers table ─── */
+function BestSellersCard({
+  products,
+}: {
+  products: { name: string; qty: number; revenue: number }[];
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+        <Package className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Menu · Best-sellers</h3>
+      </div>
+      {products.length === 0 ? (
+        <div className="px-5 py-10 text-center text-xs text-muted-foreground">
+          Aucune vente sur cette période.
+        </div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/40">
+              <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">Produit</th>
+              <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">Vendus</th>
+              <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">CA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p.name} className="border-t border-border">
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-base">
+                      🍽️
+                    </div>
+                    <span className="font-medium">{p.name}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3 text-right font-mono text-[13px]">{p.qty}</td>
+                <td className="px-5 py-3 text-right font-mono text-[13px]">
+                  {formatPrice(p.revenue)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -95,6 +219,7 @@ function MetricCard({
 export default function DashboardPage() {
   const params = useParams<{ slug: string }>();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [liveOrders, setLiveOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -143,6 +268,38 @@ export default function DashboardPage() {
 
     fetchOrders();
   }, [params.slug, dateRange]);
+
+  // Live orders — independent of period filter, always current day
+  useEffect(() => {
+    const fetchLive = async () => {
+      const supabase = createClient();
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("slug", params.slug)
+        .single();
+      if (!restaurant) return;
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { data } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("restaurant_id", restaurant.id)
+        .gte("created_at", todayStart.toISOString())
+        .in("status", ["new", "preparing", "ready"])
+        .order("created_at", { ascending: false })
+        .limit(5)
+        .returns<Order[]>();
+
+      setLiveOrders(data || []);
+    };
+
+    fetchLive();
+    const interval = setInterval(fetchLive, 15_000);
+    return () => clearInterval(interval);
+  }, [params.slug]);
 
   const rangeDays = differenceInDays(dateRange.end, dateRange.start) + 1;
   const isMultiDay = rangeDays > 1;
@@ -315,8 +472,15 @@ export default function DashboardPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TypographyH2>Tableau de bord</TypographyH2>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-[26px] font-bold tracking-tight">
+              Bon service <span className="align-middle">👋</span>
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Voici l&apos;activité de votre restaurant, {format(new Date(), "EEEE d MMMM", { locale: fr })}.
+            </p>
+          </div>
 
           {/* ─── Date filter ─── */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -526,6 +690,12 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* ─── Live orders + Best sellers ─── */}
+        <div className="mb-6 grid gap-4 md:grid-cols-[1fr_360px]">
+          <BestSellersCard products={analysis?.topProducts ?? []} />
+          <LiveOrdersCard orders={liveOrders} />
         </div>
 
         {/* ─── Analyse IA ─── */}

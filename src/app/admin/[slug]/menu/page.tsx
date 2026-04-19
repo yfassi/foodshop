@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Switch } from "@/components/ui/switch";
@@ -315,6 +315,22 @@ export default function MenuManagementPage() {
   useEffect(() => {
     fetchMenu();
   }, [fetchMenu]);
+
+  // Auto-open new-product sheet when ?new=1 (e.g. from the topbar CTA)
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (loading || searchParams.get("new") !== "1" || categories.length === 0) return;
+    setEditingProduct(null);
+    setDefaultCategoryId(categories[0].id);
+    setSheetOpen(true);
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("new");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [loading, searchParams, categories, router, pathname]);
 
   // --- Shared sections ---
 
