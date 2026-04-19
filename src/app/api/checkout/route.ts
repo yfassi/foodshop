@@ -5,7 +5,13 @@ import { stripe } from "@/lib/stripe/client";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
 import { formatPrice } from "@/lib/format";
-import type { OrderItem, OrderItemModifier } from "@/lib/types";
+import { matchZone } from "@/lib/delivery";
+import type {
+  DeliveryAddress,
+  DeliveryConfig,
+  OrderItem,
+  OrderItemModifier,
+} from "@/lib/types";
 
 interface CheckoutItem {
   product_id: string;
@@ -18,12 +24,13 @@ interface CheckoutItem {
 interface CheckoutBody {
   restaurant_slug: string;
   items: CheckoutItem[];
-  order_type?: "dine_in" | "takeaway";
+  order_type?: "dine_in" | "takeaway" | "delivery";
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
   customer_name?: string;
   order_notes?: string;
   queue_session_id?: string;
+  delivery_address?: DeliveryAddress;
 }
 
 async function notifyAdmins(
@@ -78,6 +85,7 @@ export async function POST(request: Request) {
       customer_name,
       order_notes,
       queue_session_id,
+      delivery_address,
     } = body;
 
     // Validate input
@@ -108,7 +116,9 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled")
+      .select(
+        "id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
+      )
       .eq("slug", restaurant_slug)
       .single();
 
@@ -184,6 +194,58 @@ export async function POST(request: Request) {
     // Validate order type
     const restaurantOrderTypes: string[] = (restaurant.order_types as string[]) || ["dine_in", "takeaway"];
     const resolvedOrderType = order_type && restaurantOrderTypes.includes(order_type) ? order_type : restaurantOrderTypes[0];
+
+    // Delivery: validate address + recompute fee server-side
+    let deliveryFee = 0;
+    let deliveryZoneId: string | null = null;
+    let deliveryDistanceM: number | null = null;
+    let sanitizedDeliveryAddress: DeliveryAddress | null = null;
+
+    if (resolvedOrderType === "delivery") {
+      if (!restaurant.delivery_addon_active || !restaurant.delivery_enabled) {
+        return NextResponse.json(
+          { error: "Livraison non activée" },
+          { status: 400 }
+        );
+      }
+      if (
+        !delivery_address ||
+        typeof delivery_address.lat !== "number" ||
+        typeof delivery_address.lng !== "number"
+      ) {
+        return NextResponse.json(
+          { error: "Adresse de livraison manquante" },
+          { status: 400 }
+        );
+      }
+      const config = (restaurant.delivery_config || {}) as DeliveryConfig;
+      const match = matchZone(config, {
+        lat: delivery_address.lat,
+        lng: delivery_address.lng,
+      });
+      if (!match) {
+        return NextResponse.json(
+          { error: "Adresse hors zone de livraison" },
+          { status: 400 }
+        );
+      }
+      deliveryFee = match.zone.fee;
+      deliveryZoneId = match.zone.id;
+      deliveryDistanceM = match.distance_m;
+      sanitizedDeliveryAddress = {
+        lat: delivery_address.lat,
+        lng: delivery_address.lng,
+        formatted: String(delivery_address.formatted || ""),
+        street: delivery_address.street ? String(delivery_address.street) : undefined,
+        city: delivery_address.city ? String(delivery_address.city) : undefined,
+        postal_code: delivery_address.postal_code
+          ? String(delivery_address.postal_code)
+          : undefined,
+        floor_notes: delivery_address.floor_notes
+          ? String(delivery_address.floor_notes).slice(0, 300)
+          : undefined,
+      };
+    }
 
     // Get authenticated user if any
     let customerUserId: string | null = null;
@@ -349,6 +411,10 @@ export async function POST(request: Request) {
       });
     }
 
+    if (deliveryFee > 0) {
+      totalPrice += deliveryFee;
+    }
+
     // Build customer info
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
@@ -399,6 +465,13 @@ export async function POST(request: Request) {
           display_order_number: displayOrderNumber,
           paid: isFullWallet,
           wallet_amount_used: walletAmount,
+          ...(resolvedOrderType === "delivery" && {
+            delivery_status: "pending",
+            delivery_address: sanitizedDeliveryAddress,
+            delivery_fee: deliveryFee,
+            delivery_zone_id: deliveryZoneId,
+            delivery_distance_m: deliveryDistanceM,
+          }),
         })
         .select("id")
         .single();
@@ -514,6 +587,13 @@ export async function POST(request: Request) {
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),
         paid: false,
+        ...(resolvedOrderType === "delivery" && {
+          delivery_status: "pending",
+          delivery_address: sanitizedDeliveryAddress,
+          delivery_fee: deliveryFee,
+          delivery_zone_id: deliveryZoneId,
+          delivery_distance_m: deliveryDistanceM,
+        }),
       })
       .select("id")
       .single();
@@ -544,23 +624,39 @@ export async function POST(request: Request) {
     // If online payment, create Stripe Checkout Session
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    const stripeLineItems = orderItems.map((item) => ({
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
+          description:
+            item.modifiers.map((m) => m.modifier_name).join(", ") || undefined,
+        },
+        unit_amount:
+          item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
+      },
+      quantity: item.quantity,
+    }));
+
+    if (deliveryFee > 0) {
+      stripeLineItems.push({
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: "Frais de livraison",
+            description: undefined,
+          },
+          unit_amount: deliveryFee,
+        },
+        quantity: 1,
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
-      line_items: orderItems.map((item) => ({
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
-            description:
-              item.modifiers.map((m) => m.modifier_name).join(", ") ||
-              undefined,
-          },
-          unit_amount: item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
-        },
-        quantity: item.quantity,
-      })),
+      line_items: stripeLineItems,
       payment_intent_data: {
         transfer_data: {
           destination: restaurant.stripe_account_id!,

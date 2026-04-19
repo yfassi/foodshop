@@ -48,11 +48,21 @@ import {
   Wallet,
   Users,
   Download,
+  Bike,
+  Lock,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
-import type { Restaurant, LoyaltyTier, WalletTopupTier, OrderType } from "@/lib/types";
+import type {
+  Restaurant,
+  LoyaltyTier,
+  WalletTopupTier,
+  OrderType,
+  DeliveryConfig,
+  DeliveryCoords,
+  DeliveryZone,
+} from "@/lib/types";
 import {
   DAYS_FR,
   DAYS_FR_SHORT,
@@ -63,6 +73,9 @@ import { KitchenToggle } from "@/components/restaurant/kitchen-toggle";
 import { LoyaltyTierBuilder } from "@/components/admin/loyalty-tier-builder";
 import { TopupTierBuilder } from "@/components/admin/topup-tier-builder";
 import { QueueManager } from "@/components/admin/queue-manager";
+import { DeliveryZoneBuilder } from "@/components/admin/delivery-zone-builder";
+import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
+import { DriverManager } from "@/components/admin/driver-manager";
 import {
   Select,
   SelectContent,
@@ -71,7 +84,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "account";
+type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "delivery" | "account";
 
 interface StripePayment {
   id: string;
@@ -165,7 +178,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("restaurant");
+  const [activeTab, setActiveTab] = useState<Tab>("restaurant");
 
   // Restaurant form
   const [name, setName] = useState("");
@@ -177,7 +190,17 @@ export default function SettingsPage() {
   const [copyToDays, setCopyToDays] = useState<string[]>([]);
   const [orderTypeDineIn, setOrderTypeDineIn] = useState(true);
   const [orderTypeTakeaway, setOrderTypeTakeaway] = useState(true);
+  const [orderTypeDelivery, setOrderTypeDelivery] = useState(false);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(false);
+
+  // Delivery
+  const [deliveryAddonActive, setDeliveryAddonActive] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>("essentiel");
+  const [deliveryEnabled, setDeliveryEnabled] = useState(false);
+  const [deliveryCoords, setDeliveryCoords] = useState<DeliveryCoords | null>(null);
+  const [deliveryPrepTime, setDeliveryPrepTime] = useState<number>(20);
+  const [deliveryMaxRadius, setDeliveryMaxRadius] = useState<number>(5000);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -260,12 +283,22 @@ export default function SettingsPage() {
         const types: string[] = data.order_types || ["dine_in", "takeaway"];
         setOrderTypeDineIn(types.includes("dine_in"));
         setOrderTypeTakeaway(types.includes("takeaway"));
+        setOrderTypeDelivery(types.includes("delivery"));
         setLoyaltyEnabled(data.loyalty_enabled ?? false);
         setLoyaltyTiers(data.loyalty_tiers ?? []);
         setWalletTopupEnabled(data.wallet_topup_enabled ?? false);
         setWalletTopupTiers(data.wallet_topup_tiers ?? []);
         setQueueEnabled(data.queue_enabled ?? false);
         setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
+
+        setDeliveryAddonActive(data.delivery_addon_active ?? false);
+        setSubscriptionTier(data.subscription_tier ?? "essentiel");
+        setDeliveryEnabled(data.delivery_enabled ?? false);
+        const dc = (data.delivery_config || {}) as DeliveryConfig;
+        setDeliveryCoords(dc.coords ?? null);
+        setDeliveryPrepTime(dc.prep_time_minutes ?? 20);
+        setDeliveryMaxRadius(dc.max_radius_m ?? 5000);
+        setDeliveryZones(dc.zones ?? []);
       }
 
       setLoading(false);
@@ -363,11 +396,12 @@ export default function SettingsPage() {
   const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const walletTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveRestaurant = useCallback(async () => {
     if (!hasLoaded.current) return;
     if (!restaurant || !name.trim()) return;
-    if (!orderTypeDineIn && !orderTypeTakeaway) return;
+    if (!orderTypeDineIn && !orderTypeTakeaway && !orderTypeDelivery) return;
 
     const supabase = createClient();
     const openingHours: Record<string, TimeRange[]> = {};
@@ -379,6 +413,7 @@ export default function SettingsPage() {
     const orderTypes: OrderType[] = [];
     if (orderTypeDineIn) orderTypes.push("dine_in");
     if (orderTypeTakeaway) orderTypes.push("takeaway");
+    if (orderTypeDelivery && deliveryAddonActive) orderTypes.push("delivery");
 
     const { error } = await supabase
       .from("restaurants")
@@ -397,7 +432,7 @@ export default function SettingsPage() {
     } else {
       toast.success("Enregistré");
     }
-  }, [restaurant, name, address, phone, description, hours, orderTypeDineIn, orderTypeTakeaway]);
+  }, [restaurant, name, address, phone, description, hours, orderTypeDineIn, orderTypeTakeaway, orderTypeDelivery, deliveryAddonActive]);
 
   const autoSavePaymentMethods = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -516,6 +551,50 @@ export default function SettingsPage() {
     queueTimerRef.current = setTimeout(autoSaveQueue, 800);
     return () => { if (queueTimerRef.current) clearTimeout(queueTimerRef.current); };
   }, [autoSaveQueue]);
+
+  const autoSaveDelivery = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    if (!deliveryAddonActive) return;
+
+    const payload = {
+      restaurant_slug: restaurant.slug,
+      delivery_enabled: deliveryEnabled,
+      delivery_config: {
+        coords: deliveryCoords,
+        prep_time_minutes: deliveryPrepTime,
+        max_radius_m: deliveryMaxRadius,
+        zones: deliveryZones,
+      },
+    };
+
+    const res = await fetch("/api/admin/delivery-config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [
+    restaurant,
+    deliveryAddonActive,
+    deliveryEnabled,
+    deliveryCoords,
+    deliveryPrepTime,
+    deliveryMaxRadius,
+    deliveryZones,
+  ]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (deliveryTimerRef.current) clearTimeout(deliveryTimerRef.current);
+    deliveryTimerRef.current = setTimeout(autoSaveDelivery, 800);
+    return () => { if (deliveryTimerRef.current) clearTimeout(deliveryTimerRef.current); };
+  }, [autoSaveDelivery]);
 
   // --- Account ---
 
@@ -724,13 +803,14 @@ export default function SettingsPage() {
         </div>
 
         {/* ─── Tabs ─── */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
           <TabsList className="mb-6 w-full" variant="line">
             <TabsTrigger value="restaurant"><Store className="h-3.5 w-3.5" /><span className="hidden sm:inline">Établissement</span></TabsTrigger>
             <TabsTrigger value="payment"><CreditCard className="h-3.5 w-3.5" /><span className="hidden sm:inline">Paiement</span></TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="h-3.5 w-3.5" /><span className="hidden sm:inline">Fidélité</span></TabsTrigger>
             <TabsTrigger value="wallet"><Wallet className="h-3.5 w-3.5" /><span className="hidden sm:inline">Solde</span></TabsTrigger>
             <TabsTrigger value="queue"><Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">File</span></TabsTrigger>
+            <TabsTrigger value="delivery"><Bike className="h-3.5 w-3.5" /><span className="hidden sm:inline">Livraison</span></TabsTrigger>
             <TabsTrigger value="account"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Compte</span></TabsTrigger>
           </TabsList>
 
@@ -1230,6 +1310,162 @@ export default function SettingsPage() {
                       <QueueManagerSection slug={params.slug} restaurantId={restaurant.id} />
                     </CardContent>
                   </Card>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ Tab: Livraison ═══ */}
+          <TabsContent value="delivery">
+            <div className="space-y-4">
+              {!deliveryAddonActive ? (
+                <Card size="sm" className="border-dashed">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">
+                          Module Livraison — 19 €/mois
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Ajoutez la livraison à domicile à votre offre
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {subscriptionTier === "essentiel" ? (
+                        <>
+                          Passez à <strong>Pro</strong> ou{" "}
+                          <strong>Business</strong> puis activez le module
+                          Livraison pour gérer zones, frais et livreurs.
+                        </>
+                      ) : (
+                        <>
+                          Contactez le support pour activer le module Livraison
+                          sur votre abonnement.
+                        </>
+                      )}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <Card size="sm">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Bike className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-sm">
+                            Activer la livraison
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Propose « Livraison » aux clients dans le checkout
+                          </CardDescription>
+                        </div>
+                        <CardAction>
+                          <Switch
+                            checked={deliveryEnabled}
+                            onCheckedChange={setDeliveryEnabled}
+                          />
+                        </CardAction>
+                      </div>
+                    </CardHeader>
+                  </Card>
+
+                  {deliveryEnabled && (
+                    <>
+                      <Card size="sm">
+                        <CardHeader>
+                          <CardTitle className="text-sm">
+                            Position & paramètres
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Déposez le pin sur votre restaurant
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <DeliveryMapPicker
+                            value={deliveryCoords}
+                            defaultAddress={address}
+                            onChange={setDeliveryCoords}
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">
+                                Temps de préparation (min)
+                              </Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={5}
+                                value={deliveryPrepTime}
+                                onChange={(e) =>
+                                  setDeliveryPrepTime(
+                                    Math.max(0, parseInt(e.target.value) || 0)
+                                  )
+                                }
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">
+                                Rayon maximum (km)
+                              </Label>
+                              <Input
+                                type="number"
+                                min={0.5}
+                                step={0.5}
+                                value={
+                                  deliveryMaxRadius
+                                    ? deliveryMaxRadius / 1000
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const km = parseFloat(e.target.value) || 0;
+                                  setDeliveryMaxRadius(Math.round(km * 1000));
+                                }}
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card size="sm">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Zones</CardTitle>
+                          <CardDescription className="text-xs">
+                            Cercles concentriques triés par rayon. Le client
+                            paie le tarif de la zone la plus proche.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <DeliveryZoneBuilder
+                            zones={deliveryZones}
+                            onChange={setDeliveryZones}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      <Card size="sm">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Livreurs</CardTitle>
+                          <CardDescription className="text-xs">
+                            Invitez des livreurs — ils se connectent par SMS
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <DriverManager slug={params.slug} />
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
                 </>
               )}
             </div>

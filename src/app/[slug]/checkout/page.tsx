@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentlyOpen } from "@/lib/constants";
-import type { AcceptedPaymentMethod, CustomerProfile, OrderType, CategoryWithProducts, Category, Product, Modifier } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, DeliveryConfig, OrderType, CategoryWithProducts, Category, Product, Modifier } from "@/lib/types";
 import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [orderTypes, setOrderTypes] = useState<OrderType[]>(["dine_in", "takeaway"]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [restaurantCoords, setRestaurantCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,8 +52,19 @@ export default function CheckoutPage() {
         const methods = (restaurant.accepted_payment_methods as string[]) || ["on_site"];
         setAcceptedMethods(methods as AcceptedPaymentMethod[]);
         const types = (restaurant.order_types as string[]) || ["dine_in", "takeaway"];
-        setOrderTypes(types as OrderType[]);
+        const filteredTypes =
+          restaurant.delivery_addon_active && restaurant.delivery_enabled
+            ? types
+            : types.filter((t) => t !== "delivery");
+        setOrderTypes(filteredTypes as OrderType[]);
         setLoyaltyEnabled(restaurant.loyalty_enabled === true);
+        const deliveryConfig = (restaurant.delivery_config || {}) as DeliveryConfig;
+        if (deliveryConfig.coords) {
+          setRestaurantCoords({
+            lat: deliveryConfig.coords.lat,
+            lng: deliveryConfig.coords.lng,
+          });
+        }
 
         // Fetch categories for suggestions
         const { data: cats } = await supabase
@@ -153,6 +165,7 @@ export default function CheckoutPage() {
           customerProfile={customerProfile}
           walletBalance={walletBalance}
           loyaltyEnabled={loyaltyEnabled}
+          restaurantCoords={restaurantCoords}
         />
       </div>
     </div>

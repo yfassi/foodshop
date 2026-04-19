@@ -23,7 +23,7 @@ export default async function AdminLayout({
   if (isDemo) {
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
       .eq("slug", slug)
       .single();
 
@@ -39,7 +39,7 @@ export default async function AdminLayout({
 
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
       .eq("slug", slug)
       .eq("owner_id", user.id)
       .single();
@@ -57,6 +57,9 @@ export default async function AdminLayout({
       userEmail={userEmail}
       openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       isAcceptingOrders={restaurant.is_accepting_orders}
+      deliveryEnabled={
+        restaurant.delivery_enabled && restaurant.delivery_addon_active
+      }
     >
       {children}
     </AdminShell>

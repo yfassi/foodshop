@@ -15,6 +15,7 @@ import {
 import {
   UtensilsCrossed,
   ShoppingBag,
+  Bike,
   Gift,
   LogIn,
   UserPlus,
@@ -35,6 +36,11 @@ const ORDER_TYPE_CONFIG: Record<
     label: "À emporter",
     description: "Récupérez votre commande",
     icon: ShoppingBag,
+  },
+  delivery: {
+    label: "Livraison",
+    description: "Livré à votre adresse",
+    icon: Bike,
   },
 };
 
