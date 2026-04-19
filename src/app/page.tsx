@@ -33,6 +33,7 @@ const PLANS = [
       { text: "Support email", included: true },
       { text: "Programme fidélité", included: false },
       { text: "Modificateurs partagés", included: false },
+      { text: "Module Livraison compatible", included: false },
     ],
   },
   {
@@ -51,6 +52,7 @@ const PLANS = [
       { text: "Programme fidélité", included: true },
       { text: "Modificateurs partagés", included: true },
       { text: "Support prioritaire", included: true },
+      { text: "Module Livraison (+19€/mois)", included: true },
     ],
   },
   {
@@ -65,6 +67,7 @@ const PLANS = [
       { text: "Export de données", included: true },
       { text: "Personnalisation avancée", included: true },
       { text: "Support dédié", included: true },
+      { text: "Module Livraison (+19€/mois)", included: true },
     ],
   },
 ];
@@ -174,6 +177,11 @@ const FAQ_ITEMS = [
     question: "Comment fonctionne le programme de fidélité ?",
     answer:
       "Disponible à partir du plan Pro, il permet à vos clients de cumuler des points à chaque commande et de débloquer des récompenses que vous définissez. Tout est automatique.",
+  },
+  {
+    question: "Comment fonctionne le module Livraison ?",
+    answer:
+      "Disponible en option à +19€/mois sur les plans Pro et Business. Vous configurez vos zones de livraison (rayons et frais), invitez vos livreurs (authentification par SMS), et vos clients peuvent commander en livraison à domicile avec sélection d'adresse sur carte. Vos livreurs suivent les courses depuis leur téléphone, vos clients suivent la livraison en temps réel.",
   },
 ];
 
@@ -564,6 +572,71 @@ export default function Home() {
                 * Hors frais Stripe (~1,5% + 0,25€ par transaction).
               </span>
             </p>
+
+            {/* Add-ons */}
+            <div className="mt-16">
+              <h3 className="font-space text-xl sm:text-2xl font-bold uppercase text-center tracking-wider text-landing-fg">
+                MODULES COMPLÉMENTAIRES
+              </h3>
+              <p className="mt-2 text-center text-sm text-landing-muted" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                Activez des fonctionnalités à la demande
+              </p>
+
+              <div className="mt-8 mx-auto max-w-md">
+                <div className="bg-landing-ticket p-6 sm:p-7 shadow-md">
+                  <div className="flex items-center justify-between">
+                    <span className="font-space text-[10px] font-bold uppercase tracking-widest text-[var(--landing-primary)]">
+                      ADD-ON
+                    </span>
+                    <span className="font-caveat text-base text-[var(--landing-primary)]" style={{ transform: "rotate(-2deg)" }}>
+                      nouveau !
+                    </span>
+                  </div>
+                  <h4 className="mt-3 font-space text-xl font-bold uppercase tracking-wide text-[var(--landing-ticket-fg)]">
+                    Module Livraison
+                  </h4>
+                  <p className="mt-1 text-sm text-[var(--landing-ticket-fg)] opacity-70" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                    Ajoutez la livraison à domicile à votre offre
+                  </p>
+
+                  <div className="my-4 border-t border-dashed border-black/15" />
+
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-space text-3xl font-bold text-[var(--landing-primary)]">+19€</span>
+                    <span className="text-sm text-[var(--landing-ticket-fg)] opacity-60" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                      /mois
+                    </span>
+                  </div>
+
+                  <div className="my-4 border-t border-dashed border-black/15" />
+
+                  <ul className="space-y-2 text-sm text-[var(--landing-ticket-fg)]" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                    <li className="flex items-start gap-2">
+                      <span className="shrink-0 mt-0.5 text-[var(--landing-primary)] font-bold">✓</span>
+                      <span>Zones de livraison personnalisées (rayon + frais)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="shrink-0 mt-0.5 text-[var(--landing-primary)] font-bold">✓</span>
+                      <span>Espace livreur mobile avec auth SMS</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="shrink-0 mt-0.5 text-[var(--landing-primary)] font-bold">✓</span>
+                      <span>Sélection d&apos;adresse par carte interactive</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="shrink-0 mt-0.5 text-[var(--landing-primary)] font-bold">✓</span>
+                      <span>Suivi livraison en temps réel pour le client</span>
+                    </li>
+                  </ul>
+
+                  <div className="my-4 border-t border-dashed border-black/15" />
+
+                  <p className="text-center text-xs text-[var(--landing-ticket-fg)] opacity-60" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+                    Disponible sur les plans <span className="font-semibold">Pro</span> et <span className="font-semibold">Business</span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

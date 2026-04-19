@@ -8,6 +8,7 @@ import {
   Settings,
   Users,
   BarChart3,
+  Bike,
   Clock,
   PanelLeftClose,
   PanelLeft,
@@ -27,13 +28,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { icon: ClipboardList, label: "Commandes", href: "" },
   { icon: UtensilsCrossed, label: "Articles", href: "/menu" },
   { icon: BarChart3, label: "Tableau de bord", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
   { icon: Settings, label: "Réglages", href: "/settings" },
 ];
+
+const DELIVERY_NAV_ITEM = {
+  icon: Bike,
+  label: "Livraison",
+  href: "/delivery",
+};
 
 export function AdminShell({
   slug,
@@ -43,6 +50,7 @@ export function AdminShell({
   userEmail,
   openingHours,
   isAcceptingOrders,
+  deliveryEnabled,
   children,
 }: {
   slug: string;
@@ -52,11 +60,15 @@ export function AdminShell({
   userEmail: string;
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
+  deliveryEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const qs = isDemo ? "?demo=true" : "";
+  const NAV_ITEMS = deliveryEnabled
+    ? [...BASE_NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...BASE_NAV_ITEMS.slice(4)]
+    : BASE_NAV_ITEMS;
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 

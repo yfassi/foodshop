@@ -2,7 +2,12 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CartItem, CartItemModifier, OrderType } from "@/lib/types";
+import type {
+  CartItem,
+  CartItemModifier,
+  DeliveryAddress,
+  OrderType,
+} from "@/lib/types";
 
 function computeLineTotal(
   basePrice: number,
@@ -32,6 +37,19 @@ interface CartState {
   updateQuantity: (cartItemId: string, quantity: number) => void;
   orderType: OrderType | null;
   setOrderType: (type: OrderType) => void;
+  deliveryAddress: DeliveryAddress | null;
+  deliveryFee: number;
+  deliveryZoneId: string | null;
+  deliveryMinOrder: number;
+  deliveryDistanceM: number | null;
+  setDelivery: (info: {
+    address: DeliveryAddress | null;
+    fee: number;
+    zoneId: string | null;
+    minOrder: number;
+    distanceM: number | null;
+  }) => void;
+  clearDelivery: () => void;
   clearCart: () => void;
   setRestaurantSlug: (slug: string) => void;
   totalPrice: () => number;
@@ -45,6 +63,11 @@ export const useCartStore = create<CartState>()(
       restaurantSlug: null,
       lastAddedAt: 0,
       orderType: null,
+      deliveryAddress: null,
+      deliveryFee: 0,
+      deliveryZoneId: null,
+      deliveryMinOrder: 0,
+      deliveryDistanceM: null,
 
       addItem: (item) => {
         const lineTotal = computeLineTotal(
@@ -90,15 +113,61 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
-      setOrderType: (type) => set({ orderType: type }),
+      setOrderType: (type) =>
+        set((state) => ({
+          orderType: type,
+          ...(type !== "delivery" && {
+            deliveryAddress: null,
+            deliveryFee: 0,
+            deliveryZoneId: null,
+            deliveryMinOrder: 0,
+            deliveryDistanceM: null,
+          }),
+          ...(type === "delivery" && state.orderType !== "delivery" && {}),
+        })),
 
-      clearCart: () => set({ items: [] }),
+      setDelivery: ({ address, fee, zoneId, minOrder, distanceM }) =>
+        set({
+          deliveryAddress: address,
+          deliveryFee: fee,
+          deliveryZoneId: zoneId,
+          deliveryMinOrder: minOrder,
+          deliveryDistanceM: distanceM,
+        }),
+
+      clearDelivery: () =>
+        set({
+          deliveryAddress: null,
+          deliveryFee: 0,
+          deliveryZoneId: null,
+          deliveryMinOrder: 0,
+          deliveryDistanceM: null,
+        }),
+
+      clearCart: () =>
+        set({
+          items: [],
+          deliveryAddress: null,
+          deliveryFee: 0,
+          deliveryZoneId: null,
+          deliveryMinOrder: 0,
+          deliveryDistanceM: null,
+        }),
 
       setRestaurantSlug: (slug) => {
         const current = get().restaurantSlug;
         if (current && current !== slug) {
           // Different restaurant, clear cart and order type
-          set({ items: [], restaurantSlug: slug, orderType: null });
+          set({
+            items: [],
+            restaurantSlug: slug,
+            orderType: null,
+            deliveryAddress: null,
+            deliveryFee: 0,
+            deliveryZoneId: null,
+            deliveryMinOrder: 0,
+            deliveryDistanceM: null,
+          });
         } else {
           set({ restaurantSlug: slug });
         }

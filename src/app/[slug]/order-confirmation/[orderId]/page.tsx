@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
-import type { Order } from "@/lib/types";
+import type { Order, Driver } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
 import { CheckCircle, UserPlus, ShoppingBag, MessageSquare } from "lucide-react";
@@ -53,7 +53,19 @@ export default async function OrderConfirmationPage({
   const orderTypeLabel =
     order.order_type === "dine_in" ? "Sur place" :
     order.order_type === "takeaway" ? "À emporter" :
+    order.order_type === "delivery" ? "Livraison" :
     null;
+
+  let driver: Driver | null = null;
+  if (order.order_type === "delivery" && order.driver_id) {
+    const adminSupabase = createAdminClient();
+    const { data: d } = await adminSupabase
+      .from("drivers")
+      .select("*")
+      .eq("id", order.driver_id)
+      .single<Driver>();
+    if (d) driver = d;
+  }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 md:px-6">
@@ -99,7 +111,13 @@ export default async function OrderConfirmationPage({
       </div>
 
       {/* Realtime status tracker */}
-      <OrderStatusTracker orderId={order.id} initialStatus={order.status} />
+      <OrderStatusTracker
+        orderId={order.id}
+        initialStatus={order.status}
+        orderType={order.order_type ?? undefined}
+        initialDeliveryStatus={order.delivery_status ?? null}
+        initialDriver={driver}
+      />
 
       {/* Order summary */}
       <div className="mt-4 rounded-xl border border-border bg-card p-4">

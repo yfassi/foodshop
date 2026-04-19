@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Gift, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, type LucideIcon } from "lucide-react";
+import { DeliveryAddressPicker } from "./delivery-address-picker";
 
 const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
   dine_in: { label: "Sur place", icon: UtensilsCrossed },
   takeaway: { label: "À emporter", icon: ShoppingBag },
+  delivery: { label: "Livraison", icon: Bike },
 };
 
 type PaymentMethod = "online" | "on_site";
@@ -25,6 +27,7 @@ export function CheckoutForm({
   customerProfile,
   walletBalance,
   loyaltyEnabled,
+  restaurantCoords,
 }: {
   slug: string;
   stripeConnected: boolean;
@@ -33,11 +36,16 @@ export function CheckoutForm({
   customerProfile: CustomerProfile | null;
   walletBalance: number;
   loyaltyEnabled?: boolean;
+  restaurantCoords?: { lat: number; lng: number } | null;
 }) {
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
   const storedOrderType = useCartStore((s) => s.orderType);
+  const setStoredOrderType = useCartStore((s) => s.setOrderType);
+  const deliveryAddress = useCartStore((s) => s.deliveryAddress);
+  const deliveryFee = useCartStore((s) => s.deliveryFee);
+  const deliveryMinOrder = useCartStore((s) => s.deliveryMinOrder);
 
   const showOnSite = acceptedPaymentMethods.includes("on_site");
   const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
@@ -65,6 +73,19 @@ export function CheckoutForm({
     e.preventDefault();
     if (loading) return;
 
+    if (orderType === "delivery") {
+      if (!deliveryAddress) {
+        toast.error("Veuillez renseigner une adresse de livraison");
+        return;
+      }
+      if (deliveryMinOrder > 0 && totalPrice() < deliveryMinOrder) {
+        toast.error(
+          `Minimum de commande pour cette zone : ${formatPrice(deliveryMinOrder)}`
+        );
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -87,6 +108,9 @@ export function CheckoutForm({
           payment_method: paymentMethod,
           payment_source: paymentSource,
           queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
+          ...(orderType === "delivery" && deliveryAddress
+            ? { delivery_address: deliveryAddress }
+            : {}),
         }),
       });
 
@@ -111,10 +135,16 @@ export function CheckoutForm({
     }
   };
 
-  const total = totalPrice();
+  const itemsTotal = totalPrice();
+  const applicableDeliveryFee = orderType === "delivery" ? deliveryFee : 0;
+  const total = itemsTotal + applicableDeliveryFee;
   const isWalletSelected = paymentSource === "wallet";
   const walletCoversAll = walletBalance >= total;
   const remainder = total - walletBalance;
+  const deliveryBlocked =
+    orderType === "delivery" &&
+    (!deliveryAddress ||
+      (deliveryMinOrder > 0 && itemsTotal < deliveryMinOrder));
 
   const buttonLabel = loading
     ? null
@@ -147,9 +177,17 @@ export function CheckoutForm({
             <span className="font-semibold">{formatPrice(item.line_total)}</span>
           </div>
         ))}
+        {orderType === "delivery" && applicableDeliveryFee > 0 && (
+          <div className="mt-2 flex justify-between py-1 text-sm text-muted-foreground">
+            <span>Frais de livraison</span>
+            <span className="font-semibold text-foreground">
+              {formatPrice(applicableDeliveryFee)}
+            </span>
+          </div>
+        )}
         <div className="mt-3 flex justify-between border-t border-border/50 pt-3">
           <span className="font-semibold">Total</span>
-          <span className="text-lg font-bold text-primary">{formatPrice(totalPrice())}</span>
+          <span className="text-lg font-bold text-primary">{formatPrice(total)}</span>
         </div>
       </div>
 
@@ -159,7 +197,11 @@ export function CheckoutForm({
           <Label className="mb-2.5 block text-sm font-medium">
             Type de commande
           </Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div
+            className={`grid gap-2 ${
+              orderTypes.length === 3 ? "grid-cols-3" : "grid-cols-2"
+            }`}
+          >
             {orderTypes.map((type) => {
               const config = ORDER_TYPE_CONFIG[type];
               if (!config) return null;
@@ -168,7 +210,10 @@ export function CheckoutForm({
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setOrderType(type)}
+                  onClick={() => {
+                    setOrderType(type);
+                    setStoredOrderType(type);
+                  }}
                   className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                     orderType === type
                       ? "border-primary bg-primary/5 text-foreground"
@@ -182,6 +227,21 @@ export function CheckoutForm({
             })}
           </div>
         </div>
+      )}
+
+      {orderType === "delivery" && (
+        <DeliveryAddressPicker
+          slug={slug}
+          restaurantCoords={restaurantCoords}
+        />
+      )}
+
+      {deliveryBlocked && deliveryAddress && deliveryMinOrder > 0 && itemsTotal < deliveryMinOrder && (
+        <p className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+          Minimum de commande pour cette zone :{" "}
+          <span className="font-semibold">{formatPrice(deliveryMinOrder)}</span>.
+          Ajoutez {formatPrice(deliveryMinOrder - itemsTotal)} pour valider.
+        </p>
       )}
 
       {/* Payment method */}
@@ -274,7 +334,7 @@ export function CheckoutForm({
       {/* Submit */}
       <Button
         type="submit"
-        disabled={loading}
+        disabled={loading || deliveryBlocked}
         className="h-14 w-full rounded-xl text-base font-bold"
         size="lg"
       >

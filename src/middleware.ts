@@ -60,6 +60,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Protect driver routes (except login)
+  if (
+    request.nextUrl.pathname.startsWith("/driver") &&
+    !request.nextUrl.pathname.startsWith("/driver/login")
+  ) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/driver/login";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Forward the full URL so server components can read query params
   supabaseResponse.headers.set("x-url", request.url);
 

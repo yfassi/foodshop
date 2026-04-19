@@ -2,7 +2,59 @@
 
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
-export type OrderType = "dine_in" | "takeaway";
+export type OrderType = "dine_in" | "takeaway" | "delivery";
+export type SubscriptionTier = "essentiel" | "pro" | "business";
+
+export type DeliveryStatus =
+  | "pending"
+  | "assigned"
+  | "picked_up"
+  | "delivered"
+  | "failed";
+
+export interface DeliveryZone {
+  id: string;
+  label: string;
+  radius_m: number;   // rayon externe en mètres depuis les coords du resto
+  fee: number;        // centimes
+  min_order: number;  // centimes, 0 = pas de minimum
+}
+
+export interface DeliveryCoords {
+  lat: number;
+  lng: number;
+}
+
+export interface DeliveryConfig {
+  coords?: DeliveryCoords;
+  prep_time_minutes?: number;
+  max_radius_m?: number;
+  zones?: DeliveryZone[];
+}
+
+export interface DeliveryAddress {
+  lat: number;
+  lng: number;
+  formatted: string;
+  street?: string;
+  city?: string;
+  postal_code?: string;
+  floor_notes?: string;
+}
+
+export interface Driver {
+  id: string;
+  user_id: string | null;
+  restaurant_id: string;
+  full_name: string;
+  phone: string;
+  is_active: boolean;
+  vehicle: string | null;
+  invited_at: string;
+  first_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface LoyaltyTier {
   id: string;
@@ -49,6 +101,10 @@ export interface Restaurant {
   queue_max_concurrent: number;
   verification_status: VerificationStatus;
   verification_document_url: string | null;
+  subscription_tier: SubscriptionTier;
+  delivery_addon_active: boolean;
+  delivery_enabled: boolean;
+  delivery_config: DeliveryConfig;
   created_at: string;
   updated_at: string;
 }
@@ -162,6 +218,16 @@ export interface Order {
   stripe_session_id: string | null;
   stripe_payment_intent_id: string | null;
   paid: boolean;
+  delivery_status: DeliveryStatus | null;
+  delivery_address: DeliveryAddress | null;
+  delivery_fee: number | null;
+  delivery_zone_id: string | null;
+  driver_id: string | null;
+  assigned_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  delivery_tip: number;
+  delivery_distance_m: number | null;
   created_at: string;
   updated_at: string;
 }

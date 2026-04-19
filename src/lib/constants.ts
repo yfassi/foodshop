@@ -1,4 +1,4 @@
-import type { OrderStatus } from "./types";
+import type { DeliveryStatus, OrderStatus, OrderType } from "./types";
 
 export const ORDER_STATUS_CONFIG: Record<
   OrderStatus,
@@ -35,6 +35,43 @@ export const ORDER_STATUS_CONFIG: Record<
     color: "text-gray-500",
     bgClass: "bg-gray-50 border border-gray-200",
   },
+};
+
+export const DELIVERY_STATUS_CONFIG: Record<
+  DeliveryStatus,
+  { label: string; color: string; bgClass: string }
+> = {
+  pending: {
+    label: "À assigner",
+    color: "text-orange-700",
+    bgClass: "bg-orange-50 border border-orange-200",
+  },
+  assigned: {
+    label: "Livreur assigné",
+    color: "text-blue-700",
+    bgClass: "bg-blue-50 border border-blue-200",
+  },
+  picked_up: {
+    label: "En route",
+    color: "text-amber-700",
+    bgClass: "bg-amber-50 border border-amber-200",
+  },
+  delivered: {
+    label: "Livrée",
+    color: "text-green-700",
+    bgClass: "bg-green-50 border border-green-200",
+  },
+  failed: {
+    label: "Échec",
+    color: "text-red-700",
+    bgClass: "bg-red-50 border border-red-200",
+  },
+};
+
+export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+  dine_in: "Sur place",
+  takeaway: "À emporter",
+  delivery: "Livraison",
 };
 
 /** Normalize opening_hours entry: handles both old {open,close} and new [{open,close}] formats */
