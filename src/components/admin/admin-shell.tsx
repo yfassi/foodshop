@@ -13,6 +13,7 @@ import {
   PanelLeft,
   LogOut,
   ChevronsUpDown,
+  Plus,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -26,14 +27,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 
-const NAV_ITEMS = [
+const NAV_RESTAURANT = [
+  { icon: BarChart3, label: "Tableau de bord", href: "/dashboard" },
   { icon: ClipboardList, label: "Commandes", href: "" },
   { icon: UtensilsCrossed, label: "Articles", href: "/menu" },
-  { icon: BarChart3, label: "Tableau de bord", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
+];
+
+const NAV_GESTION = [
   { icon: Settings, label: "Réglages", href: "/settings" },
 ];
+
+const NAV_ITEMS = [...NAV_RESTAURANT, ...NAV_GESTION];
 
 export function AdminShell({
   slug,
@@ -136,25 +143,58 @@ export function AdminShell({
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 space-y-1 p-3">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={`/admin/${slug}${item.href}${qs}`}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 p-2">
+            {!collapsed && (
+              <div className="px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-sidebar-foreground/45">
+                Restaurant
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {NAV_RESTAURANT.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={`/admin/${slug}${item.href}${qs}`}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0 opacity-80" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {!collapsed && (
+              <div className="px-3 pt-5 pb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-sidebar-foreground/45">
+                Gestion
+              </div>
+            )}
+            <div className={cn("space-y-0.5", collapsed && "mt-2")}>
+              {NAV_GESTION.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={`/admin/${slug}${item.href}${qs}`}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0 opacity-80" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
           {/* Bottom section: status + profile */}
@@ -229,6 +269,19 @@ export function AdminShell({
 
         {/* Main content */}
         <div className="flex-1 overflow-auto" role="region" aria-label="Contenu principal">
+          <AdminTopbar
+            hasUnread
+            cta={
+              pathname.includes("/menu") ? (
+                <Link href={`/admin/${slug}/menu?new=1${isDemo ? "&demo=true" : ""}`}>
+                  <Button size="sm" className="h-[34px] gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    Nouveau produit
+                  </Button>
+                </Link>
+              ) : null
+            }
+          />
           <div className="mx-auto max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-8">
             {children}
           </div>
