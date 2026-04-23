@@ -56,7 +56,8 @@ export default function CustomerLoginPage() {
     });
 
     if (error) {
-      toast.error("Erreur lors de l'envoi du lien");
+      console.error("Password reset error:", error);
+      toast.error(`Erreur lors de l'envoi du lien : ${error.message}`);
     } else {
       setResetSent(true);
       toast.success("Lien de réinitialisation envoyé par email");
