@@ -58,12 +58,15 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     const supabase = createClient();
+    const siteUrl =
+      process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/reset-password`,
+      redirectTo: `${siteUrl}/admin/reset-password`,
     });
 
     if (error) {
-      toast.error("Erreur lors de l'envoi du lien");
+      console.error("[reset-password]", error);
+      toast.error(`Erreur lors de l'envoi du lien : ${error.message}`);
     } else {
       setResetSent(true);
       toast.success("Lien de réinitialisation envoyé par email");
