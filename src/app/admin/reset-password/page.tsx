@@ -19,16 +19,15 @@ export default function AdminResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setReady(true);
-        }
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setReady(true);
+      } else {
+        toast.error("Lien invalide ou expiré");
+        router.push("/admin/login");
       }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+    });
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
