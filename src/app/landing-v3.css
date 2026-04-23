@@ -21,6 +21,7 @@
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv02", "cv03", "cv11", "ss01";
   line-height: 1.5;
+  overflow-x: clip;
 }
 
 .landing-v3 a:not([class*="lv3-btn"]) { color: inherit; }
@@ -658,6 +659,7 @@
   display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); flex-wrap: wrap; gap: 12px;
 }
 
+/* Tablet (≤900px) */
 @media (max-width: 900px) {
   .lv3-nav-links { display: none; }
   .lv3-hero { padding: 56px 0 24px; }
@@ -681,4 +683,122 @@
   .lv3-block { padding: 80px 0; }
   .lv3-client-app { padding: 80px 0; }
   .lv3-close { padding: 80px 0; }
+}
+
+/* Phone (≤640px) */
+@media (max-width: 640px) {
+  .lv3-wrap { padding: 0 20px; }
+
+  /* NAV */
+  .lv3-nav-inner { gap: 14px; padding: 12px 0; }
+  .lv3-brand { font-size: 20px; }
+  .lv3-nav-login { display: none; }
+  .lv3-nav-cta .lv3-btn { padding: 8px 12px; font-size: 13px; }
+
+  /* HERO */
+  .lv3-hero { padding: 40px 0 16px; }
+  .lv3-pill { margin-bottom: 20px; font-size: 11px; }
+  .lv3-hero h1 {
+    font-size: clamp(34px, 9vw, 44px);
+    letter-spacing: -0.03em;
+    margin: 0 0 16px;
+  }
+  .lv3-hero p { font-size: 16px; margin: 0 auto 24px; }
+  .lv3-hero-ctas { flex-direction: column; gap: 10px; width: 100%; }
+  .lv3-hero-ctas .lv3-btn { width: 100%; justify-content: center; }
+  .lv3-btn-lg { padding: 12px 20px; font-size: 14px; }
+  .lv3-hero-note { font-size: 12px; padding: 0 8px; text-align: center; line-height: 1.5; }
+
+  /* PRODUCT SHOT */
+  .lv3-product-stage { margin-top: 32px; padding: 0 12px; }
+  .lv3-product-bg { padding: 28px 12px 0; min-height: 420px; border-radius: 18px; }
+  .lv3-phone { width: 240px; border-radius: 32px; }
+  .lv3-phone-screen { height: 480px; border-radius: 24px; }
+
+  /* LOGOS */
+  .lv3-logos-section { padding: 40px 0 12px; }
+  .lv3-logos-row { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .lv3-logos-row span { font-size: 15px; }
+
+  /* METRICS */
+  .lv3-metrics { padding: 56px 0; margin-top: 40px; }
+  .lv3-metrics-grid { gap: 32px; }
+  .lv3-metric .v { font-size: 56px; }
+  .lv3-metric .v .unit { font-size: 22px; }
+  .lv3-metric .l { font-size: 14px; }
+
+  /* SECTION HEADERS */
+  .lv3-block { padding: 64px 0; }
+  .lv3-sec-h { margin-bottom: 48px; }
+  .lv3-sec-h h2 { font-size: clamp(28px, 7.5vw, 36px); }
+  .lv3-sec-h p { font-size: 16px; }
+
+  /* VS BORNE */
+  .lv3-vs-col { padding: 24px; }
+  .lv3-vs-hdr { gap: 12px; padding-bottom: 16px; margin-bottom: 16px; }
+  .lv3-vs-t { font-size: 18px; }
+  .lv3-vs-ul li { font-size: 14px; }
+  .lv3-vs-who { margin-top: 40px; }
+
+  /* FEATURES ALTERNATING */
+  .lv3-f-row { gap: 24px; margin-bottom: 56px; }
+  .lv3-f-copy h3 { font-size: 28px; }
+  .lv3-f-copy p { font-size: 16px; }
+  .lv3-f-copy ul li { font-size: 14px; }
+  .lv3-f-visual { padding: 24px; min-height: auto; border-radius: 16px; }
+
+  /* CLIENT APP */
+  .lv3-client-app { padding: 64px 0; }
+  .lv3-client-flow { gap: 32px; }
+  .lv3-client-step { gap: 20px; }
+  .lv3-client-step-h { max-width: 100%; }
+  .lv3-ph-mini { width: 200px; }
+  .lv3-ph-mini-screen { height: 380px; }
+  .lv3-client-features { grid-template-columns: 1fr; gap: 14px; margin-top: 56px; }
+  .lv3-cf { padding: 20px; }
+
+  /* PRICING */
+  .lv3-plan { padding: 24px; }
+  .lv3-plan .price { margin: 20px 0 16px; }
+  .lv3-plan .price .v { font-size: 40px; }
+  .lv3-addon { margin-top: 40px; padding: 20px; border-radius: 16px; }
+  .lv3-addon-head { flex-wrap: wrap; gap: 8px; }
+  .lv3-addon-tag, .lv3-addon-new { font-size: 10px; padding: 5px 10px; }
+  .lv3-addon-body { margin-top: 20px; gap: 20px; }
+  .lv3-addon-main h3 { font-size: 22px; }
+  .lv3-addon-main p { font-size: 14px; }
+  .lv3-addon-side { padding: 20px; }
+  .lv3-addon-price .v { font-size: 36px; }
+
+  /* TESTIMONIALS */
+  .lv3-testi-grid { margin-top: 56px; gap: 14px; }
+  .lv3-testi { padding: 22px; }
+
+  /* FAQ */
+  .lv3-faq-item { padding: 18px 0; }
+  .lv3-faq-q .q { font-size: 15px; }
+
+  /* CLOSING */
+  .lv3-close { padding: 64px 0; }
+  .lv3-close h2 { font-size: clamp(32px, 8vw, 44px); }
+  .lv3-close p { font-size: 16px; margin-bottom: 28px; }
+  .lv3-close .ctas { flex-direction: column; gap: 10px; }
+  .lv3-close .ctas .lv3-btn { width: 100%; justify-content: center; }
+  .lv3-close .foot-note { gap: 12px 20px; font-size: 12px; }
+
+  /* FOOTER */
+  .lv3-footer { padding: 40px 0 24px; }
+  .lv3-foot-grid { grid-template-columns: 1fr; gap: 28px; }
+  .lv3-foot-bot { margin-top: 32px; font-size: 11px; }
+}
+
+/* Small phone (≤380px) */
+@media (max-width: 380px) {
+  .lv3-wrap { padding: 0 16px; }
+  .lv3-phone { width: 220px; }
+  .lv3-phone-screen { height: 440px; }
+  .lv3-metric .v { font-size: 48px; }
+  .lv3-plan .price .v { font-size: 36px; }
+  .lv3-logos-row { grid-template-columns: 1fr 1fr; }
+  .lv3-nav-cta .lv3-btn { padding: 8px 10px; font-size: 12px; }
 }
