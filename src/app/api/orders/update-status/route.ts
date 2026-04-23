@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { sendPushNotification } from "@/lib/push";
+import type { OrderStatus } from "@/lib/types";
 
 const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
   preparing: {
@@ -21,6 +23,14 @@ const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
   },
 };
 
+const ALLOWED_STATUSES: OrderStatus[] = [
+  "new",
+  "preparing",
+  "ready",
+  "done",
+  "cancelled",
+];
+
 export async function POST(request: Request) {
   try {
     const { order_id, status } = (await request.json()) as {
@@ -35,12 +45,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!ALLOWED_STATUSES.includes(status as OrderStatus)) {
+      return NextResponse.json(
+        { error: "Statut invalide" },
+        { status: 400 }
+      );
+    }
+
+    const serverSupabase = await createClient();
+    const {
+      data: { user },
+    } = await serverSupabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+
     const supabase = createAdminClient();
 
-    // Get order info for notification
     const { data: order } = await supabase
       .from("orders")
-      .select("id, display_order_number, order_number, restaurant_id")
+      .select("id, display_order_number, order_number, restaurant_id, driver_id")
       .eq("id", order_id)
       .single();
 
@@ -51,7 +76,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update order status
+    // Autorisation : owner du restaurant OU driver assigné à la commande
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("id, slug, owner_id")
+      .eq("id", order.restaurant_id)
+      .single();
+
+    const isOwner = restaurant?.owner_id === user.id;
+
+    let isAssignedDriver = false;
+    if (!isOwner && order.driver_id) {
+      const { data: driver } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("id", order.driver_id)
+        .eq("is_active", true)
+        .maybeSingle();
+      isAssignedDriver = !!driver;
+    }
+
+    if (!isOwner && !isAssignedDriver) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
+
     const { error } = await supabase
       .from("orders")
       .update({ status })
@@ -64,18 +113,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send push notifications to customer
     const messageTemplate = STATUS_MESSAGES[status];
     if (messageTemplate) {
       const orderNumber =
         order.display_order_number || `#${order.order_number}`;
-
-      // Get restaurant slug for the URL
-      const { data: restaurant } = await supabase
-        .from("restaurants")
-        .select("slug")
-        .eq("id", order.restaurant_id)
-        .single();
 
       const { data: subscriptions } = await supabase
         .from("push_subscriptions")
@@ -103,7 +144,6 @@ export async function POST(request: Request) {
           })
         );
 
-        // Clean up expired subscriptions
         if (expiredIds.length > 0) {
           await supabase
             .from("push_subscriptions")

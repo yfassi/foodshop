@@ -166,7 +166,7 @@ export default function OnboardingPage() {
       case 5:
         return (
           email.trim().length > 0 &&
-          password.length >= 6 &&
+          password.length >= 10 &&
           password === confirmPassword
         );
       default:
@@ -1144,7 +1144,7 @@ export default function OnboardingPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="6 caractères minimum"
+                    placeholder="10 caractères minimum"
                     className="h-12"
                   />
                 </div>

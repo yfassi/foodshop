@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  rateLimit,
+  rateLimitResponse,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 function normalizePhone(raw: string): string | null {
   if (!raw) return null;
@@ -12,6 +17,11 @@ function normalizePhone(raw: string): string | null {
 
 export async function POST(request: Request) {
   try {
+    // 10 tentatives de verification par IP / 10 min (protection brute-force OTP)
+    const ip = getClientIp(request);
+    const rl = rateLimit(`otp-verify:${ip}`, 10, 10 * 60 * 1000);
+    if (!rl.ok) return rateLimitResponse(rl);
+
     const { phone, token } = await request.json();
     const phoneE164 = normalizePhone(phone);
     if (!phoneE164 || !token) {

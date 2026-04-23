@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  rateLimit,
+  rateLimitResponse,
+  getClientIp,
+} from "@/lib/rate-limit";
+
+const MIN_PASSWORD_LENGTH = 10;
 
 export async function POST(request: Request) {
   try {
+    // 5 inscriptions par IP / 15 min
+    const ip = getClientIp(request);
+    const rl = rateLimit(`signup:${ip}`, 5, 15 * 60 * 1000);
+    if (!rl.ok) return rateLimitResponse(rl);
+
     const { email, password, full_name } = await request.json();
 
     if (!email || !password) {
@@ -13,8 +25,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Le mot de passe doit contenir au moins 6 caracteres" }, { status: 400 });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caracteres`,
+        },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminClient();

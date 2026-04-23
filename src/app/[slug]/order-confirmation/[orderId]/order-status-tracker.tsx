@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import type { Driver, DeliveryStatus, OrderStatus, OrderType } from "@/lib/types";
 import { useCartStore } from "@/stores/cart-store";
@@ -62,42 +61,37 @@ export function OrderStatusTracker({
   }, [clearCart]);
 
   useEffect(() => {
-    const supabase = createClient();
+    let cancelled = false;
 
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `id=eq.${orderId}`,
-        },
-        async (payload) => {
-          const row = payload.new as {
-            status: OrderStatus;
-            delivery_status?: DeliveryStatus | null;
-            driver_id?: string | null;
-          };
-          setStatus(row.status);
-          setDeliveryStatus(row.delivery_status ?? null);
-          if (row.driver_id && orderType === "delivery" && !driver) {
-            const { data: d } = await supabase
-              .from("drivers")
-              .select("*")
-              .eq("id", row.driver_id)
-              .single<Driver>();
-            if (d) setDriver(d);
-          }
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}/status`, {
+          cache: "no-store",
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          status: OrderStatus;
+          delivery_status: DeliveryStatus | null;
+          driver: Driver | null;
+        };
+        setStatus(data.status);
+        setDeliveryStatus(data.delivery_status);
+        if (data.driver && orderType === "delivery") {
+          setDriver(data.driver);
         }
-      )
-      .subscribe();
+      } catch {
+        // network hiccup — next tick will retry
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 8000);
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      clearInterval(interval);
     };
-  }, [orderId, orderType, driver]);
+  }, [orderId, orderType]);
 
   const handleSubscribe = async () => {
     const ok = await subscribe({ orderId, role: "customer" });
