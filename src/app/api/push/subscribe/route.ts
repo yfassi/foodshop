@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 interface SubscribeBody {
   endpoint: string;
@@ -36,10 +37,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createAdminClient();
+    const admin = createAdminClient();
+
+    // Authorization: admin doit etre owner du restaurant ;
+    // customer doit fournir un order_id existant (magic-link UUID v4).
+    if (role === "admin") {
+      const serverSupabase = await createClient();
+      const {
+        data: { user },
+      } = await serverSupabase.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+      }
+
+      const { data: restaurant } = await admin
+        .from("restaurants")
+        .select("id")
+        .eq("id", restaurant_id!)
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (!restaurant) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+      }
+    } else {
+      // customer: verify the order exists (UUID is the proof-of-possession)
+      const { data: order } = await admin
+        .from("orders")
+        .select("id")
+        .eq("id", order_id!)
+        .maybeSingle();
+
+      if (!order) {
+        return NextResponse.json(
+          { error: "Commande introuvable" },
+          { status: 404 }
+        );
+      }
+    }
 
     // Upsert by endpoint
-    const { error } = await supabase.from("push_subscriptions").upsert(
+    const { error } = await admin.from("push_subscriptions").upsert(
       {
         endpoint,
         p256dh,
@@ -52,7 +91,7 @@ export async function POST(request: Request) {
     );
 
     if (error) {
-      console.error("Push subscribe error:", error);
+      console.error("Push subscribe error:", error.message);
       return NextResponse.json(
         { error: "Erreur lors de l'enregistrement" },
         { status: 500 }
@@ -61,7 +100,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Push subscribe error:", err);
+    console.error(
+      "Push subscribe error:",
+      err instanceof Error ? err.message : String(err)
+    );
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

@@ -603,8 +603,8 @@ export default function SettingsPage() {
       toast.error("Entrez un nouveau mot de passe");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+    if (newPassword.length < 10) {
+      toast.error("Le mot de passe doit contenir au moins 10 caractères");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -640,15 +640,15 @@ export default function SettingsPage() {
 
   const uploadLogo = async (file: File) => {
     const MAX_SIZE = 2 * 1024 * 1024;
+    // SVG exclu: peut contenir des <script> ou handlers on* (XSS stocke si servi sur l'origine Supabase)
     const ALLOWED_TYPES = [
       "image/jpeg",
       "image/png",
       "image/webp",
-      "image/svg+xml",
     ];
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Format accepté : JPG, PNG, WebP ou SVG");
+      toast.error("Format accepté : JPG, PNG ou WebP");
       return;
     }
     if (file.size > MAX_SIZE) {
@@ -1001,7 +1001,7 @@ export default function SettingsPage() {
                         <span className="text-[10px] font-medium">Ajouter</span>
                       </div>
                     )}
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadLogo(file); e.target.value = ""; }} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadLogo(file); e.target.value = ""; }} />
                   </label>
                   {logoUrl && (
                     <button onClick={removeLogo} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-foreground">
@@ -1497,7 +1497,7 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="new-pw">Nouveau mot de passe</Label>
-                      <Input id="new-pw" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 caractères" />
+                      <Input id="new-pw" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 10 caractères" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-pw">Confirmer</Label>

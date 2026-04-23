@@ -6,6 +6,11 @@ import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
+import {
+  rateLimit,
+  rateLimitResponse,
+  getClientIp,
+} from "@/lib/rate-limit";
 import type {
   DeliveryAddress,
   DeliveryConfig,
@@ -75,6 +80,11 @@ async function notifyAdmins(
 
 export async function POST(request: Request) {
   try {
+    // 20 checkouts / min / IP — protection contre spam/scraping
+    const ip = getClientIp(request);
+    const rl = rateLimit(`checkout:${ip}`, 20, 60 * 1000);
+    if (!rl.ok) return rateLimitResponse(rl);
+
     const body = (await request.json()) as CheckoutBody;
     const {
       restaurant_slug,

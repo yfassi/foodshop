@@ -30,6 +30,7 @@ import {
 
 interface RestaurantDetail extends Restaurant {
   owner_email: string | null;
+  verification_document_signed_url: string | null;
   stats: {
     total_orders: number;
     total_revenue: number;
@@ -359,9 +360,9 @@ export default function SuperAdminRestaurantDetailPage() {
               <InfoRow
                 label="Document"
                 value={
-                  restaurant.verification_document_url ? (
+                  restaurant.verification_document_signed_url ? (
                     <a
-                      href={restaurant.verification_document_url}
+                      href={restaurant.verification_document_signed_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-primary hover:underline"

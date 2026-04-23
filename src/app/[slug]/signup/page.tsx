@@ -28,8 +28,8 @@ export default function CustomerSignupPage() {
     const newErrors = { ...errors };
     switch (field) {
       case "password":
-        if (value && value.length < 6) {
-          newErrors.password = "Min. 6 caractères";
+        if (value && value.length < 10) {
+          newErrors.password = "Min. 10 caractères";
         } else {
           delete newErrors.password;
         }
@@ -54,8 +54,8 @@ export default function CustomerSignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 6) {
-      setErrors((prev) => ({ ...prev, password: "Min. 6 caractères" }));
+    if (password.length < 10) {
+      setErrors((prev) => ({ ...prev, password: "Min. 10 caractères" }));
       return;
     }
 
@@ -158,7 +158,7 @@ export default function CustomerSignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={() => validateField("password", password)}
-                placeholder="Min. 6 caractères"
+                placeholder="Min. 10 caractères"
                 autoComplete="new-password"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}

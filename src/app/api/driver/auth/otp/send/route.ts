@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  rateLimit,
+  rateLimitResponse,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 function normalizePhone(raw: string): string | null {
   if (!raw) return null;
@@ -12,6 +17,11 @@ function normalizePhone(raw: string): string | null {
 
 export async function POST(request: Request) {
   try {
+    // Rate-limit: 3 OTP par phone / 10 min + 10 par IP / 10 min (protection bombe SMS)
+    const ip = getClientIp(request);
+    const ipRl = rateLimit(`otp-send-ip:${ip}`, 10, 10 * 60 * 1000);
+    if (!ipRl.ok) return rateLimitResponse(ipRl);
+
     const { phone } = await request.json();
     const phoneE164 = normalizePhone(phone);
     if (!phoneE164) {
@@ -20,6 +30,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const phoneRl = rateLimit(`otp-send-phone:${phoneE164}`, 3, 10 * 60 * 1000);
+    if (!phoneRl.ok) return rateLimitResponse(phoneRl);
 
     // Vérifie qu'un livreur actif existe pour ce téléphone.
     const admin = createAdminClient();

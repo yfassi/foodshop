@@ -16,7 +16,10 @@ export default async function OrderConfirmationPage({
   const { slug, orderId } = await params;
   const supabase = await createClient();
 
-  const { data: order } = await supabase
+  // Order is fetched via admin client: orderId is an unguessable UUID
+  // (magic-link pattern) and RLS blocks anon reads after migration 016.
+  const adminSupabase = createAdminClient();
+  const { data: order } = await adminSupabase
     .from("orders")
     .select("*")
     .eq("id", orderId)

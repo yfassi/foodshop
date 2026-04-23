@@ -75,9 +75,21 @@ export async function GET(
     .select("id", { count: "exact", head: true })
     .in("category_id", catIds.length > 0 ? catIds : ["__none__"]);
 
+  // Generate a short-lived signed URL for the verification document (bucket is private).
+  // Legacy rows with absolute URLs get null — they are unreachable since bucket went private.
+  let verification_document_signed_url: string | null = null;
+  const storedDoc: string | null = restaurant.verification_document_url;
+  if (storedDoc && !storedDoc.startsWith("http")) {
+    const { data: signed } = await admin.storage
+      .from("verification-documents")
+      .createSignedUrl(storedDoc, 60 * 10); // 10 min
+    verification_document_signed_url = signed?.signedUrl ?? null;
+  }
+
   return NextResponse.json({
     ...restaurant,
     owner_email: ownerEmail,
+    verification_document_signed_url,
     stats: {
       total_orders: totalOrders,
       total_revenue: totalRevenue,
