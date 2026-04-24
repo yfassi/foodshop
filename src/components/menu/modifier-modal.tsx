@@ -183,7 +183,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
               {product.description}
             </p>
           )}
-          <p className="text-sm font-semibold text-primary">{formatPrice(product.price)}</p>
+          <p className="price-mono text-sm font-semibold text-primary">{formatPrice(product.price)}</p>
         </DrawerHeader>
 
         {product.menu_supplement !== null && product.menu_supplement !== undefined && (
@@ -209,7 +209,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-primary">
+                <span className="price-mono text-sm font-semibold text-primary">
                   +{formatPrice(product.menu_supplement)}
                 </span>
                 {isMenu && <Check className="h-4 w-4 text-primary" />}
@@ -262,7 +262,7 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                           <span className="font-medium">{modifier.name}</span>
                           <span className="flex items-center gap-2">
                             {modifier.price_extra > 0 && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="price-mono text-xs text-muted-foreground">
                                 +{formatPrice(modifier.price_extra)}
                               </span>
                             )}
@@ -278,25 +278,27 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
         </div>
 
         <DrawerFooter className="border-t border-border pt-3">
-          {/* Quantity selector */}
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              aria-label="Diminuer la quantité"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <span className="min-w-[2rem] text-center text-lg font-bold">
-              {quantity}
-            </span>
-            <button
-              onClick={() => setQuantity(quantity + 1)}
-              aria-label="Augmenter la quantité"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg font-medium transition-colors active:bg-muted/70"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+          {/* Quantity stepper */}
+          <div className="flex justify-center">
+            <div className="flex items-center overflow-hidden rounded-xl bg-muted">
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                aria-label="Diminuer la quantité"
+                className="flex h-11 w-11 items-center justify-center transition-colors active:bg-border"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="price-mono min-w-[2.5rem] text-center text-base font-bold">
+                {quantity}
+              </span>
+              <button
+                onClick={() => setQuantity(quantity + 1)}
+                aria-label="Augmenter la quantité"
+                className="flex h-11 w-11 items-center justify-center transition-colors active:bg-border"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <Button
@@ -305,7 +307,8 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
             className="h-14 w-full rounded-xl text-base font-bold"
             size="lg"
           >
-            Ajouter au panier &mdash; {formatPrice(lineTotal)}
+            Ajouter au panier <span aria-hidden>—</span>{" "}
+            <span className="price-mono">{formatPrice(lineTotal)}</span>
           </Button>
         </DrawerFooter>
       </DrawerContent>

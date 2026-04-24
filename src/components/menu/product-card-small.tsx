@@ -32,8 +32,8 @@ export function ProductCardSmall({ product }: { product: ProductWithModifiers })
               className="object-cover"
               sizes="140px"
             />
-            <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Plus className="h-3 w-3" />
+            <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             </div>
           </div>
         ) : (
@@ -43,7 +43,7 @@ export function ProductCardSmall({ product }: { product: ProductWithModifiers })
         )}
         <div className="p-2.5">
           <p className="truncate text-xs font-semibold">{product.name}</p>
-          <p className="mt-0.5 text-xs font-bold text-primary">
+          <p className="price-mono mt-0.5 text-xs font-bold text-primary">
             {formatPrice(product.price)}
           </p>
         </div>

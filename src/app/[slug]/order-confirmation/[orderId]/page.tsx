@@ -81,12 +81,14 @@ export default async function OrderConfirmationPage({
         </h2>
       </div>
 
-      {/* Order number + payment instruction */}
-      <div className="mb-4 rounded-xl border border-border bg-card p-5 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          Votre numéro de commande
+      {/* Order number + payment instruction (ticket receipt style) */}
+      <div className="mb-4 rounded-xl border-[1.5px] border-border bg-card p-5 text-center">
+        <p className="font-space-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+          N° commande
         </p>
-        <p className="mt-1 text-3xl font-bold text-primary">{orderNumber}</p>
+        <p className="price-mono mt-1.5 text-3xl font-bold tracking-[0.08em] text-primary">
+          {orderNumber}
+        </p>
         <div className="mt-2 flex items-center justify-center gap-2">
           {orderTypeLabel && (
             <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -94,7 +96,8 @@ export default async function OrderConfirmationPage({
             </span>
           )}
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <hr className="my-4 border-0 border-t border-dashed border-border" />
+        <p className="text-sm text-muted-foreground">
           {isOnSite ? (
             <>
               Rendez-vous au <span className="font-semibold text-foreground">comptoir</span> et
@@ -119,15 +122,15 @@ export default async function OrderConfirmationPage({
         initialDriver={driver}
       />
 
-      {/* Order summary */}
+      {/* Order summary (receipt style) */}
       <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
+        <h3 className="mb-2 font-space-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
           Récapitulatif
         </h3>
         {order.items.map((item, i) => (
           <div key={i} className="flex justify-between py-1 text-sm">
             <span>
-              {item.quantity}x {item.product_name}
+              <span className="price-mono">{item.quantity}×</span> {item.product_name}
               {item.is_menu && (
                 <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
               )}
@@ -137,14 +140,15 @@ export default async function OrderConfirmationPage({
                 </span>
               )}
             </span>
-            <span className="font-semibold">
+            <span className="price-mono font-semibold">
               {formatPrice(item.line_total)}
             </span>
           </div>
         ))}
-        <div className="mt-2 flex justify-between border-t border-border pt-2">
+        <hr className="my-2.5 border-0 border-t border-dashed border-border" />
+        <div className="flex justify-between">
           <span className="font-semibold">Total</span>
-          <span className="text-lg font-bold text-primary">
+          <span className="price-mono text-lg font-bold text-primary">
             {formatPrice(order.total_price)}
           </span>
         </div>

@@ -163,7 +163,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
               <>
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Total</span>
-                  <span className="text-lg font-bold">
+                  <span className="price-mono text-lg font-bold">
                     {formatPrice(totalPrice())}
                   </span>
                 </div>
@@ -173,11 +173,16 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
                   className="h-14 w-full rounded-xl text-base font-bold"
                   size="lg"
                 >
-                  {disabled
-                    ? "Commandes fermees"
-                    : queueState === "checking"
-                      ? "Vérification..."
-                      : `Commander \u2014 ${formatPrice(totalPrice())}`}
+                  {disabled ? (
+                    "Commandes fermees"
+                  ) : queueState === "checking" ? (
+                    "Vérification..."
+                  ) : (
+                    <>
+                      Commander <span aria-hidden>—</span>{" "}
+                      <span className="price-mono">{formatPrice(totalPrice())}</span>
+                    </>
+                  )}
                 </Button>
                 <button
                   onClick={onClose}
