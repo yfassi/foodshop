@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +103,8 @@ const DEFAULT_HOURS: HoursState = {
   sunday: [{ open: "12:00", close: "22:00" }],
 };
 
+const DRAFT_STORAGE_KEY = "taapr:onboarding-draft";
+
 /* ─── Component ─── */
 
 export default function OnboardingPage() {
@@ -110,6 +112,11 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [animClass, setAnimClass] = useState("");
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Session detection: if user is already logged in, skip the Account step
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const draftRestoredRef = useRef(false);
 
   // Success
   const [showSuccess, setShowSuccess] = useState(false);
@@ -145,6 +152,109 @@ export default function OnboardingPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const visibleSteps = isLoggedIn ? STEPS.slice(0, 5) : STEPS;
+
+  /* ─── Session & draft restore ─── */
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (cancelled) return;
+
+      if (user) {
+        // If the user already has a restaurant, onboarding is done — send them to admin
+        const { data: existing } = await supabase
+          .from("restaurants")
+          .select("slug")
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        if (existing?.slug) {
+          window.location.href = `/admin/${existing.slug}`;
+          return;
+        }
+        setIsLoggedIn(true);
+        setEmail(user.email || "");
+      }
+
+      // Restore draft from localStorage (pre-fill existing info)
+      try {
+        const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (raw) {
+          const draft = JSON.parse(raw) as Record<string, unknown>;
+          if (typeof draft.name === "string") setName(draft.name);
+          if (typeof draft.restaurantType === "string")
+            setRestaurantType(draft.restaurantType);
+          if (typeof draft.description === "string")
+            setDescription(draft.description);
+          if (typeof draft.address === "string") setAddress(draft.address);
+          if (typeof draft.phone === "string") setPhone(draft.phone);
+          if (draft.hours && typeof draft.hours === "object")
+            setHours(draft.hours as HoursState);
+          if (typeof draft.dineInEnabled === "boolean")
+            setDineInEnabled(draft.dineInEnabled);
+          if (typeof draft.takeawayEnabled === "boolean")
+            setTakeawayEnabled(draft.takeawayEnabled);
+          if (typeof draft.cashEnabled === "boolean")
+            setCashEnabled(draft.cashEnabled);
+          if (typeof draft.cardEnabled === "boolean")
+            setCardEnabled(draft.cardEnabled);
+          if (typeof draft.queueEnabled === "boolean")
+            setQueueEnabled(draft.queueEnabled);
+        }
+      } catch {
+        /* ignore malformed draft */
+      }
+
+      draftRestoredRef.current = true;
+      setSessionChecked(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist draft as the user progresses (only after initial restore)
+  useEffect(() => {
+    if (!draftRestoredRef.current) return;
+    try {
+      localStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({
+          name,
+          restaurantType,
+          description,
+          address,
+          phone,
+          hours,
+          dineInEnabled,
+          takeawayEnabled,
+          cashEnabled,
+          cardEnabled,
+          queueEnabled,
+        })
+      );
+    } catch {
+      /* quota or disabled storage — ignore */
+    }
+  }, [
+    name,
+    restaurantType,
+    description,
+    address,
+    phone,
+    hours,
+    dineInEnabled,
+    takeawayEnabled,
+    cashEnabled,
+    cardEnabled,
+    queueEnabled,
+  ]);
 
   /* ─── Navigation ─── */
 
@@ -187,7 +297,7 @@ export default function OnboardingPage() {
   };
 
   const handleNext = () => {
-    if (step < STEPS.length - 1) goToStep(step + 1);
+    if (step < visibleSteps.length - 1) goToStep(step + 1);
   };
 
   const handleBack = () => {
@@ -215,9 +325,7 @@ export default function OnboardingPage() {
 
     try {
       const formData = new FormData();
-      formData.append("data", JSON.stringify({
-        email: email.trim(),
-        password,
+      const payload: Record<string, unknown> = {
         name: name.trim(),
         description: description.trim() || undefined,
         restaurant_type: restaurantType || undefined,
@@ -227,7 +335,12 @@ export default function OnboardingPage() {
         order_types,
         accepted_payment_methods,
         queue_enabled: queueEnabled,
-      }));
+      };
+      if (!isLoggedIn) {
+        payload.email = email.trim();
+        payload.password = password;
+      }
+      formData.append("data", JSON.stringify(payload));
       if (verificationDoc) {
         formData.append("verification_document", verificationDoc);
       }
@@ -243,16 +356,24 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Erreur");
       }
 
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      if (!isLoggedIn) {
+        const supabase = createClient();
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      if (signInError) {
-        toast.success("Restaurant créé ! Connectez-vous pour continuer.");
-        window.location.href = "/admin/login";
-        return;
+        if (signInError) {
+          toast.success("Restaurant créé ! Connectez-vous pour continuer.");
+          window.location.href = "/admin/login";
+          return;
+        }
+      }
+
+      try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        /* ignore */
       }
 
       setSuccessSlug(data.slug);
@@ -404,14 +525,21 @@ export default function OnboardingPage() {
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
       <AnimatedBackground />
       <div className="relative z-10 w-full max-w-md">
+        {isLoggedIn && sessionChecked && (
+          <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-foreground">
+            Reprise de l&apos;onboarding pour{" "}
+            <span className="font-semibold">{email}</span>. Vos informations
+            précédentes sont pré-remplies.
+          </div>
+        )}
         {/* Step counter */}
         <p className="mb-4 text-center text-xs font-medium text-muted-foreground">
-          Étape {step + 1} sur {STEPS.length}
+          Étape {step + 1} sur {visibleSteps.length}
         </p>
 
         {/* Progress bar */}
         <div className="mb-8 flex items-center justify-center gap-0">
-          {STEPS.map((s, i) => {
+          {visibleSteps.map((s, i) => {
             const Icon = s.icon;
             const isActive = i === step;
             const isDone = i < step;
@@ -445,7 +573,7 @@ export default function OnboardingPage() {
                     {s.label}
                   </span>
                 </div>
-                {i < STEPS.length - 1 && (
+                {i < visibleSteps.length - 1 && (
                   <div
                     className={`mx-1 mb-5 h-0.5 w-6 rounded-full transition-colors duration-500 ${
                       i < step ? "bg-primary" : "bg-muted-foreground/20"
@@ -1196,7 +1324,7 @@ export default function OnboardingPage() {
               </Button>
             )}
 
-            {step < STEPS.length - 1 ? (
+            {step < visibleSteps.length - 1 ? (
               <Button
                 onClick={handleNext}
                 disabled={!canAdvance()}

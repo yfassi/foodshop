@@ -45,7 +45,10 @@ export default function AdminLoginPage() {
     if (restaurant) {
       router.push(`/admin/${restaurant.slug}`);
     } else {
-      // User has account but no restaurant yet — go to onboarding
+      toast.info(
+        "Votre restaurant n'est pas encore configuré. Reprenons là où vous en étiez.",
+        { duration: 5000 }
+      );
       router.push("/admin/onboarding");
     }
   };
