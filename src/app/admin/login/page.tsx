@@ -1,27 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, UserPlus, ArrowRight } from "lucide-react";
 import { AnimatedBackground } from "@/components/animated-background";
 
 export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminLoginInner />
+    </Suspense>
+  );
+}
+
+function AdminLoginInner() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [noAccount, setNoAccount] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setNoAccount(false);
 
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -30,7 +41,23 @@ export default function AdminLoginPage() {
     });
 
     if (error) {
-      toast.error("Email ou mot de passe incorrect");
+      // Distinguish "account doesn't exist" from "wrong password"
+      try {
+        const res = await fetch("/api/admin/check-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        const payload = (await res.json()) as { exists?: boolean };
+        if (res.ok && payload.exists === false) {
+          setNoAccount(true);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // fall through to generic error
+      }
+      toast.error("Mot de passe incorrect");
       setLoading(false);
       return;
     }
@@ -94,7 +121,10 @@ export default function AdminLoginPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (noAccount) setNoAccount(false);
+              }}
               placeholder="contact@restaurant.fr"
               required
               className="mt-1.5 h-12"
@@ -126,17 +156,38 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-xl font-semibold"
-          >
-            {loading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              "Connexion"
-            )}
-          </Button>
+          {noAccount ? (
+            <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start gap-2.5">
+                <UserPlus className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div>
+                  <p className="text-sm font-semibold">Aucun compte avec cet email</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Créez votre restaurant en quelques minutes.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/admin/onboarding?email=${encodeURIComponent(email.trim())}`}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Créer mon compte
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : (
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 w-full rounded-xl font-semibold"
+            >
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Connexion"
+              )}
+            </Button>
+          )}
         </form>
 
         <button
@@ -151,7 +202,7 @@ export default function AdminLoginPage() {
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Pas encore de compte ?{" "}
           <Link
-            href="/admin/signup"
+            href={email.trim() ? `/admin/onboarding?email=${encodeURIComponent(email.trim())}` : "/admin/onboarding"}
             className="font-medium text-primary hover:underline"
           >
             Créer mon restaurant
