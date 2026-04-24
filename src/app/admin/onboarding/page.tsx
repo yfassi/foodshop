@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +107,17 @@ const DEFAULT_HOURS: HoursState = {
 /* ─── Component ─── */
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingInner />
+    </Suspense>
+  );
+}
+
+function OnboardingInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const prefilledEmail = searchParams.get("email") || "";
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [animClass, setAnimClass] = useState("");
@@ -142,9 +154,14 @@ export default function OnboardingPage() {
   const docInputRef = useRef<HTMLInputElement | null>(null);
 
   // Step 6 — Account
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Sync pre-filled email from URL on mount / URL change
+  useEffect(() => {
+    if (prefilledEmail) setEmail(prefilledEmail);
+  }, [prefilledEmail]);
 
   /* ─── Navigation ─── */
 
@@ -240,6 +257,11 @@ export default function OnboardingPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 409 && data.error?.includes("compte existe")) {
+          toast.error("Un compte existe déjà avec cet email. Connectez-vous.");
+          router.push(`/admin/login?email=${encodeURIComponent(email.trim())}`);
+          return;
+        }
         throw new Error(data.error || "Erreur");
       }
 
@@ -251,7 +273,7 @@ export default function OnboardingPage() {
 
       if (signInError) {
         toast.success("Restaurant créé ! Connectez-vous pour continuer.");
-        window.location.href = "/admin/login";
+        router.push(`/admin/login?email=${encodeURIComponent(email.trim())}`);
         return;
       }
 
@@ -1173,7 +1195,7 @@ export default function OnboardingPage() {
                 <p className="text-center text-xs text-muted-foreground">
                   Déjà un compte ?{" "}
                   <Link
-                    href="/admin/login"
+                    href={email.trim() ? `/admin/login?email=${encodeURIComponent(email.trim())}` : "/admin/login"}
                     className="font-medium text-primary hover:underline"
                   >
                     Connexion

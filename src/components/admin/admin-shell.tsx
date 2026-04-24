@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { DemoControls } from "@/components/admin/demo-controls";
 
 const BASE_NAV_ITEMS = [
   { icon: ClipboardList, label: "Commandes", href: "" },
@@ -268,6 +269,9 @@ export function AdminShell({
           );
         })}
       </nav>
+
+      {/* Demo control panel */}
+      {isDemo && <DemoControls slug={slug} />}
 
       {/* Account dialog */}
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>

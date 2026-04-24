@@ -541,7 +541,10 @@ export default function Home() {
         <div className="lv3-wrap">
           <div className="lv3-sec-h">
             <div className="lv3-sec-tag">Produit</div>
-            <h2>Tout pour servir plus vite et mieux.</h2>
+            <h2>
+              Tout ce qu&apos;il faut,<br />
+              <span className="scribble">rien de superflu.</span>
+            </h2>
             <p>Un menu, un QR code, un tableau de bord. Rien de plus, et c&apos;est exactement ce qu&apos;il faut.</p>
           </div>
 
