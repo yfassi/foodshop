@@ -43,16 +43,17 @@ export function FloatingCartButton({
       <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-between rounded-2xl bg-primary px-5 py-3.5 text-primary-foreground shadow-lg shadow-black/10 transition-colors active:bg-primary/90"
+          className="flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-xl shadow-black/20 transition-colors active:bg-primary/90"
           style={bounce ? { animation: "cart-bounce 0.5s ease-in-out" } : undefined}
         >
-          <div className="flex items-center gap-3">
-            <ShoppingBag className="h-5 w-5" />
-            <span className="text-sm font-semibold">
-              Voir mon panier ({totalItems()})
-            </span>
-          </div>
-          <span className="text-sm font-bold">
+          <span className="price-mono flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-foreground text-xs font-bold text-primary">
+            {totalItems()}
+          </span>
+          <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <ShoppingBag className="h-4 w-4" />
+            Voir mon panier
+          </span>
+          <span className="price-mono ml-auto text-sm font-semibold">
             {formatPrice(totalPrice())}
           </span>
         </button>

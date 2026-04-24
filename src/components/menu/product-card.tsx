@@ -32,7 +32,7 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
             </p>
           )}
           <div className="mt-1.5 flex items-center gap-2">
-            <p className="text-sm font-bold text-primary">{formatPrice(product.price)}</p>
+            <p className="price-mono text-sm font-bold text-primary">{formatPrice(product.price)}</p>
             {product.menu_supplement != null && (
               <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                 Menu +{formatPrice(product.menu_supplement)}
@@ -49,14 +49,14 @@ export function ProductCard({ product }: { product: ProductWithModifiers }) {
               className="object-cover"
               sizes="80px"
             />
-            <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Plus className="h-3.5 w-3.5" />
+            <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             </div>
           </div>
         ) : (
           <div className="flex shrink-0 items-center pr-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Plus className="h-4 w-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
             </div>
           </div>
         )}

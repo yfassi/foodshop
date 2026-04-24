@@ -24,33 +24,35 @@ export function CartItem({ item }: { item: CartItemType }) {
             {modifiersSummary}
           </p>
         )}
-        <p className="mt-1 text-sm font-bold text-primary">
+        <p className="price-mono mt-1 text-sm font-bold text-primary">
           {formatPrice(item.line_total)}
         </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-          aria-label="Diminuer la quantité"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </button>
-        <span className="min-w-[1.5rem] text-center text-sm font-semibold tabular-nums">
-          {item.quantity}
-        </span>
-        <button
-          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-          aria-label="Augmenter la quantité"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-muted transition-colors active:bg-muted/70"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center overflow-hidden rounded-xl bg-muted">
+          <button
+            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+            aria-label="Diminuer la quantité"
+            className="flex h-10 w-10 items-center justify-center transition-colors active:bg-border"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="price-mono min-w-[2rem] text-center text-sm font-bold">
+            {item.quantity}
+          </span>
+          <button
+            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+            aria-label="Augmenter la quantité"
+            className="flex h-10 w-10 items-center justify-center transition-colors active:bg-border"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <button
           onClick={() => removeItem(item.id)}
           aria-label="Supprimer du panier"
-          className="ml-1 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors active:text-destructive"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors active:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
         </button>

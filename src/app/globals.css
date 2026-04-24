@@ -66,6 +66,19 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* TaapR semantic status tokens (shared across surfaces) */
+  --status-success-bg: #dcfce7;
+  --status-success-fg: #008138;
+  --status-warning-bg: #fef3c6;
+  --status-warning-fg: #b75000;
+  --status-danger-bg: #ffe2e2;
+  --status-danger-fg: #bf000f;
+  --status-info-bg: #dbeafe;
+  --status-info-fg: #1447e6;
+  /* TaapR glow shadows */
+  --glow-red: 0 0 20px #d7352d4d;
+  --glow-green: 0 0 6px #22c55e66;
+  --glow-ink: 0 0 24px #17284666;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -154,6 +167,13 @@ html {
 @layer utilities {
   .font-heading {
     font-family: var(--font-poppins), system-ui, sans-serif;
+  }
+
+  /* TaapR: prices / tickets / numeric data always in Space Mono */
+  .price-mono {
+    font-family: var(--font-space-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   .no-scrollbar {
