@@ -154,7 +154,8 @@ export default function Home() {
           <span>À la borne de commande classique</span>
         </div>
         <h1>
-          La borne de commande,<br />dans la poche de <span className="accent">vos clients.</span>
+          La borne de commande,<br />dans la poche de <span className="accent">vos clients.</span>{" "}
+          <span className="hand">enfin.</span>
         </h1>
         <p>
           Pas la place pour une borne ? Pas le budget ? TaapR transforme chaque table, chaque comptoir en point
@@ -541,7 +542,7 @@ export default function Home() {
         <div className="lv3-wrap">
           <div className="lv3-sec-h">
             <div className="lv3-sec-tag">Produit</div>
-            <h2>Tout pour servir plus vite et mieux.</h2>
+            <h2>Tout ce qu&apos;il faut,<br /><span className="hand">rien de superflu.</span></h2>
             <p>Un menu, un QR code, un tableau de bord. Rien de plus, et c&apos;est exactement ce qu&apos;il faut.</p>
           </div>
 
@@ -819,7 +820,7 @@ export default function Home() {
       {/* CLOSING */}
       <section className="lv3-close">
         <div className="lv3-wrap">
-          <h2>Votre restaurant en ligne,<br />ce soir.</h2>
+          <h2>Votre restaurant en ligne,<br /><span className="hand">ce soir.</span></h2>
           <p>Sans carte bancaire. Sans engagement. Et surtout, sans prélèvement sur vos ventes.</p>
           <div className="ctas">
             <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-btn-lg">
