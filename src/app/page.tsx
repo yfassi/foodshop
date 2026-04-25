@@ -723,33 +723,66 @@ export default function Home() {
             TVA 20% non incluse · Frais Stripe ~1,5% + 0,25€ par transaction · Annulable à tout moment
           </div>
 
-          <div className="lv3-addon">
-            <div className="lv3-addon-head">
-              <div className="lv3-addon-tag">Module complémentaire</div>
-              <span className="lv3-addon-new">Nouveau</span>
-            </div>
-            <div className="lv3-addon-body">
-              <div className="lv3-addon-main">
-                <h3>Module Livraison</h3>
-                <p>Ajoutez la livraison à domicile à votre offre — zones, livreurs, suivi temps réel.</p>
-                <ul className="lv3-addon-ft">
-                  <li><span className="dot"><CheckIcon /></span>Zones de livraison personnalisées (rayon + frais)</li>
-                  <li><span className="dot"><CheckIcon /></span>Espace livreur mobile avec auth SMS</li>
-                  <li><span className="dot"><CheckIcon /></span>Sélection d&apos;adresse par carte interactive</li>
-                  <li><span className="dot"><CheckIcon /></span>Suivi livraison en temps réel pour le client</li>
-                </ul>
+          <div className="lv3-addons-grid">
+            <div className="lv3-addon">
+              <div className="lv3-addon-head">
+                <div className="lv3-addon-tag">Module complémentaire</div>
+                <span className="lv3-addon-new">Nouveau</span>
               </div>
-              <div className="lv3-addon-side">
-                <div className="lv3-addon-price">
-                  <span className="v">+19€</span>
-                  <span className="u">/mois HT</span>
+              <div className="lv3-addon-body">
+                <div className="lv3-addon-main">
+                  <h3>Module Livraison</h3>
+                  <p>Ajoutez la livraison à domicile à votre offre — zones, livreurs, suivi temps réel.</p>
+                  <ul className="lv3-addon-ft">
+                    <li><span className="dot"><CheckIcon /></span>Zones de livraison personnalisées (rayon + frais)</li>
+                    <li><span className="dot"><CheckIcon /></span>Espace livreur mobile avec auth SMS</li>
+                    <li><span className="dot"><CheckIcon /></span>Sélection d&apos;adresse par carte interactive</li>
+                    <li><span className="dot"><CheckIcon /></span>Suivi livraison en temps réel pour le client</li>
+                  </ul>
                 </div>
-                <div className="lv3-addon-avail">
-                  Disponible sur <strong>Pro</strong> et <strong>Business</strong>
+                <div className="lv3-addon-side">
+                  <div className="lv3-addon-price">
+                    <span className="v">+19€</span>
+                    <span className="u">/mois HT</span>
+                  </div>
+                  <div className="lv3-addon-avail">
+                    Disponible sur <strong>Pro</strong> et <strong>Business</strong>
+                  </div>
+                  <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-addon-cta">
+                    Activer le module →
+                  </Link>
                 </div>
-                <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-addon-cta">
-                  Activer le module →
-                </Link>
+              </div>
+            </div>
+
+            <div className="lv3-addon">
+              <div className="lv3-addon-head">
+                <div className="lv3-addon-tag">Module complémentaire</div>
+                <span className="lv3-addon-new">Nouveau</span>
+              </div>
+              <div className="lv3-addon-body">
+                <div className="lv3-addon-main">
+                  <h3>Module Stock</h3>
+                  <p>Numérisez vos tickets, suivez vos quantités en temps réel, alerte sur seuil bas.</p>
+                  <ul className="lv3-addon-ft">
+                    <li><span className="dot"><CheckIcon /></span>Scan caméra des tickets fournisseurs</li>
+                    <li><span className="dot"><CheckIcon /></span>Lecture OCR auto par IA et assignation au stock</li>
+                    <li><span className="dot"><CheckIcon /></span>Mouvements illimités (entrées, sorties, ajustements)</li>
+                    <li><span className="dot"><CheckIcon /></span>Alertes seuil bas par item</li>
+                  </ul>
+                </div>
+                <div className="lv3-addon-side">
+                  <div className="lv3-addon-price">
+                    <span className="v">+29€</span>
+                    <span className="u">/mois HT</span>
+                  </div>
+                  <div className="lv3-addon-avail">
+                    Disponible sur tous les forfaits
+                  </div>
+                  <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-addon-cta">
+                    Activer le module →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

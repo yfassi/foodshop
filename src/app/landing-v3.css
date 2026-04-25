@@ -524,10 +524,15 @@
 .lv3-plan-ft li .dot svg { width: 9px; height: 9px; }
 .lv3-price-foot { text-align: center; margin-top: 32px; font-size: 13px; color: var(--muted); }
 
-/* ADD-ON (Module Livraison) */
-.lv3-addon {
+/* ADD-ONS (Modules complémentaires) */
+.lv3-addons-grid {
   margin: 64px auto 0;
-  max-width: 960px;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 24px;
+}
+.lv3-addon {
   background: #fff;
   border: 1px solid var(--rule);
   border-radius: 20px;
@@ -671,6 +676,7 @@
   .lv3-client-features { grid-template-columns: repeat(2, 1fr); }
   .lv3-price-grid { grid-template-columns: 1fr; }
   .lv3-plan.feat { transform: none; }
+  .lv3-addons-grid { grid-template-columns: 1fr; gap: 16px; }
   .lv3-addon { padding: 24px; }
   .lv3-addon-body { grid-template-columns: 1fr; gap: 24px; }
   .lv3-testi-grid { grid-template-columns: 1fr; }
