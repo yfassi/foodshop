@@ -48,9 +48,25 @@ export default async function AdminLayout({
     restaurant = data;
   }
 
+  const [{ count: newOrdersCount }, { count: pendingDeliveriesCount }] =
+    await Promise.all([
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("restaurant_id", restaurant.id)
+        .eq("status", "new"),
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("restaurant_id", restaurant.id)
+        .eq("order_type", "delivery")
+        .eq("delivery_status", "pending"),
+    ]);
+
   return (
     <AdminShell
       slug={slug}
+      restaurantId={restaurant.id}
       restaurantName={restaurant.name}
       verificationStatus={restaurant.verification_status}
       isDemo={isDemo}
@@ -60,6 +76,10 @@ export default async function AdminLayout({
       deliveryEnabled={
         restaurant.delivery_enabled && restaurant.delivery_addon_active
       }
+      initialBadges={{
+        "": newOrdersCount ?? 0,
+        "/delivery": pendingDeliveriesCount ?? 0,
+      }}
     >
       {children}
     </AdminShell>

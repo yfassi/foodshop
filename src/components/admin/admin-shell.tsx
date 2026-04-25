@@ -44,6 +44,7 @@ const DELIVERY_NAV_ITEM = {
 
 export function AdminShell({
   slug,
+  restaurantId,
   restaurantName,
   verificationStatus,
   isDemo,
@@ -51,9 +52,11 @@ export function AdminShell({
   openingHours,
   isAcceptingOrders,
   deliveryEnabled,
+  initialBadges,
   children,
 }: {
   slug: string;
+  restaurantId: string;
   restaurantName: string;
   verificationStatus: string;
   isDemo: boolean;
@@ -61,6 +64,7 @@ export function AdminShell({
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
+  initialBadges?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -71,6 +75,58 @@ export function AdminShell({
     : BASE_NAV_ITEMS;
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [badges, setBadges] = useState<Record<string, number>>(
+    initialBadges ?? {}
+  );
+
+  useEffect(() => {
+    setBadges(initialBadges ?? {});
+  }, [initialBadges]);
+
+  // Refresh badge counts from DB
+  const refreshBadges = useCallback(async () => {
+    const supabase = createClient();
+    const [{ count: newOrders }, { count: pendingDeliveries }] =
+      await Promise.all([
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("restaurant_id", restaurantId)
+          .eq("status", "new"),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("restaurant_id", restaurantId)
+          .eq("order_type", "delivery")
+          .eq("delivery_status", "pending"),
+      ]);
+    setBadges({
+      "": newOrders ?? 0,
+      "/delivery": pendingDeliveries ?? 0,
+    });
+  }, [restaurantId]);
+
+  // Realtime: re-fetch counts on any orders change for this restaurant
+  useEffect(() => {
+    if (!restaurantId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`admin-shell-badges-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => refreshBadges()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId, refreshBadges]);
 
   // Live restaurant status (re-check every 60s)
   const getStatus = useCallback(
@@ -151,6 +207,7 @@ export function AdminShell({
           <nav className="flex-1 space-y-1 p-3">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href);
+              const count = badges[item.href] ?? 0;
               return (
                 <Link
                   key={item.href}
@@ -162,8 +219,30 @@ export function AdminShell({
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                   )}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  <span className="relative shrink-0">
+                    <item.icon className="h-4 w-4" />
+                    {collapsed && count > 0 && (
+                      <span
+                        aria-hidden
+                        className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-sidebar"
+                      >
+                        {count > 9 ? "9+" : count}
+                      </span>
+                    )}
+                  </span>
+                  {!collapsed && (
+                    <>
+                      <span>{item.label}</span>
+                      {count > 0 && (
+                        <span
+                          aria-label={`${count} ${count > 1 ? "nouvelles" : "nouvelle"}`}
+                          className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white"
+                        >
+                          {count > 99 ? "99+" : count}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </Link>
               );
             })}
@@ -251,6 +330,7 @@ export function AdminShell({
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-card/95 backdrop-blur-sm md:hidden">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href);
+          const count = badges[item.href] ?? 0;
           return (
             <Link
               key={item.href}
@@ -262,7 +342,17 @@ export function AdminShell({
                   : "text-muted-foreground active:text-primary"
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <span className="relative">
+                <item.icon className="h-5 w-5" />
+                {count > 0 && (
+                  <span
+                    aria-label={`${count} ${count > 1 ? "nouvelles" : "nouvelle"}`}
+                    className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-card"
+                  >
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </span>
               {item.label === "Tableau de bord" ? "Stats" : item.label}
             </Link>
           );
