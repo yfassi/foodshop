@@ -9,6 +9,7 @@ import {
   Users,
   BarChart3,
   Bike,
+  Package,
   Clock,
   PanelLeftClose,
   PanelLeft,
@@ -42,6 +43,12 @@ const DELIVERY_NAV_ITEM = {
   href: "/delivery",
 };
 
+const STOCK_NAV_ITEM = {
+  icon: Package,
+  label: "Stock",
+  href: "/stock",
+};
+
 export function AdminShell({
   slug,
   restaurantName,
@@ -51,6 +58,7 @@ export function AdminShell({
   openingHours,
   isAcceptingOrders,
   deliveryEnabled,
+  stockEnabled,
   children,
 }: {
   slug: string;
@@ -61,14 +69,20 @@ export function AdminShell({
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
+  stockEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const qs = isDemo ? "?demo=true" : "";
-  const NAV_ITEMS = deliveryEnabled
-    ? [...BASE_NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...BASE_NAV_ITEMS.slice(4)]
-    : BASE_NAV_ITEMS;
+  let NAV_ITEMS = [...BASE_NAV_ITEMS];
+  if (deliveryEnabled) {
+    NAV_ITEMS = [...NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...NAV_ITEMS.slice(4)];
+  }
+  if (stockEnabled) {
+    const insertAt = NAV_ITEMS.findIndex((i) => i.href === "/clients") + 1;
+    NAV_ITEMS = [...NAV_ITEMS.slice(0, insertAt), STOCK_NAV_ITEM, ...NAV_ITEMS.slice(insertAt)];
+  }
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 

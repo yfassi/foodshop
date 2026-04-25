@@ -105,6 +105,8 @@ export interface Restaurant {
   delivery_addon_active: boolean;
   delivery_enabled: boolean;
   delivery_config: DeliveryConfig;
+  stock_addon_active: boolean;
+  stock_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -325,4 +327,69 @@ export interface CartItem {
   line_total: number;
   is_menu: boolean;
   menu_supplement: number;
+}
+
+// ============================================
+// STOCK MODULE
+// ============================================
+
+export type StockUnit = "kg" | "g" | "L" | "ml" | "pcs" | "cartons";
+export type StockMovementType = "in" | "out" | "adjustment";
+export type StockReceiptStatus = "pending" | "processed" | "confirmed" | "failed";
+
+export const STOCK_UNITS: StockUnit[] = ["kg", "g", "L", "ml", "pcs", "cartons"];
+
+export interface StockItem {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  unit: StockUnit;
+  current_qty: number;
+  reorder_threshold: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMovement {
+  id: string;
+  restaurant_id: string;
+  stock_item_id: string;
+  type: StockMovementType;
+  quantity: number;
+  reason: string | null;
+  receipt_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface OCRReceiptItem {
+  raw_name: string;
+  qty: number;
+  unit: StockUnit;
+  price_cents?: number | null;
+  matched_stock_item_id?: string | null;
+}
+
+export interface StockReceiptOCRData {
+  items: OCRReceiptItem[];
+  supplier?: string | null;
+  date?: string | null;
+  total_cents?: number | null;
+}
+
+export interface StockReceipt {
+  id: string;
+  restaurant_id: string;
+  image_url: string;
+  status: StockReceiptStatus;
+  ocr_data: StockReceiptOCRData | null;
+  supplier_name: string | null;
+  receipt_date: string | null;
+  total_amount_cents: number | null;
+  error_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  confirmed_at: string | null;
 }
