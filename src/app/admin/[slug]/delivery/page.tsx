@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bike, MapPin, Phone, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Bike, MapPin, Phone, Loader2, ExternalLink } from "lucide-react";
 import type { Order, Driver } from "@/lib/types";
 
 type OrderWithDriver = Order & { driver?: Driver | null };
@@ -100,9 +102,17 @@ export default function DeliveryBoardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Bike className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-bold">Livraison — aujourd&apos;hui</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Bike className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold">Livraison — aujourd&apos;hui</h1>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/driver/${slug}`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4" />
+            Espace livreur
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
