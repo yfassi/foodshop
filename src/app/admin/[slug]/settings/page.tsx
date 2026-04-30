@@ -50,6 +50,9 @@ import {
   Download,
   Bike,
   Lock,
+  Package,
+  LayoutGrid,
+  Key,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -62,7 +65,16 @@ import type {
   DeliveryConfig,
   DeliveryCoords,
   DeliveryZone,
+  SubscriptionTier,
+  FloorPlan,
 } from "@/lib/types";
+import {
+  getTierLabel,
+  canUseLoyalty,
+  canUseFloorPlan,
+  canUseSplitPayment,
+  canUseApi,
+} from "@/lib/subscription";
 import {
   DAYS_FR,
   DAYS_FR_SHORT,
@@ -76,6 +88,9 @@ import { QueueManager } from "@/components/admin/queue-manager";
 import { DeliveryZoneBuilder } from "@/components/admin/delivery-zone-builder";
 import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
 import { DriverManager } from "@/components/admin/driver-manager";
+import { TierLockBanner } from "@/components/admin/tier-lock-banner";
+import { FloorPlanEditor } from "@/components/admin/floor-plan-editor";
+import { ApiKeysManager } from "@/components/admin/api-keys-manager";
 import {
   Select,
   SelectContent,
@@ -84,7 +99,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "delivery" | "account";
+type Tab =
+  | "restaurant"
+  | "payment"
+  | "loyalty"
+  | "wallet"
+  | "queue"
+  | "delivery"
+  | "stock"
+  | "floor"
+  | "api"
+  | "account";
 
 interface StripePayment {
   id: string;
@@ -195,12 +220,22 @@ export default function SettingsPage() {
 
   // Delivery
   const [deliveryAddonActive, setDeliveryAddonActive] = useState(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<string>("essentiel");
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("plat");
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryCoords, setDeliveryCoords] = useState<DeliveryCoords | null>(null);
   const [deliveryPrepTime, setDeliveryPrepTime] = useState<number>(20);
   const [deliveryMaxRadius, setDeliveryMaxRadius] = useState<number>(5000);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+
+  // Stock module
+  const [stockModuleActive, setStockModuleActive] = useState(false);
+  const [stockEnabled, setStockEnabled] = useState(false);
+
+  // Split payment
+  const [splitPaymentEnabled, setSplitPaymentEnabled] = useState(false);
+
+  // Floor plan
+  const [floorPlan, setFloorPlan] = useState<FloorPlan>({ tables: [] });
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -292,13 +327,18 @@ export default function SettingsPage() {
         setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
 
         setDeliveryAddonActive(data.delivery_addon_active ?? false);
-        setSubscriptionTier(data.subscription_tier ?? "essentiel");
+        setSubscriptionTier((data.subscription_tier ?? "plat") as SubscriptionTier);
         setDeliveryEnabled(data.delivery_enabled ?? false);
         const dc = (data.delivery_config || {}) as DeliveryConfig;
         setDeliveryCoords(dc.coords ?? null);
         setDeliveryPrepTime(dc.prep_time_minutes ?? 20);
         setDeliveryMaxRadius(dc.max_radius_m ?? 5000);
         setDeliveryZones(dc.zones ?? []);
+
+        setStockModuleActive(data.stock_module_active ?? false);
+        setStockEnabled(data.stock_enabled ?? false);
+        setSplitPaymentEnabled(data.split_payment_enabled ?? false);
+        setFloorPlan((data.floor_plan as FloorPlan) ?? { tables: [] });
       }
 
       setLoading(false);
@@ -512,6 +552,44 @@ export default function SettingsPage() {
     }
   }, [restaurant, queueEnabled, queueMaxConcurrent]);
 
+  const autoSaveStock = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ stock_enabled: stockEnabled })
+      .eq("id", restaurant.id);
+    if (error) toast.error("Erreur lors de la sauvegarde");
+    else toast.success("Enregistré");
+  }, [restaurant, stockEnabled]);
+
+  const autoSaveSplitPayment = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ split_payment_enabled: splitPaymentEnabled })
+      .eq("id", restaurant.id);
+    if (error) toast.error("Erreur lors de la sauvegarde");
+    else toast.success("Enregistré");
+  }, [restaurant, splitPaymentEnabled]);
+
+  const autoSaveFloorPlan = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        floor_plan: { ...floorPlan, updated_at: new Date().toISOString() },
+      })
+      .eq("id", restaurant.id);
+    if (error) toast.error("Erreur lors de la sauvegarde");
+    else toast.success("Enregistré");
+  }, [restaurant, floorPlan]);
+
   // Auto-save restaurant settings (debounced)
   useEffect(() => {
     if (!hasLoaded.current) return;
@@ -551,6 +629,25 @@ export default function SettingsPage() {
     queueTimerRef.current = setTimeout(autoSaveQueue, 800);
     return () => { if (queueTimerRef.current) clearTimeout(queueTimerRef.current); };
   }, [autoSaveQueue]);
+
+  // Auto-save stock / split-payment / floor-plan (debounced)
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    const t = setTimeout(autoSaveStock, 600);
+    return () => clearTimeout(t);
+  }, [autoSaveStock]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    const t = setTimeout(autoSaveSplitPayment, 600);
+    return () => clearTimeout(t);
+  }, [autoSaveSplitPayment]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    const t = setTimeout(autoSaveFloorPlan, 1200);
+    return () => clearTimeout(t);
+  }, [autoSaveFloorPlan]);
 
   const autoSaveDelivery = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -811,6 +908,9 @@ export default function SettingsPage() {
             <TabsTrigger value="wallet"><Wallet className="h-3.5 w-3.5" /><span className="hidden sm:inline">Solde</span></TabsTrigger>
             <TabsTrigger value="queue"><Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">File</span></TabsTrigger>
             <TabsTrigger value="delivery"><Bike className="h-3.5 w-3.5" /><span className="hidden sm:inline">Livraison</span></TabsTrigger>
+            <TabsTrigger value="stock"><Package className="h-3.5 w-3.5" /><span className="hidden sm:inline">Stock</span></TabsTrigger>
+            <TabsTrigger value="floor"><LayoutGrid className="h-3.5 w-3.5" /><span className="hidden sm:inline">Plan de salle</span></TabsTrigger>
+            <TabsTrigger value="api"><Key className="h-3.5 w-3.5" /><span className="hidden sm:inline">API</span></TabsTrigger>
             <TabsTrigger value="account"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Compte</span></TabsTrigger>
           </TabsList>
 
@@ -1112,6 +1212,38 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
+              {/* Split payment toggle (Le Menu+) */}
+              {canUseSplitPayment(subscriptionTier) ? (
+                <Card size="sm">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm">Paiement fractionné</CardTitle>
+                        <CardDescription className="text-xs">
+                          Permet aux convives de partager l&apos;addition (par parts égales)
+                        </CardDescription>
+                      </div>
+                      <CardAction>
+                        <Switch
+                          checked={splitPaymentEnabled}
+                          onCheckedChange={setSplitPaymentEnabled}
+                        />
+                      </CardAction>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ) : (
+                <TierLockBanner
+                  current={subscriptionTier}
+                  required="menu"
+                  feature="Paiement fractionné"
+                  description="Partage de l'addition entre convives"
+                />
+              )}
+
               {/* Payment provider connection */}
               <Card size="sm">
                 <CardHeader>
@@ -1232,21 +1364,32 @@ export default function SettingsPage() {
           {/* ═══ Tab: Fidélité ═══ */}
           <TabsContent value="loyalty">
             <div className="space-y-4">
-              <Card size="sm">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <Gift className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-sm">Programme de fidélité</CardTitle>
-                      <CardDescription className="text-xs">1 EUR dépensé = 1 point de fidélité</CardDescription>
-                    </div>
-                  </div>
-                  <CardAction><Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} /></CardAction>
-                </CardHeader>
-              </Card>
-              {loyaltyEnabled && <LoyaltyTierBuilder restaurantId={restaurant.id} tiers={loyaltyTiers} onChange={setLoyaltyTiers} />}
+              {!canUseLoyalty(subscriptionTier) ? (
+                <TierLockBanner
+                  current={subscriptionTier}
+                  required="menu"
+                  feature="Programme de fidélité + SMS"
+                  description="Tampons digitaux & relances clientes"
+                />
+              ) : (
+                <>
+                  <Card size="sm">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          <Gift className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-sm">Programme de fidélité</CardTitle>
+                          <CardDescription className="text-xs">1 EUR dépensé = 1 point de fidélité</CardDescription>
+                        </div>
+                      </div>
+                      <CardAction><Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} /></CardAction>
+                    </CardHeader>
+                  </Card>
+                  {loyaltyEnabled && <LoyaltyTierBuilder restaurantId={restaurant.id} tiers={loyaltyTiers} onChange={setLoyaltyTiers} />}
+                </>
+              )}
             </div>
           </TabsContent>
 
@@ -1337,18 +1480,9 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">
-                      {subscriptionTier === "essentiel" ? (
-                        <>
-                          Passez à <strong>Pro</strong> ou{" "}
-                          <strong>Business</strong> puis activez le module
-                          Livraison pour gérer zones, frais et livreurs.
-                        </>
-                      ) : (
-                        <>
-                          Contactez le support pour activer le module Livraison
-                          sur votre abonnement.
-                        </>
-                      )}
+                      Plan actuel : <strong>{getTierLabel(subscriptionTier)}</strong>.
+                      Contactez le support pour activer le module Livraison sur votre
+                      abonnement.
                     </p>
                   </CardContent>
                 </Card>
@@ -1467,6 +1601,103 @@ export default function SettingsPage() {
                     </>
                   )}
                 </>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ Tab: Stock ═══ */}
+          <TabsContent value="stock">
+            <div className="space-y-4">
+              {!stockModuleActive ? (
+                <Card size="sm" className="border-dashed">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Package className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm">Module Stock — 12 €/mois</CardTitle>
+                        <CardDescription className="text-xs">
+                          OCR tickets fournisseur · alertes seuil bas · décrément auto
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Plan actuel : <strong>{getTierLabel(subscriptionTier)}</strong>.
+                      Contactez le support pour activer le module Stock sur votre abonnement.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <Card size="sm">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Package className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-sm">Activer le suivi de stock</CardTitle>
+                          <CardDescription className="text-xs">
+                            Numérisez les tickets, suivez les quantités, recevez les alertes
+                          </CardDescription>
+                        </div>
+                        <CardAction>
+                          <Switch
+                            checked={stockEnabled}
+                            onCheckedChange={setStockEnabled}
+                          />
+                        </CardAction>
+                      </div>
+                    </CardHeader>
+                  </Card>
+
+                  {stockEnabled && (
+                    <Card size="sm">
+                      <CardContent className="py-6">
+                        <p className="text-center text-xs text-muted-foreground">
+                          ★ Bientôt : numérisation OCR, recettes, alertes seuil bas.
+                          <br />
+                          Le module est activé — l&apos;interface complète arrive très vite.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ Tab: Plan de salle ═══ */}
+          <TabsContent value="floor">
+            <div className="space-y-4">
+              {!canUseFloorPlan(subscriptionTier) ? (
+                <TierLockBanner
+                  current={subscriptionTier}
+                  required="menu"
+                  feature="Plan de salle interactif"
+                  description="Disposez vos tables, suivez l'occupation"
+                />
+              ) : (
+                <FloorPlanEditor value={floorPlan} onChange={setFloorPlan} />
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ Tab: API & webhooks ═══ */}
+          <TabsContent value="api">
+            <div className="space-y-4">
+              {!canUseApi(subscriptionTier) ? (
+                <TierLockBanner
+                  current={subscriptionTier}
+                  required="carte"
+                  feature="API & webhooks"
+                  description="Authentifiez vos intégrations externes (n8n, Zapier, scripts maison…)"
+                />
+              ) : (
+                <ApiKeysManager restaurantId={restaurant.id} />
               )}
             </div>
           </TabsContent>

@@ -41,6 +41,9 @@ import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
+import { ExportCsvButton } from "@/components/admin/export-csv-button";
+import { canUseExportCsv } from "@/lib/subscription";
+import type { SubscriptionTier } from "@/lib/types";
 
 /* ─── Period presets ─── */
 const PERIOD_PRESETS: { key: Period; label: string; group: "quick" | "relative" | "rolling" }[] = [
@@ -99,6 +102,8 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>("today");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantTier, setRestaurantTier] = useState<SubscriptionTier>("plat");
 
   // Effective date range
   const dateRange = useMemo(() => {
@@ -119,7 +124,7 @@ export default function DashboardPage() {
 
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id")
+        .select("id, subscription_tier")
         .eq("slug", params.slug)
         .single();
 
@@ -127,6 +132,9 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
+
+      setRestaurantId(restaurant.id);
+      setRestaurantTier((restaurant.subscription_tier ?? "plat") as SubscriptionTier);
 
       const { data } = await supabase
         .from("orders")
@@ -318,6 +326,14 @@ export default function DashboardPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TypographyH2>Tableau de bord</TypographyH2>
 
+          <div className="flex flex-wrap items-center gap-2">
+            {restaurantId && canUseExportCsv(restaurantTier) && (
+              <ExportCsvButton
+                restaurantId={restaurantId}
+                type="orders"
+                label="Exporter"
+              />
+            )}
           {/* ─── Date filter ─── */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
@@ -410,6 +426,7 @@ export default function DashboardPage() {
               </div>
             </PopoverContent>
           </Popover>
+          </div>
         </div>
 
         {/* ─── Metric cards ─── */}

@@ -1,5 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Poppins, Space_Grotesk, Space_Mono, Caveat } from "next/font/google";
+import {
+  Inter,
+  Poppins,
+  Space_Grotesk,
+  Space_Mono,
+  Caveat,
+  Fraunces,
+  Familjen_Grotesk,
+  DM_Mono,
+} from "next/font/google";
 import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -33,6 +42,25 @@ const caveat = Caveat({
   weight: ["400", "700"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+const familjenGrotesk = Familjen_Grotesk({
+  variable: "--font-familjen",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const dmMono = DM_Mono({
+  variable: "--font-dm-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
 const ferron = localFont({
   src: "../../public/fonts/Ferron-Regular.otf",
   variable: "--font-ferron",
@@ -45,9 +73,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TaapR - La commande en ligne pour les restaurants | 0% commission",
+  title: "TaapR — La suite tout-en-un pour les restos indépendants.",
   description:
-    "TaapR permet à vos clients de commander depuis leur smartphone via QR code. Paiement sécurisé Stripe, 0% de commission, abonnement fixe à partir de 29€/mois.",
+    "Commandes, paiements, fidélité, cuisine, livraison, stock. Un seul outil, zéro commission par commande. Service compris.",
   keywords: [
     "commande en ligne restaurant",
     "QR code restaurant",
@@ -56,21 +84,23 @@ export const metadata: Metadata = {
     "0 commission restaurant",
     "caisse enregistreuse",
     "food truck commande en ligne",
+    "livraison restaurant",
+    "stock restaurant",
     "TaapR",
   ],
   openGraph: {
-    title: "TaapR - La commande en ligne pour les restaurants",
+    title: "TaapR — La suite tout-en-un pour les restos indépendants.",
     description:
-      "Vos clients scannent, commandent et paient depuis leur téléphone. 0% de commission, abonnement fixe.",
+      "Commandes, paiements, fidélité, cuisine, livraison, stock. Un seul outil, zéro commission. Service compris.",
     type: "website",
     locale: "fr_FR",
     siteName: "TaapR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TaapR - La commande en ligne pour les restaurants",
+    title: "TaapR — La suite tout-en-un pour les restos indépendants.",
     description:
-      "Vos clients scannent, commandent et paient depuis leur téléphone. 0% de commission.",
+      "Commandes, paiements, fidélité, cuisine, livraison, stock. Un seul outil, zéro commission par commande.",
   },
 };
 
@@ -82,7 +112,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${inter.variable} ${poppins.variable} ${spaceGrotesk.variable} ${spaceMono.variable} ${caveat.variable} ${ferron.variable} antialiased`}
+        className={`${inter.variable} ${poppins.variable} ${spaceGrotesk.variable} ${spaceMono.variable} ${caveat.variable} ${fraunces.variable} ${familjenGrotesk.variable} ${dmMono.variable} ${ferron.variable} antialiased`}
       >
         <a
           href="#main-content"
