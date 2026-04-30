@@ -77,6 +77,8 @@ import { QueueManager } from "@/components/admin/queue-manager";
 import { DeliveryZoneBuilder } from "@/components/admin/delivery-zone-builder";
 import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
 import { DriverManager } from "@/components/admin/driver-manager";
+import { UpgradeDialog } from "@/components/admin/upgrade-dialog";
+import type { AddonId, PlanId } from "@/lib/plans";
 import {
   Select,
   SelectContent,
@@ -206,6 +208,10 @@ export default function SettingsPage() {
   // Stock
   const [stockAddonActive, setStockAddonActive] = useState(false);
   const [stockEnabled, setStockEnabled] = useState(false);
+
+  // Upgrade dialog
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeInitialAddon, setUpgradeInitialAddon] = useState<AddonId | undefined>(undefined);
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -1375,7 +1381,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                     <p className="text-xs text-muted-foreground">
                       {subscriptionTier === "essentiel" ? (
                         <>
@@ -1385,11 +1391,20 @@ export default function SettingsPage() {
                         </>
                       ) : (
                         <>
-                          Contactez le support pour activer le module Livraison
-                          sur votre abonnement.
+                          Activez le module Livraison pour gérer zones, frais et
+                          livreurs.
                         </>
                       )}
                     </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setUpgradeInitialAddon("delivery");
+                        setUpgradeOpen(true);
+                      }}
+                    >
+                      Activer le module
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -1531,10 +1546,20 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                     <p className="text-xs text-muted-foreground">
-                      Contactez le support pour activer le module Stock sur votre abonnement.
+                      Activez le module Stock pour numériser vos tickets et
+                      suivre vos quantités en temps réel.
                     </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setUpgradeInitialAddon("stock");
+                        setUpgradeOpen(true);
+                      }}
+                    >
+                      Activer le module
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -1615,6 +1640,46 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {restaurant && (
+        <UpgradeDialog
+          open={upgradeOpen}
+          onOpenChange={(open) => {
+            setUpgradeOpen(open);
+            if (!open) setUpgradeInitialAddon(undefined);
+          }}
+          restaurantSlug={params.slug}
+          currentTier={(subscriptionTier as PlanId) || "essentiel"}
+          deliveryActive={deliveryAddonActive}
+          stockActive={stockAddonActive}
+          initialAddon={upgradeInitialAddon}
+          onUpdated={async () => {
+            const supabase = createClient();
+            const { data } = await supabase
+              .from("restaurants")
+              .select("subscription_tier, delivery_addon_active, stock_addon_active, delivery_enabled, order_types")
+              .eq("id", restaurant.id)
+              .single<{
+                subscription_tier: string | null;
+                delivery_addon_active: boolean | null;
+                stock_addon_active: boolean | null;
+                delivery_enabled: boolean | null;
+                order_types: string[] | null;
+              }>();
+            if (data) {
+              setSubscriptionTier(data.subscription_tier ?? "essentiel");
+              setDeliveryAddonActive(data.delivery_addon_active ?? false);
+              setStockAddonActive(data.stock_addon_active ?? false);
+              if (data.delivery_enabled != null) {
+                setDeliveryEnabled(data.delivery_enabled);
+              }
+              if (data.order_types) {
+                setOrderTypeDelivery(data.order_types.includes("delivery"));
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

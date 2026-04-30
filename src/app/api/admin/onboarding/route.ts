@@ -16,7 +16,12 @@ interface OnboardingBody {
   password?: string;
   queue_enabled?: boolean;
   queue_max_concurrent?: number;
+  subscription_tier?: string;
+  delivery_addon_active?: boolean;
+  stock_addon_active?: boolean;
 }
+
+const VALID_TIERS = new Set(["essentiel", "pro", "business"]);
 
 function toSlug(name: string) {
   return name
@@ -33,7 +38,32 @@ export async function POST(request: Request) {
     const body = JSON.parse(formData.get("data") as string) as OnboardingBody;
     const verificationFile = formData.get("verification_document") as File | null;
 
-    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent } = body;
+    const {
+      name,
+      description,
+      restaurant_type,
+      address,
+      phone,
+      opening_hours,
+      order_types,
+      accepted_payment_methods,
+      logo_url,
+      email,
+      password,
+      queue_enabled,
+      queue_max_concurrent,
+      subscription_tier,
+      delivery_addon_active,
+      stock_addon_active,
+    } = body;
+
+    const tier = subscription_tier && VALID_TIERS.has(subscription_tier)
+      ? subscription_tier
+      : "essentiel";
+    // Delivery is only valid on Pro/Business
+    const deliveryActive =
+      !!delivery_addon_active && (tier === "pro" || tier === "business");
+    const stockActive = !!stock_addon_active;
 
     if (!name) {
       return NextResponse.json(
@@ -164,6 +194,9 @@ export async function POST(request: Request) {
       is_accepting_orders: true,
       verification_status: "pending",
       verification_document_url,
+      subscription_tier: tier,
+      delivery_addon_active: deliveryActive,
+      stock_addon_active: stockActive,
       ...(queue_enabled != null && { queue_enabled }),
       ...(queue_max_concurrent != null && { queue_max_concurrent }),
     });
