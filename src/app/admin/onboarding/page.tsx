@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,17 @@ import {
   FileCheck,
   Upload,
   FileText,
+  Sparkles,
+  Bike,
+  Package,
 } from "lucide-react";
+import {
+  PLANS,
+  ADDONS,
+  isAddonAvailableOn,
+  type PlanId,
+  type AddonId,
+} from "@/lib/plans";
 import {
   Dialog,
   DialogContent,
@@ -56,9 +67,15 @@ const STEPS = [
   { label: "Coordonnées", icon: MapPin },
   { label: "Horaires", icon: Clock },
   { label: "Configuration", icon: Settings },
+  { label: "Plan", icon: Sparkles },
   { label: "Vérification", icon: FileCheck },
   { label: "Compte", icon: UserPlus },
 ];
+
+const ADDON_ICONS: Record<AddonId, typeof Bike> = {
+  delivery: Bike,
+  stock: Package,
+};
 
 const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
@@ -106,6 +123,15 @@ const DEFAULT_HOURS: HoursState = {
 /* ─── Component ─── */
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingFlow />
+    </Suspense>
+  );
+}
+
+function OnboardingFlow() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [animClass, setAnimClass] = useState("");
@@ -136,15 +162,55 @@ export default function OnboardingPage() {
   const [cardEnabled, setCardEnabled] = useState(false);
   const [queueEnabled, setQueueEnabled] = useState(false);
 
-  // Step 5 — Verification document
+  // Step 5 — Plan & add-ons
+  const [planId, setPlanId] = useState<PlanId>("essentiel");
+  const [selectedAddons, setSelectedAddons] = useState<Set<AddonId>>(new Set());
+
+  // Step 6 — Verification document
   const [verificationDoc, setVerificationDoc] = useState<File | null>(null);
   const [verificationDocName, setVerificationDocName] = useState("");
   const docInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Step 6 — Account
+  // Step 7 — Account
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  /* ─── Prefill plan/addons from landing CTAs ─── */
+  useEffect(() => {
+    const planParam = searchParams.get("plan");
+    if (planParam && PLANS.some((p) => p.id === planParam)) {
+      setPlanId(planParam as PlanId);
+    }
+    const addonsParam = searchParams.get("addons") || searchParams.get("addon");
+    if (addonsParam) {
+      const requested = addonsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s): s is AddonId => s === "delivery" || s === "stock");
+      const targetPlan = (planParam && PLANS.some((p) => p.id === planParam)
+        ? planParam
+        : "essentiel") as PlanId;
+      const next = new Set<AddonId>();
+      for (const id of requested) {
+        if (isAddonAvailableOn(id, targetPlan)) next.add(id);
+      }
+      setSelectedAddons(next);
+    }
+  }, [searchParams]);
+
+  /* ─── Drop add-ons that aren't available on the current plan ─── */
+  useEffect(() => {
+    setSelectedAddons((prev) => {
+      let changed = false;
+      const next = new Set<AddonId>();
+      for (const id of prev) {
+        if (isAddonAvailableOn(id, planId)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [planId]);
 
   /* ─── Navigation ─── */
 
@@ -162,8 +228,10 @@ export default function OnboardingPage() {
           (cashEnabled || cardEnabled)
         );
       case 4:
-        return !!verificationDoc;
+        return true;
       case 5:
+        return !!verificationDoc;
+      case 6:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -227,6 +295,9 @@ export default function OnboardingPage() {
         order_types,
         accepted_payment_methods,
         queue_enabled: queueEnabled,
+        subscription_tier: planId,
+        delivery_addon_active: selectedAddons.has("delivery"),
+        stock_addon_active: selectedAddons.has("stock"),
       }));
       if (verificationDoc) {
         formData.append("verification_document", verificationDoc);
@@ -1000,8 +1071,159 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ─── Step 5: Verification Document ─── */}
+            {/* ─── Step 5: Plan & Add-ons ─── */}
             {step === 4 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-lg font-bold">Choisissez votre plan</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Vous pourrez changer ou ajouter des modules à tout moment
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {PLANS.map((plan) => {
+                    const selected = planId === plan.id;
+                    return (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setPlanId(plan.id)}
+                        className={`relative w-full rounded-xl border-2 p-3.5 text-left transition-all ${
+                          selected
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/40"
+                        }`}
+                      >
+                        {plan.badge && (
+                          <span className="absolute -top-2 left-3 rounded-full bg-primary px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary-foreground">
+                            {plan.badge}
+                          </span>
+                        )}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">{plan.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {plan.sub}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="text-base font-bold">
+                              {plan.price}€
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              /mois HT
+                            </span>
+                          </div>
+                          <div
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {selected && <Check className="h-3 w-3" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Modules complémentaires
+                  </Label>
+                  <div className="space-y-2">
+                    {ADDONS.map((addon) => {
+                      const Icon = ADDON_ICONS[addon.id];
+                      const available = isAddonAvailableOn(addon.id, planId);
+                      const selected = selectedAddons.has(addon.id);
+                      return (
+                        <button
+                          key={addon.id}
+                          type="button"
+                          disabled={!available}
+                          onClick={() => {
+                            setSelectedAddons((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(addon.id)) next.delete(addon.id);
+                              else next.add(addon.id);
+                              return next;
+                            });
+                          }}
+                          className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                            !available
+                              ? "cursor-not-allowed border-dashed border-muted-foreground/20 bg-muted/30 opacity-60"
+                              : selected
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground/40"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                              selected
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">
+                              {addon.name}{" "}
+                              <span className="text-[11px] font-medium text-primary">
+                                {addon.highlight}
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {available
+                                ? addon.description
+                                : `Disponible à partir du plan ${PLANS.find((p) => addon.availableOn.includes(p.id))?.name}`}
+                            </p>
+                          </div>
+                          <div
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {selected && <Check className="h-3 w-3" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Total mensuel
+                  </span>
+                  <span className="text-base font-bold">
+                    {(() => {
+                      const plan = PLANS.find((p) => p.id === planId)!;
+                      const addonsCost = ADDONS.filter((a) =>
+                        selectedAddons.has(a.id)
+                      ).reduce((sum, a) => sum + a.price, 0);
+                      return `${plan.price + addonsCost}€`;
+                    })()}{" "}
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      /mois HT
+                    </span>
+                  </span>
+                </div>
+
+                <p className="text-center text-[11px] text-muted-foreground">
+                  14 jours d&apos;essai · Sans engagement · Annulable à tout
+                  moment
+                </p>
+              </div>
+            )}
+
+            {/* ─── Step 6: Verification Document ─── */}
+            {step === 5 && (
               <div className="space-y-5">
                 <div>
                   <h2 className="text-lg font-bold">
@@ -1110,8 +1332,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ─── Step 6: Account ─── */}
-            {step === 5 && (
+            {/* ─── Step 7: Account ─── */}
+            {step === 6 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold">Créez votre compte</h2>

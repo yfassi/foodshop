@@ -12,6 +12,7 @@ const CheckIcon = ({ className = "" }: { className?: string }) => (
 
 const PLANS = [
   {
+    id: "essentiel",
     name: "Essentiel",
     sub: "Démarrer sereinement",
     price: 29,
@@ -27,6 +28,7 @@ const PLANS = [
     featured: false,
   },
   {
+    id: "pro",
     name: "Pro",
     sub: "Pour les restaurants qui tournent",
     price: 49,
@@ -44,6 +46,7 @@ const PLANS = [
     badge: "Le plus populaire",
   },
   {
+    id: "business",
     name: "Business",
     sub: "Multi-établissements",
     price: 79,
@@ -164,8 +167,8 @@ export default function Home() {
           <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-btn-lg">
             Commencer gratuitement
           </Link>
-          <Link href="/admin/chez-momo?demo=true" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
-            Voir la démo →
+          <Link href="/demo" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
+            Demander une démo →
           </Link>
         </div>
         <div className="lv3-hero-note">
@@ -705,7 +708,7 @@ export default function Home() {
                   <span className="lv3-plan-unit">/mois HT</span>
                 </div>
                 <Link
-                  href="/admin/onboarding"
+                  href={`/admin/onboarding?plan=${plan.id}`}
                   className={`lv3-btn ${plan.ctaPrimary ? "lv3-btn-primary feat-cta" : "lv3-btn-secondary"} lv3-plan-cta`}
                 >
                   {plan.cta}
@@ -723,33 +726,72 @@ export default function Home() {
             TVA 20% non incluse · Frais Stripe ~1,5% + 0,25€ par transaction · Annulable à tout moment
           </div>
 
-          <div className="lv3-addon">
-            <div className="lv3-addon-head">
-              <div className="lv3-addon-tag">Module complémentaire</div>
-              <span className="lv3-addon-new">Nouveau</span>
-            </div>
-            <div className="lv3-addon-body">
-              <div className="lv3-addon-main">
-                <h3>Module Livraison</h3>
-                <p>Ajoutez la livraison à domicile à votre offre — zones, livreurs, suivi temps réel.</p>
-                <ul className="lv3-addon-ft">
-                  <li><span className="dot"><CheckIcon /></span>Zones de livraison personnalisées (rayon + frais)</li>
-                  <li><span className="dot"><CheckIcon /></span>Espace livreur mobile avec auth SMS</li>
-                  <li><span className="dot"><CheckIcon /></span>Sélection d&apos;adresse par carte interactive</li>
-                  <li><span className="dot"><CheckIcon /></span>Suivi livraison en temps réel pour le client</li>
-                </ul>
+          <div className="lv3-addons-grid">
+            <div className="lv3-addon">
+              <div className="lv3-addon-head">
+                <div className="lv3-addon-tag">Module complémentaire</div>
+                <span className="lv3-addon-new">Nouveau</span>
               </div>
-              <div className="lv3-addon-side">
-                <div className="lv3-addon-price">
-                  <span className="v">+19€</span>
-                  <span className="u">/mois HT</span>
+              <div className="lv3-addon-body">
+                <div className="lv3-addon-main">
+                  <h3>Module Livraison</h3>
+                  <p>Ajoutez la livraison à domicile à votre offre — zones, livreurs, suivi temps réel.</p>
+                  <ul className="lv3-addon-ft">
+                    <li><span className="dot"><CheckIcon /></span>Zones de livraison personnalisées (rayon + frais)</li>
+                    <li><span className="dot"><CheckIcon /></span>Espace livreur mobile avec auth SMS</li>
+                    <li><span className="dot"><CheckIcon /></span>Sélection d&apos;adresse par carte interactive</li>
+                    <li><span className="dot"><CheckIcon /></span>Suivi livraison en temps réel pour le client</li>
+                  </ul>
+                  <Link href="/modules/livraison" className="link" style={{ display: "inline-block", marginTop: 8, fontSize: 14, fontWeight: 600, color: "var(--ink)", borderBottom: "1px solid var(--ink)" }}>
+                    En savoir plus →
+                  </Link>
                 </div>
-                <div className="lv3-addon-avail">
-                  Disponible sur <strong>Pro</strong> et <strong>Business</strong>
+                <div className="lv3-addon-side">
+                  <div className="lv3-addon-price">
+                    <span className="v">+19€</span>
+                    <span className="u">/mois HT</span>
+                  </div>
+                  <div className="lv3-addon-avail">
+                    Disponible sur <strong>Pro</strong> et <strong>Business</strong>
+                  </div>
+                  <Link href="/admin/onboarding?plan=pro&addons=delivery" className="lv3-btn lv3-btn-primary lv3-addon-cta">
+                    Activer le module →
+                  </Link>
                 </div>
-                <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-addon-cta">
-                  Activer le module →
-                </Link>
+              </div>
+            </div>
+
+            <div className="lv3-addon">
+              <div className="lv3-addon-head">
+                <div className="lv3-addon-tag">Module complémentaire</div>
+                <span className="lv3-addon-new">Nouveau</span>
+              </div>
+              <div className="lv3-addon-body">
+                <div className="lv3-addon-main">
+                  <h3>Module Stock</h3>
+                  <p>Numérisez vos tickets, suivez vos quantités en temps réel, alerte sur seuil bas.</p>
+                  <ul className="lv3-addon-ft">
+                    <li><span className="dot"><CheckIcon /></span>Scan caméra des tickets fournisseurs</li>
+                    <li><span className="dot"><CheckIcon /></span>Lecture OCR auto par IA et assignation au stock</li>
+                    <li><span className="dot"><CheckIcon /></span>Mouvements illimités (entrées, sorties, ajustements)</li>
+                    <li><span className="dot"><CheckIcon /></span>Alertes seuil bas par item</li>
+                  </ul>
+                  <Link href="/modules/stock" className="link" style={{ display: "inline-block", marginTop: 8, fontSize: 14, fontWeight: 600, color: "var(--ink)", borderBottom: "1px solid var(--ink)" }}>
+                    En savoir plus →
+                  </Link>
+                </div>
+                <div className="lv3-addon-side">
+                  <div className="lv3-addon-price">
+                    <span className="v">+29€</span>
+                    <span className="u">/mois HT</span>
+                  </div>
+                  <div className="lv3-addon-avail">
+                    Disponible sur tous les forfaits
+                  </div>
+                  <Link href="/admin/onboarding?addons=stock" className="lv3-btn lv3-btn-primary lv3-addon-cta">
+                    Activer le module →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -825,9 +867,9 @@ export default function Home() {
             <Link href="/admin/onboarding" className="lv3-btn lv3-btn-primary lv3-btn-lg">
               Commencer gratuitement
             </Link>
-            <a href="mailto:contact@taapr.com" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
-              Parler à un expert
-            </a>
+            <Link href="/demo" className="lv3-btn lv3-btn-secondary lv3-btn-lg">
+              Demander une démo
+            </Link>
           </div>
           <div className="foot-note">
             <span><span className="lv3-chk"><CheckIcon /></span>Setup en 5 min</span>
@@ -851,8 +893,9 @@ export default function Home() {
               <h6>Produit</h6>
               <a href="#product">Fonctionnalités</a>
               <a href="#pricing">Tarifs</a>
+              <Link href="/modules/livraison">Module Livraison</Link>
+              <Link href="/modules/stock">Module Stock</Link>
               <Link href="/admin/chez-momo?demo=true">Démo</Link>
-              <a href="#client-app">Côté client</a>
             </div>
             <div className="lv3-foot-col">
               <h6>Ressources</h6>

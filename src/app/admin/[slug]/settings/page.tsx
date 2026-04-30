@@ -50,6 +50,7 @@ import {
   Download,
   Bike,
   Lock,
+  Package,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,8 @@ import { QueueManager } from "@/components/admin/queue-manager";
 import { DeliveryZoneBuilder } from "@/components/admin/delivery-zone-builder";
 import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
 import { DriverManager } from "@/components/admin/driver-manager";
+import { UpgradeDialog } from "@/components/admin/upgrade-dialog";
+import type { AddonId, PlanId } from "@/lib/plans";
 import {
   Select,
   SelectContent,
@@ -84,7 +87,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "delivery" | "account";
+type Tab = "restaurant" | "payment" | "loyalty" | "wallet" | "queue" | "delivery" | "stock" | "account";
 
 interface StripePayment {
   id: string;
@@ -202,6 +205,14 @@ export default function SettingsPage() {
   const [deliveryMaxRadius, setDeliveryMaxRadius] = useState<number>(5000);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
 
+  // Stock
+  const [stockAddonActive, setStockAddonActive] = useState(false);
+  const [stockEnabled, setStockEnabled] = useState(false);
+
+  // Upgrade dialog
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeInitialAddon, setUpgradeInitialAddon] = useState<AddonId | undefined>(undefined);
+
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Set<string>>(
     new Set()
@@ -299,6 +310,9 @@ export default function SettingsPage() {
         setDeliveryPrepTime(dc.prep_time_minutes ?? 20);
         setDeliveryMaxRadius(dc.max_radius_m ?? 5000);
         setDeliveryZones(dc.zones ?? []);
+
+        setStockAddonActive(data.stock_addon_active ?? false);
+        setStockEnabled(data.stock_enabled ?? false);
       }
 
       setLoading(false);
@@ -397,6 +411,7 @@ export default function SettingsPage() {
   const walletTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveRestaurant = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -595,6 +610,36 @@ export default function SettingsPage() {
     deliveryTimerRef.current = setTimeout(autoSaveDelivery, 800);
     return () => { if (deliveryTimerRef.current) clearTimeout(deliveryTimerRef.current); };
   }, [autoSaveDelivery]);
+
+  // --- Stock ---
+
+  const autoSaveStock = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    if (!stockAddonActive) return;
+
+    const res = await fetch("/api/admin/stock-config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        restaurant_slug: restaurant.slug,
+        stock_enabled: stockEnabled,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Erreur lors de la sauvegarde");
+    } else {
+      toast.success("Enregistré");
+    }
+  }, [restaurant, stockAddonActive, stockEnabled]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    if (stockTimerRef.current) clearTimeout(stockTimerRef.current);
+    stockTimerRef.current = setTimeout(autoSaveStock, 800);
+    return () => { if (stockTimerRef.current) clearTimeout(stockTimerRef.current); };
+  }, [autoSaveStock]);
 
   // --- Account ---
 
@@ -811,6 +856,7 @@ export default function SettingsPage() {
             <TabsTrigger value="wallet"><Wallet className="h-3.5 w-3.5" /><span className="hidden sm:inline">Solde</span></TabsTrigger>
             <TabsTrigger value="queue"><Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">File</span></TabsTrigger>
             <TabsTrigger value="delivery"><Bike className="h-3.5 w-3.5" /><span className="hidden sm:inline">Livraison</span></TabsTrigger>
+            <TabsTrigger value="stock"><Package className="h-3.5 w-3.5" /><span className="hidden sm:inline">Stock</span></TabsTrigger>
             <TabsTrigger value="account"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Compte</span></TabsTrigger>
           </TabsList>
 
@@ -1335,7 +1381,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                     <p className="text-xs text-muted-foreground">
                       {subscriptionTier === "essentiel" ? (
                         <>
@@ -1345,11 +1391,20 @@ export default function SettingsPage() {
                         </>
                       ) : (
                         <>
-                          Contactez le support pour activer le module Livraison
-                          sur votre abonnement.
+                          Activez le module Livraison pour gérer zones, frais et
+                          livreurs.
                         </>
                       )}
                     </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setUpgradeInitialAddon("delivery");
+                        setUpgradeOpen(true);
+                      }}
+                    >
+                      Activer le module
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -1471,6 +1526,70 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
 
+          {/* ═══ Tab: Stock ═══ */}
+          <TabsContent value="stock">
+            <div className="space-y-4">
+              {!stockAddonActive ? (
+                <Card size="sm" className="border-dashed">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">
+                          Module Stock — 29 €/mois
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Numérisez vos tickets, suivez vos quantités, alertes bas niveau
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Activez le module Stock pour numériser vos tickets et
+                      suivre vos quantités en temps réel.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setUpgradeInitialAddon("stock");
+                        setUpgradeOpen(true);
+                      }}
+                    >
+                      Activer le module
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card size="sm">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Package className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm">
+                          Activer la gestion de stock
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Affiche le menu Stock et le scan de tickets
+                        </CardDescription>
+                      </div>
+                      <CardAction>
+                        <Switch
+                          checked={stockEnabled}
+                          onCheckedChange={setStockEnabled}
+                        />
+                      </CardAction>
+                    </div>
+                  </CardHeader>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
           {/* ═══ Tab: Compte ═══ */}
           <TabsContent value="account">
             <div className="space-y-4">
@@ -1521,6 +1640,46 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {restaurant && (
+        <UpgradeDialog
+          open={upgradeOpen}
+          onOpenChange={(open) => {
+            setUpgradeOpen(open);
+            if (!open) setUpgradeInitialAddon(undefined);
+          }}
+          restaurantSlug={params.slug}
+          currentTier={(subscriptionTier as PlanId) || "essentiel"}
+          deliveryActive={deliveryAddonActive}
+          stockActive={stockAddonActive}
+          initialAddon={upgradeInitialAddon}
+          onUpdated={async () => {
+            const supabase = createClient();
+            const { data } = await supabase
+              .from("restaurants")
+              .select("subscription_tier, delivery_addon_active, stock_addon_active, delivery_enabled, order_types")
+              .eq("id", restaurant.id)
+              .single<{
+                subscription_tier: string | null;
+                delivery_addon_active: boolean | null;
+                stock_addon_active: boolean | null;
+                delivery_enabled: boolean | null;
+                order_types: string[] | null;
+              }>();
+            if (data) {
+              setSubscriptionTier(data.subscription_tier ?? "essentiel");
+              setDeliveryAddonActive(data.delivery_addon_active ?? false);
+              setStockAddonActive(data.stock_addon_active ?? false);
+              if (data.delivery_enabled != null) {
+                setDeliveryEnabled(data.delivery_enabled);
+              }
+              if (data.order_types) {
+                setOrderTypeDelivery(data.order_types.includes("delivery"));
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -9,11 +9,13 @@ import {
   Users,
   BarChart3,
   Bike,
+  Package,
   Clock,
   PanelLeftClose,
   PanelLeft,
   LogOut,
   ChevronsUpDown,
+  Sparkles,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { UpgradeDialog } from "@/components/admin/upgrade-dialog";
+import type { PlanId } from "@/lib/plans";
 
 const BASE_NAV_ITEMS = [
   { icon: ClipboardList, label: "Commandes", href: "" },
@@ -42,6 +46,12 @@ const DELIVERY_NAV_ITEM = {
   href: "/delivery",
 };
 
+const STOCK_NAV_ITEM = {
+  icon: Package,
+  label: "Stock",
+  href: "/stock",
+};
+
 export function AdminShell({
   slug,
   restaurantName,
@@ -51,6 +61,10 @@ export function AdminShell({
   openingHours,
   isAcceptingOrders,
   deliveryEnabled,
+  stockEnabled,
+  subscriptionTier,
+  deliveryAddonActive,
+  stockAddonActive,
   children,
 }: {
   slug: string;
@@ -61,16 +75,33 @@ export function AdminShell({
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
+  stockEnabled?: boolean;
+  subscriptionTier?: string;
+  deliveryAddonActive?: boolean;
+  stockAddonActive?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const qs = isDemo ? "?demo=true" : "";
-  const NAV_ITEMS = deliveryEnabled
-    ? [...BASE_NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...BASE_NAV_ITEMS.slice(4)]
-    : BASE_NAV_ITEMS;
+  let NAV_ITEMS = [...BASE_NAV_ITEMS];
+  if (deliveryEnabled) {
+    NAV_ITEMS = [...NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...NAV_ITEMS.slice(4)];
+  }
+  if (stockEnabled) {
+    const insertAt = NAV_ITEMS.findIndex((i) => i.href === "/clients") + 1;
+    NAV_ITEMS = [...NAV_ITEMS.slice(0, insertAt), STOCK_NAV_ITEM, ...NAV_ITEMS.slice(insertAt)];
+  }
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  const tier = (subscriptionTier ?? "essentiel") as PlanId;
+  // Show upsell when on essentiel OR no add-ons activated
+  const showUpsell =
+    !isDemo &&
+    (tier === "essentiel" ||
+      (!deliveryAddonActive && !stockAddonActive));
 
   // Live restaurant status (re-check every 60s)
   const getStatus = useCallback(
@@ -171,6 +202,39 @@ export function AdminShell({
 
           {/* Bottom section: status + profile */}
           <div className="border-t border-sidebar-border p-3 space-y-2">
+            {/* Upgrade pill — shown for essentiel plan or no add-ons */}
+            {showUpsell && (
+              <button
+                onClick={() => setUpgradeOpen(true)}
+                title="Faites grandir votre restaurant"
+                className={cn(
+                  "group flex w-full items-center gap-2.5 rounded-xl bg-neutral-900 px-3 py-2.5 text-left text-amber-300 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] ring-1 ring-amber-400/20 transition-all hover:bg-black hover:ring-amber-400/40",
+                  collapsed && "justify-center px-0 py-2.5"
+                )}
+                style={{
+                  background:
+                    "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)",
+                }}
+              >
+                <Sparkles
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-amber-300 transition-transform group-hover:scale-110",
+                    !collapsed && "drop-shadow-[0_0_4px_rgba(252,211,77,0.4)]"
+                  )}
+                />
+                {!collapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                      {tier === "essentiel" ? "Passer Pro" : "Plus de modules"}
+                    </p>
+                    <p className="truncate text-[10px] font-medium text-amber-300/60">
+                      Grandir avec TaapR →
+                    </p>
+                  </div>
+                )}
+              </button>
+            )}
+
             {/* Restaurant status */}
             <div
               className={cn(
@@ -332,6 +396,16 @@ export function AdminShell({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Upgrade dialog */}
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        restaurantSlug={slug}
+        currentTier={tier}
+        deliveryActive={!!deliveryAddonActive}
+        stockActive={!!stockAddonActive}
+      />
     </div>
   );
 }
