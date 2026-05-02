@@ -349,6 +349,7 @@ const FAQ_ITEMS = [
 ];
 
 const LOGOS = [
+  { name: "The Feel By", italic: true },
   { name: "Bistrot Marcel", italic: false },
   { name: "Le Petit Sud", italic: true },
   { name: "CANTINE 14", italic: false },
@@ -506,7 +507,7 @@ export default function Home() {
             </div>
             <div>
               <div className="proof-stars">★★★★★ <span>4,8/5</span></div>
-              <div className="proof-meta">+ 1 200 restos en France</div>
+              <div className="proof-meta">+ 400 restos en France</div>
             </div>
           </div>
         </div>
