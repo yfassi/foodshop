@@ -289,47 +289,6 @@ const COMPARE: FeatureCategory[] = [
   },
 ];
 
-type AlaCarte = {
-  href: string;
-  iconLetter: string;
-  iconClass: string;
-  name: string;
-  desc: string;
-  bullets: string[];
-  price: string;
-};
-
-const ALA_CARTE: AlaCarte[] = [
-  {
-    href: "/livraison",
-    iconLetter: "L",
-    iconClass: "livraison",
-    name: "Module Livraison",
-    desc: "Ajoutez la livraison à domicile à votre offre. Vos zones, vos livreurs, votre marque.",
-    bullets: [
-      "Zones par rayon ou polygone",
-      "App livreur dédiée",
-      "Suivi SMS pour le client",
-      "0% de commission",
-    ],
-    price: "+19€",
-  },
-  {
-    href: "/stock",
-    iconLetter: "S",
-    iconClass: "stock",
-    name: "Module Stock",
-    desc: "Numérisez les tickets fournisseur, suivez vos quantités, recevez les alertes seuil bas.",
-    bullets: [
-      "OCR sur tickets fournisseur",
-      "Décrément auto par recette",
-      "Alertes seuil bas SMS / push",
-      "Export inventaire CSV",
-    ],
-    price: "+12€",
-  },
-];
-
 type Testimonial = {
   initial: string;
   name: string;
@@ -867,43 +826,6 @@ export default function Home() {
         <p className="cmp-foot">
           ★ TVA NON INCLUSE · FRAIS STRIPE BANCAIRES STANDARDS · ANNULABLE À TOUT MOMENT
         </p>
-
-        {/* MODULES COMPLÉMENTAIRES */}
-        <div className="alacarte" id="alacarte">
-          <div className="alacarte-head">
-            <div className="alacarte-kicker">★ MODULES COMPLÉMENTAIRES</div>
-            <h3 className="alacarte-h">
-              Des modules <em>en plus,</em><br />
-              au cas par cas.<span className="dot" />
-            </h3>
-            <p className="alacarte-sub">
-              Activables sur n&apos;importe quel plan, désactivables à tout moment.
-            </p>
-            <span className="alacarte-badge">
-              ★ COMPATIBLE AVEC LES 3 PLANS
-            </span>
-          </div>
-
-          <div className="alacarte-grid">
-            {ALA_CARTE.map((m) => (
-              <Link key={m.name} href={m.href} className="ala">
-                <span className={`ala-icon ${m.iconClass}`} aria-hidden="true">{m.iconLetter}</span>
-                <h4 className="ala-name">{m.name}</h4>
-                <span className="ala-price">
-                  {m.price}<span className="per">/ mois</span>
-                </span>
-                <p className="ala-desc">{m.desc}</p>
-                <ul className="ala-bullets">
-                  {m.bullets.map((b) => <li key={b}>{b}</li>)}
-                </ul>
-                <span className="ala-cta">
-                  Voir le module
-                  <span className="arrow">→</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* ENGAGEMENTS · "Nos promesses" */}
