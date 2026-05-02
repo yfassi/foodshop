@@ -31,6 +31,15 @@ import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
 import { TIME_OPTIONS } from "@/lib/constants";
 import {
+  TIER_ORDER,
+  getTierLabel,
+  getTierPrice,
+  DELIVERY_ADDON_PRICE_EUR,
+  STOCK_ADDON_PRICE_EUR,
+  TRIAL_DAYS,
+} from "@/lib/subscription";
+import type { SubscriptionTier } from "@/lib/types";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -42,13 +51,33 @@ import "./onboarding.css";
 /* ─── Constants ─── */
 
 const STEPS = [
-  { label: "Restaurant", kicker: "★ ÉTAPE 1 / 6" },
-  { label: "Coordonnées", kicker: "★ ÉTAPE 2 / 6" },
-  { label: "Horaires", kicker: "★ ÉTAPE 3 / 6" },
-  { label: "Configuration", kicker: "★ ÉTAPE 4 / 6" },
-  { label: "Vérification", kicker: "★ ÉTAPE 5 / 6" },
-  { label: "Compte", kicker: "★ ÉTAPE 6 / 6" },
+  { label: "Restaurant", kicker: "★ ÉTAPE 1 / 7" },
+  { label: "Coordonnées", kicker: "★ ÉTAPE 2 / 7" },
+  { label: "Horaires", kicker: "★ ÉTAPE 3 / 7" },
+  { label: "Configuration", kicker: "★ ÉTAPE 4 / 7" },
+  { label: "Vérification", kicker: "★ ÉTAPE 5 / 7" },
+  { label: "Compte", kicker: "★ ÉTAPE 6 / 7" },
+  { label: "Plan", kicker: "★ ÉTAPE 7 / 7" },
 ];
+
+const ONBOARDING_TIER_FEATURES: Record<SubscriptionTier, string[]> = {
+  plat: [
+    "Commandes en ligne illimitées",
+    "Paiement Stripe inclus",
+    "QR codes illimités",
+  ],
+  menu: [
+    "Tout Le Plat, plus :",
+    "Plan de salle",
+    "Programme de fidélité",
+    "Paiement fractionné",
+  ],
+  carte: [
+    "Tout Le Menu, plus :",
+    "Jusqu'à 5 établissements",
+    "Clés API & webhooks",
+  ],
+};
 
 const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
@@ -136,6 +165,11 @@ export default function OnboardingPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Step 7 — Plan
+  const [selectedTier, setSelectedTier] = useState<SubscriptionTier>("menu");
+  const [addonDelivery, setAddonDelivery] = useState(false);
+  const [addonStock, setAddonStock] = useState(false);
+
   /* ─── Navigation ─── */
 
   const canAdvance = () => {
@@ -159,6 +193,8 @@ export default function OnboardingPage() {
           password.length >= 6 &&
           password === confirmPassword
         );
+      case 6:
+        return true;
       default:
         return false;
     }
@@ -243,6 +279,40 @@ export default function OnboardingPage() {
         toast.success("Restaurant créé ! Connectez-vous pour continuer.");
         window.location.href = "/admin/login";
         return;
+      }
+
+      // Start Stripe Checkout for the chosen plan. If price IDs aren't
+      // configured yet (early dev) or Stripe rejects, fall back to the
+      // success screen so onboarding still completes — owner can pick a
+      // plan later from settings.
+      const addons: Array<"delivery" | "stock"> = [];
+      if (addonDelivery && selectedTier !== "plat") addons.push("delivery");
+      if (addonStock && selectedTier !== "plat") addons.push("stock");
+
+      try {
+        const checkoutRes = await fetch(
+          "/api/admin/subscription/create-checkout-session",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              restaurant_slug: data.slug,
+              tier: selectedTier,
+              interval: "monthly",
+              addons,
+              with_trial: true,
+            }),
+          }
+        );
+        const checkoutData = await checkoutRes.json();
+        if (checkoutRes.ok && checkoutData.url) {
+          window.location.href = checkoutData.url;
+          return;
+        }
+        console.warn("Subscription checkout unavailable:", checkoutData.error);
+        toast.info("Vous pourrez choisir votre plan dans les réglages.");
+      } catch (checkoutErr) {
+        console.warn("Subscription checkout failed:", checkoutErr);
       }
 
       setSuccessSlug(data.slug);
@@ -1038,7 +1108,7 @@ export default function OnboardingPage() {
             {step === 5 && (
               <div className="lv4-ob-step-anim">
                 <div className="lv4-ob-section">
-                  <div className="lv4-ob-h-kicker">★ DERNIÈRE ÉTAPE</div>
+                  <div className="lv4-ob-h-kicker">★ VOS IDENTIFIANTS</div>
                   <h2 className="lv4-ob-h">
                     Créez votre <em>compte</em>.<span className="lv4-ob-h-dot" />
                   </h2>
@@ -1103,6 +1173,212 @@ export default function OnboardingPage() {
                 </p>
               </div>
             )}
+
+            {/* ─── Step 7: Plan ─── */}
+            {step === 6 && (
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ VOTRE PLAN</div>
+                  <h2 className="lv4-ob-h">
+                    Choisissez votre <em>formule</em>.
+                    <span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">
+                    {TRIAL_DAYS} jours d&apos;essai gratuit. Annulation à tout
+                    moment.
+                  </p>
+                </div>
+
+                <div className="lv4-ob-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {TIER_ORDER.map((t) => {
+                    const isSelected = selectedTier === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setSelectedTier(t)}
+                        className="lv4-ob-tier-card"
+                        style={{
+                          display: "flex",
+                          gap: 14,
+                          padding: 16,
+                          borderRadius: 14,
+                          border: isSelected
+                            ? "2px solid var(--lv4-color-primary, #E64A19)"
+                            : "2px solid rgba(0,0,0,0.08)",
+                          background: isSelected
+                            ? "rgba(230, 74, 25, 0.05)"
+                            : "transparent",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            border: isSelected
+                              ? "2px solid var(--lv4-color-primary, #E64A19)"
+                              : "2px solid rgba(0,0,0,0.2)",
+                            background: isSelected
+                              ? "var(--lv4-color-primary, #E64A19)"
+                              : "transparent",
+                            flexShrink: 0,
+                            marginTop: 2,
+                          }}
+                        >
+                          {isSelected && (
+                            <Check
+                              className="h-3 w-3"
+                              style={{ color: "white" }}
+                            />
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "baseline",
+                              justifyContent: "space-between",
+                              gap: 8,
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, fontSize: 16 }}>
+                              {getTierLabel(t)}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: 18 }}>
+                              {getTierPrice(t)} €
+                              <span
+                                style={{
+                                  fontWeight: 400,
+                                  fontSize: 12,
+                                  opacity: 0.6,
+                                }}
+                              >
+                                /mois
+                              </span>
+                            </span>
+                          </div>
+                          <ul
+                            style={{
+                              marginTop: 8,
+                              fontSize: 13,
+                              opacity: 0.7,
+                              listStyle: "none",
+                              padding: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 4,
+                            }}
+                          >
+                            {ONBOARDING_TIER_FEATURES[t].map((f) => (
+                              <li
+                                key={f}
+                                style={{
+                                  display: "flex",
+                                  gap: 6,
+                                  alignItems: "flex-start",
+                                }}
+                              >
+                                <Check
+                                  className="h-3 w-3"
+                                  style={{
+                                    marginTop: 3,
+                                    flexShrink: 0,
+                                    color: "var(--lv4-color-primary, #E64A19)",
+                                  }}
+                                />
+                                <span>{f}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedTier !== "plat" && (
+                  <div
+                    className="lv4-ob-section"
+                    style={{
+                      padding: 14,
+                      borderRadius: 12,
+                      background: "rgba(0,0,0,0.03)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        margin: 0,
+                      }}
+                    >
+                      Modules complémentaires
+                    </p>
+                    <label
+                      htmlFor="addon-delivery"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 14 }}>
+                        Livraison
+                        <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 12 }}>
+                          +{DELIVERY_ADDON_PRICE_EUR} €/mois
+                        </span>
+                      </span>
+                      <Switch
+                        id="addon-delivery"
+                        checked={addonDelivery}
+                        onCheckedChange={setAddonDelivery}
+                      />
+                    </label>
+                    <label
+                      htmlFor="addon-stock"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 14 }}>
+                        Gestion de stock
+                        <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 12 }}>
+                          +{STOCK_ADDON_PRICE_EUR} €/mois
+                        </span>
+                      </span>
+                      <Switch
+                        id="addon-stock"
+                        checked={addonStock}
+                        onCheckedChange={setAddonStock}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <p className="lv4-ob-foot">
+                  Aucun prélèvement pendant l&apos;essai. Annulez avant la fin
+                  pour ne rien payer.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -1137,7 +1413,7 @@ export default function OnboardingPage() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    Créer mon restaurant <span className="arrow">→</span>
+                    Démarrer l&apos;essai gratuit <span className="arrow">→</span>
                   </>
                 )}
               </button>

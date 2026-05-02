@@ -3,7 +3,97 @@ import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
 import { formatPrice } from "@/lib/format";
+import { resolvePriceId } from "@/lib/subscription";
+import type { SubscriptionTier } from "@/lib/types";
 import Stripe from "stripe";
+
+type SubscriptionState = {
+  tier?: SubscriptionTier;
+  delivery_addon_active: boolean;
+  stock_module_active: boolean;
+};
+
+function deriveSubscriptionState(
+  subscription: Stripe.Subscription
+): SubscriptionState {
+  const state: SubscriptionState = {
+    delivery_addon_active: false,
+    stock_module_active: false,
+  };
+
+  for (const item of subscription.items.data) {
+    const resolved = resolvePriceId(item.price.id);
+    if (!resolved) continue;
+    if (resolved.kind === "tier") {
+      state.tier = resolved.tier;
+    } else if (resolved.kind === "addon") {
+      if (resolved.addon === "delivery") state.delivery_addon_active = true;
+      if (resolved.addon === "stock") state.stock_module_active = true;
+    }
+  }
+
+  return state;
+}
+
+async function syncRestaurantFromSubscription(
+  supabase: ReturnType<typeof createAdminClient>,
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer.id;
+
+  const { data: restaurant } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .single();
+
+  if (!restaurant) {
+    console.warn(
+      `[stripe webhook] no restaurant found for customer ${customerId}`
+    );
+    return;
+  }
+
+  const state = deriveSubscriptionState(subscription);
+
+  const subWithPeriod = subscription as unknown as {
+    current_period_end?: number;
+    items: { data: Array<{ current_period_end?: number }> };
+  };
+  const periodEnd =
+    subWithPeriod.current_period_end ??
+    subWithPeriod.items.data[0]?.current_period_end ??
+    null;
+
+  const update: Record<string, unknown> = {
+    stripe_subscription_id: subscription.id,
+    stripe_subscription_status: subscription.status,
+    current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    trial_ends_at: subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toISOString()
+      : null,
+    delivery_addon_active: state.delivery_addon_active,
+    stock_module_active: state.stock_module_active,
+  };
+
+  if (state.tier) {
+    update.subscription_tier = state.tier;
+  }
+
+  if (
+    subscription.status === "canceled" ||
+    subscription.status === "incomplete_expired"
+  ) {
+    update.stripe_subscription_id = null;
+    update.delivery_addon_active = false;
+    update.stock_module_active = false;
+  }
+
+  await supabase.from("restaurants").update(update).eq("id", restaurant.id);
+}
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -38,7 +128,18 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const sessionType = session.metadata?.type;
 
-    if (sessionType === "wallet_topup") {
+    if (sessionType === "platform_subscription" || session.mode === "subscription") {
+      const restaurantId = session.metadata?.restaurant_id;
+      const customerId =
+        typeof session.customer === "string" ? session.customer : session.customer?.id;
+
+      if (restaurantId && customerId) {
+        await supabase
+          .from("restaurants")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", restaurantId);
+      }
+    } else if (sessionType === "wallet_topup") {
       // Handle wallet top-up
       const userId = session.metadata?.user_id;
       const restaurantId = session.metadata?.restaurant_id;
@@ -179,6 +280,26 @@ export async function POST(request: Request) {
         .from("orders")
         .update({ status: "cancelled" })
         .eq("id", orderId);
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    await syncRestaurantFromSubscription(supabase, subscription);
+  }
+
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice & { subscription?: string };
+    const subscriptionId = invoice.subscription;
+    if (subscriptionId && typeof subscriptionId === "string") {
+      await supabase
+        .from("restaurants")
+        .update({ stripe_subscription_status: "past_due" })
+        .eq("stripe_subscription_id", subscriptionId);
     }
   }
 

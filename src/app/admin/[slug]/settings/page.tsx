@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,7 @@ import { DriverManager } from "@/components/admin/driver-manager";
 import { TierLockBanner } from "@/components/admin/tier-lock-banner";
 import { FloorPlanEditor } from "@/components/admin/floor-plan-editor";
 import { ApiKeysManager } from "@/components/admin/api-keys-manager";
+import { SubscriptionManager } from "@/components/admin/subscription-manager";
 import {
   Select,
   SelectContent,
@@ -380,9 +381,34 @@ export default function SettingsPage() {
     ) {
       // Clear query params to prevent re-triggering
       router.replace(`/admin/${params.slug}/settings`);
-      checkStripeStatus();
+      startTransition(() => {
+        checkStripeStatus();
+      });
     }
   }, [restaurant, searchParams, router, params.slug, checkStripeStatus]);
+
+  // Honor `?tab=...` and `?subscription=success|cancelled` from Stripe redirects
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const sub = searchParams.get("subscription");
+    if (
+      tab === "restaurant" || tab === "payment" || tab === "loyalty" ||
+      tab === "wallet" || tab === "queue" || tab === "delivery" ||
+      tab === "stock" || tab === "floor" || tab === "api" ||
+      tab === "account"
+    ) {
+      startTransition(() => {
+        setActiveTab(tab);
+      });
+    }
+    if (sub === "success") {
+      toast.success("Abonnement activé. Bienvenue !");
+      router.replace(`/admin/${params.slug}/settings?tab=account`);
+    } else if (sub === "cancelled") {
+      toast.info("Paiement annulé");
+      router.replace(`/admin/${params.slug}/settings?tab=account`);
+    }
+  }, [searchParams, router, params.slug]);
 
   const fetchStripeData = useCallback(async () => {
     setStripeDataLoading(true);
@@ -404,7 +430,9 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (restaurant?.stripe_onboarding_complete && activeTab === "payment") {
-      fetchStripeData();
+      startTransition(() => {
+        fetchStripeData();
+      });
     }
   }, [restaurant?.stripe_onboarding_complete, activeTab, fetchStripeData]);
 
@@ -1705,6 +1733,19 @@ export default function SettingsPage() {
           {/* ═══ Tab: Compte ═══ */}
           <TabsContent value="account">
             <div className="space-y-4">
+              {restaurant && (
+                <SubscriptionManager
+                  slug={params.slug}
+                  tier={restaurant.subscription_tier}
+                  status={restaurant.stripe_subscription_status}
+                  currentPeriodEnd={restaurant.current_period_end}
+                  trialEndsAt={restaurant.trial_ends_at}
+                  deliveryAddonActive={restaurant.delivery_addon_active}
+                  stockModuleActive={restaurant.stock_module_active}
+                  hasSubscription={Boolean(restaurant.stripe_subscription_id)}
+                />
+              )}
+
               <Card size="sm">
                 <CardHeader>
                   <div className="flex items-center gap-3">

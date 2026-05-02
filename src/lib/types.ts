@@ -140,6 +140,11 @@ export interface Restaurant {
   verification_status: VerificationStatus;
   verification_document_url: string | null;
   subscription_tier: SubscriptionTier;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: StripeSubscriptionStatus | null;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
   delivery_addon_active: boolean;
   delivery_enabled: boolean;
   delivery_config: DeliveryConfig;
@@ -150,6 +155,16 @@ export interface Restaurant {
   created_at: string;
   updated_at: string;
 }
+
+export type StripeSubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "incomplete"
+  | "incomplete_expired"
+  | "paused";
 
 export type QueueTicketStatus = "waiting" | "active" | "completed" | "expired";
 
