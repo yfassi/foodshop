@@ -37,56 +37,59 @@ export function RestaurantHeader({
   const todayName = DAYS_FR[getTodayKey()];
 
   return (
-    <header className="border-b border-border bg-card px-4 py-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          {restaurant.logo_url ? (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
-              <Image
-                src={restaurant.logo_url}
-                alt={`${restaurant.name} logo`}
-                fill
-                className="object-cover"
-                sizes="40px"
-              />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
-              {restaurant.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">
-              {restaurant.name}
-            </h1>
-            {restaurant.is_accepting_orders && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-medium text-emerald-600">Ouvert</span>
-              </div>
-            )}
+    <header className="border-b border-border bg-card px-4 py-3.5">
+      <div className="flex items-center gap-3">
+        {restaurant.logo_url ? (
+          <div className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[13px]">
+            <Image
+              src={restaurant.logo_url}
+              alt={`${restaurant.name} logo`}
+              fill
+              className="object-cover"
+              sizes="46px"
+            />
           </div>
+        ) : (
+          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
+            {restaurant.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[17px] font-extrabold tracking-tight">
+            {restaurant.name}
+          </h1>
+          {restaurant.description && (
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+              {restaurant.description}
+            </p>
+          )}
         </div>
-        <CustomerAuthButton slug={restaurant.slug} />
+        {restaurant.is_accepting_orders && (
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-semibold text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+            Ouvert
+          </span>
+        )}
+        <div className="ml-1">
+          <CustomerAuthButton slug={restaurant.slug} />
+        </div>
       </div>
       {todayHours && (
-        <div className="mt-1.5">
+        <div className="mt-2">
           <button
             onClick={() => setShowHours(!showHours)}
             aria-expanded={showHours}
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <span>Voir plus</span>
+            <Clock className="h-3 w-3" />
+            <span>Horaires du jour</span>
             <ChevronDown
               className={`h-3 w-3 transition-transform ${showHours ? "rotate-180" : ""}`}
             />
           </button>
           {showHours && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span>
-                {todayName} : {todayHours}
-              </span>
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {todayName} : <span className="font-mono font-semibold text-foreground">{todayHours}</span>
             </div>
           )}
         </div>

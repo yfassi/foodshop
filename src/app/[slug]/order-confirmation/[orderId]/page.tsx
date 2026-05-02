@@ -6,7 +6,7 @@ import { stripe } from "@/lib/stripe/client";
 import type { Order, Driver } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
-import { CheckCircle, UserPlus, ShoppingBag, MessageSquare } from "lucide-react";
+import { Check, UserPlus, ShoppingBag, MessageSquare } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
@@ -50,6 +50,7 @@ export default async function OrderConfirmationPage({
 
   const isOnSite = order.payment_method === "on_site" && order.payment_source !== "wallet";
   const orderNumber = order.display_order_number || `#${order.order_number}`;
+  const orderNumberClean = orderNumber.replace(/^#/, "");
   const orderTypeLabel =
     order.order_type === "dine_in" ? "Sur place" :
     order.order_type === "takeaway" ? "À emporter" :
@@ -67,47 +68,80 @@ export default async function OrderConfirmationPage({
     if (d) driver = d;
   }
 
+  const orderTime = new Date(order.created_at).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 md:px-6">
+    <div className="mx-auto max-w-lg px-4 py-7 md:px-6">
       {/* Success header */}
       <div className="mb-6 flex flex-col items-center text-center">
-        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-success-soft text-success">
+          <Check className="h-10 w-10" strokeWidth={3} />
         </div>
-        <h2 className="text-xl font-bold">
+        <h2 className="text-2xl font-extrabold tracking-tight">
           {order.customer_info?.name
             ? `Merci ${order.customer_info.name} !`
-            : "Commande confirmée !"}
+            : "Commande reçue !"}
         </h2>
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
+          {isOnSite
+            ? "Votre commande est confirmée. Présentez votre numéro au comptoir."
+            : "Votre commande est en cours de préparation."}
+        </p>
       </div>
 
-      {/* Order number + payment instruction */}
-      <div className="mb-4 rounded-xl border border-border bg-card p-5 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          Votre numéro de commande
-        </p>
-        <p className="mt-1 text-3xl font-bold text-primary">{orderNumber}</p>
-        <div className="mt-2 flex items-center justify-center gap-2">
+      {/* Receipt — paper-style with mono font and dashed dividers */}
+      <div className="mb-4 rounded-2xl border-[1.5px] border-border bg-card p-5 font-mono text-[11px] text-muted-foreground shadow-sm">
+        <div className="mb-3 text-center font-mono text-[20px] font-bold tracking-[0.12em] text-foreground">
+          # {orderNumberClean}
+        </div>
+        <div className="space-y-1">
           {orderTypeLabel && (
-            <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {orderTypeLabel}
-            </span>
+            <div className="flex justify-between">
+              <span>TYPE</span>
+              <span className="text-foreground">{orderTypeLabel.toUpperCase()}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span>HEURE</span>
+            <span className="text-foreground">{orderTime}</span>
+          </div>
+          {order.payment_source === "wallet" ? (
+            <div className="flex justify-between">
+              <span>PAIEMENT</span>
+              <span className="text-foreground">SOLDE</span>
+            </div>
+          ) : isOnSite ? (
+            <div className="flex justify-between">
+              <span>PAIEMENT</span>
+              <span className="text-foreground">SUR PLACE</span>
+            </div>
+          ) : (
+            <div className="flex justify-between">
+              <span>PAIEMENT</span>
+              <span className="text-foreground">CARTE</span>
+            </div>
           )}
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {isOnSite ? (
-            <>
-              Rendez-vous au <span className="font-semibold text-foreground">comptoir</span> et
-              communiquez votre numéro{" "}
-              <span className="font-semibold text-foreground">{orderNumber}</span> pour régler
-              et récupérer votre commande.
-            </>
-          ) : order.payment_source === "wallet" ? (
-            "Payé avec votre solde. Votre commande est en préparation !"
-          ) : (
-            "Paiement par carte effectué. Votre commande est en préparation !"
-          )}
-        </p>
+        <hr className="my-3 border-t border-dashed border-border" />
+        <div className="space-y-1.5">
+          {order.items.map((item, i) => (
+            <div key={i} className="flex justify-between gap-3">
+              <span className="truncate text-foreground">
+                {item.quantity}× {item.product_name.toUpperCase()}
+                {item.is_menu && <span className="ml-1 text-foreground">(MENU)</span>}
+              </span>
+              <span className="shrink-0 text-foreground">{formatPrice(item.line_total)}</span>
+            </div>
+          ))}
+        </div>
+        <hr className="my-3 border-t border-dashed border-border" />
+        <div className="flex items-center justify-between text-[14px] font-bold text-foreground">
+          <span>TOTAL</span>
+          <span>{formatPrice(order.total_price)}</span>
+        </div>
       </div>
 
       {/* Realtime status tracker */}
@@ -119,78 +153,52 @@ export default async function OrderConfirmationPage({
         initialDriver={driver}
       />
 
-      {/* Order summary */}
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
-          Récapitulatif
-        </h3>
-        {order.items.map((item, i) => (
-          <div key={i} className="flex justify-between py-1 text-sm">
-            <span>
-              {item.quantity}x {item.product_name}
-              {item.is_menu && (
-                <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
-              )}
-              {item.modifiers.length > 0 && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  ({item.modifiers.map((m) => m.modifier_name).join(", ")})
-                </span>
-              )}
-            </span>
-            <span className="font-semibold">
-              {formatPrice(item.line_total)}
-            </span>
-          </div>
-        ))}
-        <div className="mt-2 flex justify-between border-t border-border pt-2">
-          <span className="font-semibold">Total</span>
-          <span className="text-lg font-bold text-primary">
-            {formatPrice(order.total_price)}
-          </span>
-        </div>
-      </div>
-
       {/* Order notes */}
       {order.customer_info?.notes && (
-        <div className="mt-4 rounded-xl border border-border bg-card p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <h3 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
             <MessageSquare className="h-3.5 w-3.5" />
-            Instructions
+            Note pour la cuisine
           </h3>
-          <p className="text-sm">{order.customer_info.notes}</p>
+          <p className="text-[13px]">{order.customer_info.notes}</p>
         </div>
       )}
 
-      {/* New order button */}
-      <div className="mt-4 text-center">
+      {/* New order button — outline pill */}
+      <div className="mt-5 text-center">
         <Link
           href={`/${slug}`}
-          className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-medium transition-colors hover:bg-accent"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-border bg-background px-5 text-[13px] font-semibold transition-colors hover:bg-muted"
         >
           <ShoppingBag className="h-4 w-4" />
-          Passer une nouvelle commande
+          Nouvelle commande
         </Link>
       </div>
 
       {/* Sign-up CTA for non-logged-in users */}
       {!user && (
-        <div className="mt-4 rounded-xl bg-muted/50 p-4 text-center">
-          <UserPlus className="mx-auto mb-2 h-6 w-6 text-primary" />
-          <p className="text-sm font-semibold">
+        <div className="mt-5 rounded-2xl border border-border bg-muted/40 p-5 text-center">
+          <div className="mx-auto mb-2.5 grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground">
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <p className="text-[14px] font-bold tracking-tight">
             Créez votre compte fidélité
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Profitez d&apos;offres exceptionnelles et cumulez des avantages à
-            chaque commande.
+          <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+            Cumulez des points à chaque commande et débloquez des avantages.
           </p>
           <Link
             href={`/${slug}/signup`}
-            className="mt-3 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="mt-3.5 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Créer mon compte
           </Link>
         </div>
       )}
+
+      <p className="mt-5 text-center text-[10px] text-muted-foreground/70">
+        Un reçu a été envoyé par email.
+      </p>
     </div>
   );
 }

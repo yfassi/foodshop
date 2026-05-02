@@ -8,7 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: monospace;
+  --font-mono: var(--font-space-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -156,6 +156,10 @@ html {
     font-family: var(--font-poppins), system-ui, sans-serif;
   }
 
+  .font-mono {
+    font-family: var(--font-space-mono), ui-monospace, monospace;
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -163,6 +167,16 @@ html {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* TaapR client-app semantic colors (matching mobile UI kit) */
+  .text-success { color: #008138; }
+  .bg-success { background-color: #00a544; }
+  .bg-success-soft { background-color: #dcfce7; }
+  .text-success-strong { color: #008138; }
+  .text-info { color: #1447e6; }
+  .bg-info-soft { background-color: #dbeafe; }
+  .text-warning { color: #b75000; }
+  .bg-warning-soft { background-color: #fef3c6; }
 
   .step-enter-from-right {
     animation: stepSlideInRight 300ms ease-out forwards;

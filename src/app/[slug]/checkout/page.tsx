@@ -141,20 +141,27 @@ export default function CheckoutPage() {
 
   return (
     <div className="px-4 py-4 md:px-6">
-      <Link
-        href={`/${slug}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Retour au menu
-      </Link>
-
-      <h2 className="mb-4 text-lg font-bold">Finaliser la commande</h2>
-
       <div className="mx-auto max-w-lg">
+        <Link
+          href={`/${slug}`}
+          className="mb-4 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Retour au menu
+        </Link>
+
+        <div className="mb-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            Étape finale
+          </p>
+          <h2 className="mt-1 text-2xl font-extrabold tracking-tight">Paiement</h2>
+        </div>
+
         {/* Last-chance suggestions */}
         {categories.length > 0 && (
-          <CartSuggestions categories={categories} label="Un petit extra ?" />
+          <div className="mb-4">
+            <CartSuggestions categories={categories} label="Un petit extra ?" />
+          </div>
         )}
 
         <CheckoutForm

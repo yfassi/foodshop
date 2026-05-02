@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
@@ -150,51 +149,63 @@ export function CheckoutForm({
     ? null
     : isWalletSelected
       ? walletCoversAll
-        ? `Payer avec le solde \u2014 ${formatPrice(total)}`
+        ? `Payer avec le solde · ${formatPrice(total)}`
         : `Payer ${formatPrice(remainder)} en ligne`
       : paymentMethod === "online"
-        ? `Payer en ligne \u2014 ${formatPrice(total)}`
-        : `Confirmer la commande \u2014 ${formatPrice(total)}`;
+        ? `Payer en ligne · ${formatPrice(total)}`
+        : `Confirmer la commande · ${formatPrice(total)}`;
+
+  const isStripeFlow = !isWalletSelected && paymentMethod === "online";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Order summary */}
-      <div className="rounded-xl bg-muted/30 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Votre commande</h3>
-        {items.map((item) => (
-          <div key={item.id} className="flex justify-between py-1 text-sm">
-            <span>
-              {item.quantity}x {item.product_name}
-              {item.is_menu && (
-                <span className="ml-1 text-xs font-semibold text-primary">(Menu)</span>
-              )}
-              {item.modifiers.length > 0 && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  ({item.modifiers.map((m) => m.modifier_name).join(", ")})
-                </span>
-              )}
-            </span>
-            <span className="font-semibold">{formatPrice(item.line_total)}</span>
-          </div>
-        ))}
-        {orderType === "delivery" && applicableDeliveryFee > 0 && (
-          <div className="mt-2 flex justify-between py-1 text-sm text-muted-foreground">
-            <span>Frais de livraison</span>
-            <span className="font-semibold text-foreground">
-              {formatPrice(applicableDeliveryFee)}
-            </span>
-          </div>
-        )}
-        <div className="mt-3 flex justify-between border-t border-border/50 pt-3">
-          <span className="font-semibold">Total</span>
-          <span className="text-lg font-bold text-primary">{formatPrice(total)}</span>
+      {/* Order summary — total box matching design */}
+      <div className="rounded-2xl border-[1.5px] border-border bg-muted/40 p-4">
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          Votre commande
+        </p>
+        <div className="space-y-1.5">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className="min-w-0">
+                <span className="font-mono text-muted-foreground">{item.quantity}×</span>{" "}
+                <span className="text-foreground">{item.product_name}</span>
+                {item.is_menu && (
+                  <span className="ml-1 rounded bg-warning-soft px-1 text-[10px] font-bold text-warning">
+                    MENU
+                  </span>
+                )}
+                {item.modifiers.length > 0 && (
+                  <span className="ml-1 text-[11px] text-muted-foreground">
+                    · {item.modifiers.map((m) => m.modifier_name).join(", ")}
+                  </span>
+                )}
+              </span>
+              <span className="shrink-0 font-mono text-[13px] font-medium text-foreground">
+                {formatPrice(item.line_total)}
+              </span>
+            </div>
+          ))}
+          {orderType === "delivery" && applicableDeliveryFee > 0 && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-muted-foreground">Frais de livraison</span>
+              <span className="font-mono font-medium text-foreground">
+                {formatPrice(applicableDeliveryFee)}
+              </span>
+            </div>
+          )}
+        </div>
+        <hr className="my-3 border-t border-dashed border-border" />
+        <div className="flex items-baseline justify-between text-[15px] font-bold">
+          <span>Total</span>
+          <span className="font-mono">{formatPrice(total)}</span>
         </div>
       </div>
 
       {/* Order type */}
       {showOrderTypeSelector && (
         <div>
-          <Label className="mb-2.5 block text-sm font-medium">
+          <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
             Type de commande
           </Label>
           <div
@@ -206,6 +217,7 @@ export function CheckoutForm({
               const config = ORDER_TYPE_CONFIG[type];
               if (!config) return null;
               const Icon = config.icon;
+              const isActive = orderType === type;
               return (
                 <button
                   key={type}
@@ -214,10 +226,10 @@ export function CheckoutForm({
                     setOrderType(type);
                     setStoredOrderType(type);
                   }}
-                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
-                    orderType === type
-                      ? "border-primary bg-primary/5 text-foreground"
-                      : "border-border active:bg-accent"
+                  className={`flex h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3 text-[13px] font-semibold transition-colors ${
+                    isActive
+                      ? "border-foreground bg-foreground/[0.03]"
+                      : "border-border bg-background active:bg-accent"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -237,59 +249,136 @@ export function CheckoutForm({
       )}
 
       {deliveryBlocked && deliveryAddress && deliveryMinOrder > 0 && itemsTotal < deliveryMinOrder && (
-        <p className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+        <p className="rounded-xl bg-warning-soft p-3 text-[12px] text-warning">
           Minimum de commande pour cette zone :{" "}
-          <span className="font-semibold">{formatPrice(deliveryMinOrder)}</span>.
+          <span className="font-mono font-bold">{formatPrice(deliveryMinOrder)}</span>.
           Ajoutez {formatPrice(deliveryMinOrder - itemsTotal)} pour valider.
         </p>
       )}
 
+      {/* Loyalty banner — green soft like the design system */}
+      {loyaltyEnabled && (
+        <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
+            <Gift className="h-4 w-4" />
+          </div>
+          <p className="flex-1 text-[13px]">
+            {customerProfile ? (
+              <>
+                <span className="block text-[13px] font-semibold text-success-strong">
+                  Cette commande vous rapporte{" "}
+                  <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
+                </span>
+                <span className="text-[11px] text-success-strong/75">À ajouter à votre cagnotte fidélité</span>
+              </>
+            ) : (
+              <>
+                <span className="block text-[13px] font-semibold text-success-strong">
+                  Connectez-vous pour cumuler des points
+                </span>
+                <span className="text-[11px] text-success-strong/75">+1 pt par tranche de 1 €</span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Payment method */}
       <div>
-        <Label className="mb-2.5 block text-sm font-medium">
+        <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
           Mode de paiement
         </Label>
-        <div className={`grid gap-2 ${showWallet ? "grid-cols-1" : "grid-cols-2"}`}>
+        <div className="space-y-2">
           {showOnSite && (
             <button
               type="button"
               onClick={() => selectDirect("on_site")}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 !isWalletSelected && paymentMethod === "on_site"
-                  ? "border-primary bg-primary/5 text-foreground"
-                  : "border-border active:bg-accent"
+                  ? "border-foreground bg-foreground/[0.03]"
+                  : "border-border bg-background active:bg-accent"
               }`}
             >
-              <Banknote className="h-4 w-4" />
-              Sur place
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted">
+                <Banknote className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[14px] font-semibold">Sur place</p>
+                <p className="text-[11px] text-muted-foreground">CB / espèces · au comptoir</p>
+              </div>
+              <span
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
+                  !isWalletSelected && paymentMethod === "on_site"
+                    ? "border-foreground bg-foreground"
+                    : "border-border"
+                }`}
+              >
+                {!isWalletSelected && paymentMethod === "on_site" && (
+                  <span className="h-2 w-2 rounded-full bg-background" />
+                )}
+              </span>
             </button>
           )}
           {showOnline && (
             <button
               type="button"
               onClick={() => selectDirect("online")}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 !isWalletSelected && paymentMethod === "online"
-                  ? "border-primary bg-primary/5 text-foreground"
-                  : "border-border active:bg-accent"
+                  ? "border-foreground bg-foreground/[0.03]"
+                  : "border-border bg-background active:bg-accent"
               }`}
             >
-              <CreditCard className="h-4 w-4" />
-              En ligne
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted">
+                <CreditCard className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[14px] font-semibold">Carte bancaire</p>
+                <p className="text-[11px] text-muted-foreground">Sécurisé par Stripe · Apple/Google Pay</p>
+              </div>
+              <span
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
+                  !isWalletSelected && paymentMethod === "online"
+                    ? "border-foreground bg-foreground"
+                    : "border-border"
+                }`}
+              >
+                {!isWalletSelected && paymentMethod === "online" && (
+                  <span className="h-2 w-2 rounded-full bg-background" />
+                )}
+              </span>
             </button>
           )}
           {showWallet && (
             <button
               type="button"
               onClick={selectWallet}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 isWalletSelected
-                  ? "border-primary bg-primary/5 text-foreground"
-                  : "border-border active:bg-accent"
+                  ? "border-foreground bg-foreground/[0.03]"
+                  : "border-border bg-background active:bg-accent"
               }`}
             >
-              <Wallet className="h-4 w-4" />
-              Solde ({formatPrice(walletBalance)})
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-info-soft text-info">
+                <Wallet className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[14px] font-semibold">Solde</p>
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  Disponible : {formatPrice(walletBalance)}
+                </p>
+              </div>
+              <span
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
+                  isWalletSelected
+                    ? "border-foreground bg-foreground"
+                    : "border-border"
+                }`}
+              >
+                {isWalletSelected && (
+                  <span className="h-2 w-2 rounded-full bg-background" />
+                )}
+              </span>
             </button>
           )}
         </div>
@@ -297,53 +386,52 @@ export function CheckoutForm({
 
       {/* Partial wallet info */}
       {isWalletSelected && !walletCoversAll && (
-        <div className="flex items-start gap-3 rounded-xl bg-muted/50 px-4 py-3">
-          <Wallet className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <p className="text-sm">
-            Votre solde de <span className="font-semibold text-primary">{formatPrice(walletBalance)}</span> sera
-            déduit. Vous paierez le reste de{" "}
-            <span className="font-semibold text-primary">{formatPrice(remainder)}</span> en
-            ligne à l&apos;étape suivante.
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+          <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+          <p className="text-[12px] leading-snug">
+            Votre solde de{" "}
+            <span className="font-mono font-bold">{formatPrice(walletBalance)}</span> sera
+            déduit. Reste à payer en ligne :{" "}
+            <span className="font-mono font-bold">{formatPrice(remainder)}</span>.
           </p>
         </div>
       )}
 
-      {/* Loyalty info */}
-      {loyaltyEnabled && (
-        <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
-          <Gift className="h-5 w-5 shrink-0 text-primary" />
-          <p className="text-sm">
-            {customerProfile ? (
-              <>
-                Cette commande vous rapportera{" "}
-                <span className="font-semibold text-primary">
-                  {Math.floor(totalPrice() / 100)} points
-                </span>{" "}
-                de fidélité
-              </>
-            ) : (
-              <>
-                <span className="font-medium">Connectez-vous</span> pour cumuler
-                vos points fidélité à chaque commande
-              </>
-            )}
-          </p>
-        </div>
-      )}
-
-      {/* Submit */}
-      <Button
+      {/* Submit — pill button matching design system */}
+      <button
         type="submit"
         disabled={loading || deliveryBlocked}
-        className="h-14 w-full rounded-xl text-base font-bold"
-        size="lg"
+        className={`relative flex h-13 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
+          isStripeFlow
+            ? "bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/25 hover:bg-[#5448ff]"
+            : "bg-success text-white shadow-lg shadow-emerald-600/20"
+        }`}
+        style={{ height: 52 }}
       >
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
-          buttonLabel
+          <>
+            {isStripeFlow && (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+              </svg>
+            )}
+            {buttonLabel}
+          </>
         )}
-      </Button>
+      </button>
+      {isStripeFlow && (
+        <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+          Paiement sécurisé · Stripe
+        </p>
+      )}
     </form>
   );
 }

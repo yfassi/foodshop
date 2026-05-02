@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ShoppingBag } from "lucide-react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { CartDrawer } from "./cart-drawer";
@@ -26,7 +25,6 @@ export function FloatingCartButton({
   const [bounce, setBounce] = useState(false);
   const prevLastAdded = useRef(lastAddedAt);
 
-  // Trigger bounce animation when new item is added
   useEffect(() => {
     if (lastAddedAt > 0 && lastAddedAt !== prevLastAdded.current) {
       prevLastAdded.current = lastAddedAt;
@@ -38,22 +36,27 @@ export function FloatingCartButton({
 
   if (items.length === 0) return null;
 
+  const count = totalItems();
+  const total = totalPrice();
+
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background via-background/85 to-transparent" />
         <button
           onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-between rounded-2xl bg-primary px-5 py-3.5 text-primary-foreground shadow-lg shadow-black/10 transition-colors active:bg-primary/90"
+          aria-label={`Voir mon panier — ${count} article${count > 1 ? "s" : ""}, ${formatPrice(total)}`}
+          className="pointer-events-auto relative flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground shadow-xl shadow-black/20 transition-transform active:scale-[0.99]"
           style={bounce ? { animation: "cart-bounce 0.5s ease-in-out" } : undefined}
         >
-          <div className="flex items-center gap-3">
-            <ShoppingBag className="h-5 w-5" />
-            <span className="text-sm font-semibold">
-              Voir mon panier ({totalItems()})
-            </span>
-          </div>
-          <span className="text-sm font-bold">
-            {formatPrice(totalPrice())}
+          <span className="grid h-[26px] w-[26px] place-items-center rounded-lg bg-background font-mono text-xs font-bold text-primary">
+            {count}
+          </span>
+          <span className="text-sm font-semibold tracking-tight">
+            Voir mon panier
+          </span>
+          <span className="ml-auto font-mono text-sm font-bold">
+            {formatPrice(total)}
           </span>
         </button>
       </div>

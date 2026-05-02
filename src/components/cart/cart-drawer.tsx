@@ -11,7 +11,6 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
 import { CartItem } from "./cart-item";
 import { CartSuggestions } from "./cart-suggestions";
 import { Trash2, ChevronLeft, ShoppingBag } from "lucide-react";
@@ -42,17 +41,16 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
+  const totalItems = useCartStore((s) => s.totalItems);
   const clearCart = useCartStore((s) => s.clearCart);
   const [queueState, setQueueState] = useState<"checking" | "waiting" | "ready" | "not_required">(
     queueEnabled ? "checking" : "not_required"
   );
   const [sessionId] = useState(() => getSessionId());
 
-  // Reset queue state when drawer opens and queue is enabled
   useEffect(() => {
     if (open && queueEnabled) {
       setQueueState("checking");
-      // Quick check if queue is active
       fetch(`/api/queue?restaurant_slug=${slug}&session_id=${sessionId}`)
         .then((res) => res.json())
         .then((data) => {
@@ -63,7 +61,6 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
           } else if (data.ticket) {
             setQueueState("waiting");
           } else {
-            // Need to join queue
             setQueueState("waiting");
           }
         })
@@ -89,14 +86,23 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
   }, []);
 
   const canCheckout = queueState === "ready" || queueState === "not_required";
+  const total = totalPrice();
+  const count = totalItems();
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[90vh]">
-        <DrawerHeader className="flex items-center justify-between pb-3">
-          <DrawerTitle className="text-lg font-bold">
-            Mon panier
-          </DrawerTitle>
+        <DrawerHeader className="flex items-center justify-between gap-2 border-b border-border pb-3">
+          <div className="min-w-0">
+            <DrawerTitle className="text-[17px] font-extrabold tracking-tight">
+              Mon panier
+            </DrawerTitle>
+            {items.length > 0 && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {count} article{count > 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
           {items.length > 0 && (
             <button
               onClick={() => {
@@ -107,7 +113,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
                   },
                 });
               }}
-              className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-destructive transition-colors active:bg-destructive/10"
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-destructive active:bg-destructive/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Vider
@@ -117,28 +123,30 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
 
         <div className="overflow-y-auto px-4">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center py-12">
-              <ShoppingBag className="mb-3 h-10 w-10 text-muted-foreground/30" />
-              <p className="mb-1 text-sm font-medium text-muted-foreground">
-                Votre panier est vide
+            <div className="flex flex-col items-center px-6 py-12 text-center">
+              <div className="mb-3 grid h-[72px] w-[72px] place-items-center rounded-full bg-muted text-3xl">
+                🛒
+              </div>
+              <p className="mb-1 text-[15px] font-bold tracking-tight">
+                Panier vide
               </p>
-              <p className="mb-4 text-xs text-muted-foreground/70">
-                Parcourez le menu pour ajouter des articles
+              <p className="mb-5 max-w-[24ch] text-[12px] leading-snug text-muted-foreground">
+                Ajoutez des plats pour commencer.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
+              <button
                 onClick={onClose}
-                className="rounded-lg"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors active:bg-primary/90"
               >
+                <ShoppingBag className="h-3.5 w-3.5" />
                 Voir le menu
-              </Button>
+              </button>
             </div>
           ) : (
             <>
-              {items.map((item) => <CartItem key={item.id} item={item} />)}
+              <div className="pt-1">
+                {items.map((item) => <CartItem key={item.id} item={item} />)}
+              </div>
 
-              {/* Suggestions */}
               {categories && categories.length > 0 && (
                 <CartSuggestions categories={categories} />
               )}
@@ -148,7 +156,6 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
 
         {items.length > 0 && (
           <DrawerFooter className="border-t border-border pt-3">
-            {/* Queue waiting overlay */}
             {queueEnabled && queueState === "waiting" && (
               <QueueWaiting
                 slug={slug}
@@ -158,30 +165,36 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
               />
             )}
 
-            {/* Normal checkout flow */}
             {(canCheckout || queueState === "checking") && (
               <>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Total</span>
-                  <span className="text-lg font-bold">
-                    {formatPrice(totalPrice())}
-                  </span>
+                {/* Total box matching the design system */}
+                <div className="rounded-2xl border-[1.5px] border-border bg-muted/40 p-4">
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="text-muted-foreground">Sous-total</span>
+                    <span className="font-mono font-medium">{formatPrice(total)}</span>
+                  </div>
+                  <hr className="my-2.5 border-t border-dashed border-border" />
+                  <div className="flex items-center justify-between text-[15px] font-bold">
+                    <span>Total</span>
+                    <span className="font-mono">{formatPrice(total)}</span>
+                  </div>
                 </div>
-                <Button
+
+                <button
                   onClick={handleCheckout}
                   disabled={disabled || queueState === "checking"}
-                  className="h-14 w-full rounded-xl text-base font-bold"
-                  size="lg"
+                  className="mt-3 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-success px-4 text-[15px] font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all active:bg-success active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ height: 52 }}
                 >
                   {disabled
-                    ? "Commandes fermees"
+                    ? "Commandes fermées"
                     : queueState === "checking"
-                      ? "Vérification..."
-                      : `Commander \u2014 ${formatPrice(totalPrice())}`}
-                </Button>
+                      ? "Vérification…"
+                      : `Payer · ${formatPrice(total)}`}
+                </button>
                 <button
                   onClick={onClose}
-                  className="flex h-11 w-full items-center justify-center gap-1 rounded-lg text-sm text-muted-foreground transition-colors active:bg-accent active:text-foreground"
+                  className="flex h-10 w-full items-center justify-center gap-1 text-[13px] text-muted-foreground transition-colors active:text-foreground"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Continuer mes achats
