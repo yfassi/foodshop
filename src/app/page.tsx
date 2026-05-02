@@ -2,6 +2,16 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
+import {
+  QrCode,
+  ShoppingBag,
+  LayoutDashboard,
+  ChefHat,
+  Heart,
+  Bike,
+  Package,
+  type LucideIcon,
+} from "lucide-react";
 import { LandingNav } from "@/components/landing-v4/nav";
 import { LandingFooter } from "@/components/landing-v4/footer";
 import "./landing-v4.css";
@@ -12,7 +22,7 @@ type Module = {
   hint: string;
   short: string;
   paid: boolean;
-  iconLetter: string;
+  Icon: LucideIcon;
   iconClass: "ink" | "paprika" | "navy" | "mustard";
   kicker: string;
   title: string;
@@ -30,7 +40,7 @@ const MODULES: Module[] = [
     hint: "Le client scanne, commande, paie",
     short: "INCLUS",
     paid: false,
-    iconLetter: "Q",
+    Icon: QrCode,
     iconClass: "ink",
     kicker: "★ CÔTÉ CLIENT",
     title: "QR à table",
@@ -51,7 +61,7 @@ const MODULES: Module[] = [
     hint: "Commande à l'avance, retrait sur place",
     short: "INCLUS",
     paid: false,
-    iconLetter: "C",
+    Icon: ShoppingBag,
     iconClass: "paprika",
     kicker: "★ CÔTÉ CLIENT",
     title: "Click & collect",
@@ -72,7 +82,7 @@ const MODULES: Module[] = [
     hint: "Le poste de pilotage du resto",
     short: "INCLUS",
     paid: false,
-    iconLetter: "D",
+    Icon: LayoutDashboard,
     iconClass: "navy",
     kicker: "★ CÔTÉ RESTO",
     title: "Dashboard interne",
@@ -93,7 +103,7 @@ const MODULES: Module[] = [
     hint: "Imprimante, écran cuisine, push",
     short: "INCLUS",
     paid: false,
-    iconLetter: "K",
+    Icon: ChefHat,
     iconClass: "ink",
     kicker: "★ CÔTÉ CUISINE",
     title: "Cuisine connectée",
@@ -114,7 +124,7 @@ const MODULES: Module[] = [
     hint: "Tampons digitaux, relances",
     short: "Le Menu",
     paid: false,
-    iconLetter: "F",
+    Icon: Heart,
     iconClass: "mustard",
     kicker: "★ CÔTÉ MARQUE",
     title: "Fidélité + SMS",
@@ -135,7 +145,7 @@ const MODULES: Module[] = [
     hint: "Zones, livreurs, suivi temps réel",
     short: "+19€/mois",
     paid: true,
-    iconLetter: "L",
+    Icon: Bike,
     iconClass: "navy",
     kicker: "★ MODULE · À LA CARTE",
     title: "Module Livraison",
@@ -156,7 +166,7 @@ const MODULES: Module[] = [
     hint: "OCR tickets, alertes seuil bas",
     short: "+12€/mois",
     paid: true,
-    iconLetter: "S",
+    Icon: Package,
     iconClass: "mustard",
     kicker: "★ MODULE · À LA CARTE",
     title: "Module Stock",
@@ -637,7 +647,9 @@ export default function Home() {
               onClick={() => setActiveModuleId(m.id)}
             >
               <div className="module-card-top">
-                <span className={`module-icon ${m.iconClass}`} aria-hidden="true">{m.iconLetter}</span>
+                <span className={`module-icon ${m.iconClass}`} aria-hidden="true">
+                  <m.Icon size={20} strokeWidth={1.75} />
+                </span>
                 <span className={`module-tag${m.paid ? " paid" : ""}`}>{m.short}</span>
               </div>
               <h3 className="module-card-name">{m.name}</h3>
