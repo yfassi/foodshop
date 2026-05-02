@@ -883,7 +883,7 @@ export default function Home() {
         <div className="fc-inner">
           <h2 className="fc-title">
             On vous offre<br />
-            <em>la première semaine.</em><span className="dot small" />
+            <em>les 2 premières semaines.</em><span className="dot small" />
           </h2>
           <p className="fc-script">à vous de jouer ✦</p>
           <div className="fc-ctas">
