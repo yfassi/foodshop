@@ -22,15 +22,15 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
     });
 
     if (error) {
-      if (error.message?.includes("already been registered")) {
-        return NextResponse.json({ error: "Un compte existe deja avec cet email" }, { status: 409 });
-      }
       console.error("Signup error:", error);
-      return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 400 });
+      // Uniform response to avoid email enumeration via 409 vs 400.
+      return NextResponse.json(
+        { error: "Erreur lors de la création du compte" },
+        { status: 400 }
+      );
     }
 
     // Create customer profile in the same request

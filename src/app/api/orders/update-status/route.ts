@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { sendPushNotification } from "@/lib/push";
 
 const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
@@ -21,6 +22,8 @@ const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
   },
 };
 
+const ALLOWED_STATUSES = new Set(Object.keys(STATUS_MESSAGES));
+
 export async function POST(request: Request) {
   try {
     const { order_id, status } = (await request.json()) as {
@@ -35,9 +38,24 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!ALLOWED_STATUSES.has(status)) {
+      return NextResponse.json(
+        { error: "Statut invalide" },
+        { status: 400 }
+      );
+    }
+
+    const authClient = await createClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+
     const supabase = createAdminClient();
 
-    // Get order info for notification
     const { data: order } = await supabase
       .from("orders")
       .select("id, display_order_number, order_number, restaurant_id")
@@ -51,7 +69,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update order status
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("slug, owner_id")
+      .eq("id", order.restaurant_id)
+      .single();
+
+    if (!restaurant || restaurant.owner_id !== user.id) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
+
     const { error } = await supabase
       .from("orders")
       .update({ status })
@@ -64,18 +91,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send push notifications to customer
     const messageTemplate = STATUS_MESSAGES[status];
     if (messageTemplate) {
       const orderNumber =
         order.display_order_number || `#${order.order_number}`;
-
-      // Get restaurant slug for the URL
-      const { data: restaurant } = await supabase
-        .from("restaurants")
-        .select("slug")
-        .eq("id", order.restaurant_id)
-        .single();
 
       const { data: subscriptions } = await supabase
         .from("push_subscriptions")
@@ -93,9 +112,7 @@ export async function POST(request: Request) {
               {
                 title: messageTemplate.title,
                 body: messageTemplate.body.replace("{order}", orderNumber),
-                url: restaurant
-                  ? `/restaurant/${restaurant.slug}/order-confirmation/${order_id}`
-                  : undefined,
+                url: `/restaurant/${restaurant.slug}/order-confirmation/${order_id}`,
                 tag: `order-${order_id}`,
               }
             );
@@ -103,7 +120,6 @@ export async function POST(request: Request) {
           })
         );
 
-        // Clean up expired subscriptions
         if (expiredIds.length > 0) {
           await supabase
             .from("push_subscriptions")

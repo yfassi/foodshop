@@ -41,7 +41,8 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   return NextResponse.json({ keys: data ?? [] });
@@ -90,7 +91,8 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   // Return the full key once; never again.
@@ -118,7 +120,8 @@ export async function DELETE(req: Request) {
     .eq("restaurant_id", restaurantId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

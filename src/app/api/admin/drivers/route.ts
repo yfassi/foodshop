@@ -119,7 +119,8 @@ export async function POST(request: Request) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Admin drivers POST error:", error);
+      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
 
     return NextResponse.json({ driver });

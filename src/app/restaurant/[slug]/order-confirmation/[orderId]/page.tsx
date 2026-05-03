@@ -16,7 +16,11 @@ export default async function OrderConfirmationPage({
   const { slug, orderId } = await params;
   const supabase = await createClient();
 
-  const { data: order } = await supabase
+  // Use service-role to read the order: the orderId in the URL is a UUIDv4
+  // (unguessable). RLS now restricts SELECT on orders to owner / customer_user_id,
+  // so guest checkouts (no auth session) need the admin client to land on this page.
+  const adminForOrder = createAdminClient();
+  const { data: order } = await adminForOrder
     .from("orders")
     .select("*")
     .eq("id", orderId)

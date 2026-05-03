@@ -39,7 +39,12 @@ export async function POST(request: Request) {
       .eq("slug", restaurant_slug)
       .single();
 
-    if (!restaurant || !restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
+    if (
+      !restaurant ||
+      !restaurant.stripe_account_id ||
+      !restaurant.stripe_onboarding_complete ||
+      !restaurant.wallet_topup_enabled
+    ) {
       return NextResponse.json(
         { error: "La recharge en ligne n'est pas disponible" },
         { status: 400 }
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
       const matchingTier = tiers.find(
         (t) => t.amount === amount && t.bonus === bonus
       );
-      if (!matchingTier || !restaurant.wallet_topup_enabled) {
+      if (!matchingTier) {
         return NextResponse.json(
           { error: "Palier de recharge invalide" },
           { status: 400 }

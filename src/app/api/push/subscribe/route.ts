@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 interface SubscribeBody {
   endpoint: string;
@@ -38,7 +39,41 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
-    // Upsert by endpoint
+    if (role === "admin") {
+      const authClient = await createClient();
+      const {
+        data: { user },
+      } = await authClient.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+      }
+
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("id", restaurant_id!)
+        .eq("owner_id", user.id)
+        .single();
+
+      if (!restaurant) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+      }
+    } else {
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("id", order_id!)
+        .single();
+
+      if (!order) {
+        return NextResponse.json(
+          { error: "Commande introuvable" },
+          { status: 404 }
+        );
+      }
+    }
+
     const { error } = await supabase.from("push_subscriptions").upsert(
       {
         endpoint,

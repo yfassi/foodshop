@@ -38,6 +38,31 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
 
+    const supabase = createAdminClient();
+
+    const { data: existingProduct } = await supabase
+      .from("products")
+      .select("id, categories!inner(restaurant_id)")
+      .eq("id", id)
+      .single<{ id: string; categories: { restaurant_id: string } }>();
+
+    if (!existingProduct || existingProduct.categories.restaurant_id !== restaurant_id) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
+
+    if (category_id !== undefined) {
+      const { data: targetCategory } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("id", category_id)
+        .eq("restaurant_id", restaurant_id)
+        .single();
+
+      if (!targetCategory) {
+        return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
+      }
+    }
+
     // Whitelist allowed fields
     const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name;
@@ -48,7 +73,6 @@ export async function PUT(request: Request) {
     if (image_url !== undefined) updates.image_url = image_url;
     if (category_id !== undefined) updates.category_id = category_id;
 
-    const supabase = createAdminClient();
     const { error } = await supabase
       .from("products")
       .update(updates)
