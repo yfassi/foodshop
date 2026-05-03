@@ -91,7 +91,7 @@ const MODULES: Module[] = [
       "CA temps réel, ticket moyen, top ventes",
       "Plan de salle interactif",
       "Export CSV pour la compta",
-      "Multi-établissements (Carte Blanche)",
+      "Multi-établissements (Business)",
     ],
     price: "Inclus dans tous les plans",
     cta: { label: "Voir le back-office", href: "/admin/chez-momo?demo=true" },
@@ -114,7 +114,7 @@ const MODULES: Module[] = [
       "Écran cuisine ou app smartphone",
       "Tickets formatés à votre charte",
     ],
-    price: "Inclus dès Le Plat",
+    price: "Inclus dès Starter",
     cta: { label: "Voir les tarifs", href: "#pricing" },
     visualKey: "kitchen",
   },
@@ -122,7 +122,7 @@ const MODULES: Module[] = [
     id: "fidelite",
     name: "Fidélité + SMS",
     hint: "Tampons digitaux, relances",
-    short: "Le Menu",
+    short: "PRO",
     paid: false,
     Icon: Heart,
     iconClass: "mustard",
@@ -135,7 +135,7 @@ const MODULES: Module[] = [
       "Récompenses paramétrables",
       "Segments (anniversaire, dormants…)",
     ],
-    price: "Inclus dès Le Menu",
+    price: "Inclus dès Pro",
     cta: { label: "Voir les tarifs", href: "#pricing" },
     visualKey: "loyalty",
   },
@@ -199,7 +199,7 @@ type Plan = {
 const PLANS: Plan[] = [
   {
     id: "plat",
-    name: "Le Plat",
+    name: "Starter",
     sub: "Pour les restos qui démarrent",
     price: 29,
     per: "/ mois, par resto",
@@ -208,7 +208,7 @@ const PLANS: Plan[] = [
   },
   {
     id: "menu",
-    name: "Le Menu",
+    name: "Pro",
     sub: "L'expérience complète",
     price: 79,
     per: "/ mois, par resto",
@@ -218,7 +218,7 @@ const PLANS: Plan[] = [
   },
   {
     id: "carte",
-    name: "Carte Blanche",
+    name: "Business",
     sub: "Pour les groupes & multi-restos",
     price: 149,
     per: "/ mois, jusqu'à 5 restos",
@@ -275,7 +275,8 @@ const COMPARE: FeatureCategory[] = [
     name: "★ MARQUE & MULTI",
     rows: [
       { label: "Fidélité + SMS", values: { plat: false, menu: true, carte: true } },
-      { label: "Multi-établissements", values: { plat: false, menu: false, carte: "jusqu'à 5" } },
+      { label: "Multi-établissements", desc: "restos inclus dans le plan", values: { plat: "1 resto", menu: "1 resto", carte: "jusqu'à 5" } },
+      { label: "Restaurant supplémentaire", desc: "en option à la carte", values: { plat: false, menu: "+39 €/mois", carte: "inclus jusqu'à 5" } },
       { label: "API & webhooks", values: { plat: false, menu: false, carte: true } },
       { label: "Account manager dédié", values: { plat: false, menu: false, carte: true } },
     ],
@@ -341,6 +342,10 @@ const FAQ_ITEMS = [
   {
     q: "Peut-on essayer sans s'engager ?",
     a: "14 jours d'essai sur tous les plans, sans carte bancaire. Annulable en un clic à tout moment.",
+  },
+  {
+    q: "Et si j'ouvre un deuxième restaurant ?",
+    a: "Sur le plan Pro, vous pouvez ajouter un restaurant supplémentaire pour 39 €/mois. À partir de 3 établissements, le plan Business (149 €/mois jusqu'à 5 restos inclus) devient plus avantageux. Tout se gère depuis le même compte avec un switcher dans l'admin.",
   },
   {
     q: "Et si je veux récupérer mes données ?",
