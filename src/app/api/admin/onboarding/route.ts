@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+const ALLOWED_VERIFICATION_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+const VERIFICATION_MAX_BYTES = 5 * 1024 * 1024;
+const VERIFICATION_EXT_BY_MIME: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 interface OnboardingBody {
   name: string;
@@ -65,18 +79,14 @@ export async function POST(request: Request) {
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
       });
 
       if (userError) {
-        if (userError.message?.includes("already been registered")) {
-          return NextResponse.json(
-            { error: "Un compte existe déjà avec cet email" },
-            { status: 409 }
-          );
-        }
         console.error("Signup error:", userError);
-        return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Erreur lors de la création du compte" },
+          { status: 400 }
+        );
       }
 
       ownerId = userData.user.id;
@@ -115,8 +125,22 @@ export async function POST(request: Request) {
     // Upload verification document if provided
     let verification_document_url: string | null = null;
     if (verificationFile && verificationFile.size > 0) {
-      const ext = verificationFile.name.split(".").pop() || "pdf";
-      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      if (!ALLOWED_VERIFICATION_MIME.has(verificationFile.type)) {
+        return NextResponse.json(
+          { error: "Format invalide (PDF, JPG, PNG ou WebP requis)" },
+          { status: 400 }
+        );
+      }
+
+      if (verificationFile.size > VERIFICATION_MAX_BYTES) {
+        return NextResponse.json(
+          { error: "Document trop volumineux (5 MB max)" },
+          { status: 400 }
+        );
+      }
+
+      const ext = VERIFICATION_EXT_BY_MIME[verificationFile.type];
+      const filePath = `${randomUUID()}.${ext}`;
       const buffer = Buffer.from(await verificationFile.arrayBuffer());
 
       const { error: uploadError } = await supabase.storage
@@ -133,10 +157,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const { data: urlData } = supabase.storage
-        .from("verification-documents")
-        .getPublicUrl(filePath);
-      verification_document_url = urlData.publicUrl;
+      verification_document_url = filePath;
     }
 
     // Slug = readable name + unguessable short ID. Retry on the astronomically
@@ -176,7 +197,7 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Onboarding insert error:", error);
       return NextResponse.json(
-        { error: `Erreur lors de la création du restaurant: ${error.message}` },
+        { error: "Erreur lors de la création du restaurant" },
         { status: 500 }
       );
     }

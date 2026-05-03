@@ -75,8 +75,23 @@ export async function GET(
     .select("id", { count: "exact", head: true })
     .in("category_id", catIds.length > 0 ? catIds : ["__none__"]);
 
+  // Sign the verification document URL (bucket is private).
+  // Legacy rows may store a full https URL; new rows store the storage key.
+  let verificationDocumentSignedUrl: string | null = null;
+  if (restaurant.verification_document_url) {
+    if (restaurant.verification_document_url.startsWith("http")) {
+      verificationDocumentSignedUrl = restaurant.verification_document_url;
+    } else {
+      const { data: signed } = await admin.storage
+        .from("verification-documents")
+        .createSignedUrl(restaurant.verification_document_url, 3600);
+      verificationDocumentSignedUrl = signed?.signedUrl || null;
+    }
+  }
+
   return NextResponse.json({
     ...restaurant,
+    verification_document_url: verificationDocumentSignedUrl,
     owner_email: ownerEmail,
     stats: {
       total_orders: totalOrders,

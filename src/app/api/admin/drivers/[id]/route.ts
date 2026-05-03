@@ -43,7 +43,8 @@ export async function PATCH(
     const supabase = createAdminClient();
     const { error } = await supabase.from("drivers").update(update).eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Driver PATCH error:", error);
+      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -75,7 +76,8 @@ export async function DELETE(
     const supabase = createAdminClient();
     const { error } = await supabase.from("drivers").delete().eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Driver DELETE error:", error);
+      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   } catch (err) {
