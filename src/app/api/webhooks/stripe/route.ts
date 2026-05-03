@@ -141,9 +141,14 @@ export async function POST(request: Request) {
       if (orderId) {
         const { data: order } = await supabase
           .from("orders")
-          .select("id, display_order_number, order_number, total_price, restaurant_id")
+          .select("id, display_order_number, order_number, total_price, restaurant_id, paid")
           .eq("id", orderId)
           .single();
+
+        // Idempotency: Stripe retries on 5xx — skip side-effects if already paid.
+        if (order?.paid) {
+          return NextResponse.json({ received: true });
+        }
 
         await supabase
           .from("orders")

@@ -32,7 +32,8 @@ export async function GET(request: Request) {
   const { data: restaurants, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Super-admin restaurants error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   let filtered = restaurants || [];
@@ -112,7 +113,8 @@ export async function PATCH(request: Request) {
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Super-admin restaurants error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
