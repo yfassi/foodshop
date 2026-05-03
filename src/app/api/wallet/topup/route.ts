@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripe } from "@/lib/stripe/client";
+import { stripe, buildStatementDescriptorSuffix } from "@/lib/stripe/client";
 import type { WalletTopupTier } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
-      .select("id, stripe_account_id, stripe_onboarding_complete, wallet_topup_enabled, wallet_topup_tiers")
+      .select("id, name, stripe_account_id, stripe_onboarding_complete, wallet_topup_enabled, wallet_topup_tiers")
       .eq("slug", restaurant_slug)
       .single();
 
@@ -62,11 +62,17 @@ export async function POST(request: Request) {
       validatedBonus = bonus;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.headers.get("origin") ||
+      new URL(request.url).origin;
 
+    const restaurantName = restaurant.name as string;
     const productName = validatedBonus > 0
-      ? `Recharge ${(amount / 100).toFixed(2)} € + ${(validatedBonus / 100).toFixed(2)} € offerts`
-      : "Recharge de solde";
+      ? `Recharge solde ${restaurantName} · ${(amount / 100).toFixed(2)} € + ${(validatedBonus / 100).toFixed(2)} € offerts`
+      : `Recharge solde ${restaurantName}`;
+    const productDescription = `Crédit ajouté à votre solde chez ${restaurantName}`;
+    const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -76,16 +82,18 @@ export async function POST(request: Request) {
         {
           price_data: {
             currency: "eur",
-            product_data: { name: productName },
+            product_data: { name: productName, description: productDescription },
             unit_amount: amount,
           },
           quantity: 1,
         },
       ],
       payment_intent_data: {
+        description: `Recharge solde · ${restaurantName}`,
         transfer_data: {
           destination: restaurant.stripe_account_id,
         },
+        ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
       },
       metadata: {
         type: "wallet_topup",
@@ -94,8 +102,8 @@ export async function POST(request: Request) {
         amount: amount.toString(),
         ...(validatedBonus > 0 && { bonus: validatedBonus.toString() }),
       },
-      success_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=success`,
-      cancel_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=cancelled`,
+      success_url: `${appUrl}/restaurant/${restaurant_slug}/account?wallet_topup=success`,
+      cancel_url: `${appUrl}/restaurant/${restaurant_slug}/account?wallet_topup=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });

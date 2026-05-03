@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe/client";
+import { stripe, buildStatementDescriptorSuffix } from "@/lib/stripe/client";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
+import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
 import type {
@@ -28,10 +29,13 @@ interface CheckoutBody {
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
   customer_name?: string;
+  customer_email?: string;
   order_notes?: string;
   queue_session_id?: string;
   delivery_address?: DeliveryAddress;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function notifyAdmins(
   restaurantId: string,
@@ -83,10 +87,16 @@ export async function POST(request: Request) {
       payment_method,
       payment_source = "direct",
       customer_name,
+      customer_email,
       order_notes,
       queue_session_id,
       delivery_address,
     } = body;
+
+    const sanitizedEmail =
+      customer_email && EMAIL_RE.test(customer_email.trim())
+        ? customer_email.trim().toLowerCase().slice(0, 254)
+        : null;
 
     // Validate input
     if (!restaurant_slug || !items?.length) {
@@ -117,7 +127,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select(
-        "id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
+        "id, name, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
       )
       .eq("slug", restaurant_slug)
       .single();
@@ -249,6 +259,7 @@ export async function POST(request: Request) {
 
     // Get authenticated user if any
     let customerUserId: string | null = null;
+    let authUserEmail: string | null = null;
     if (payment_source === "wallet") {
       const serverSupabase = await createClient();
       const { data: { user } } = await serverSupabase.auth.getUser();
@@ -259,12 +270,16 @@ export async function POST(request: Request) {
         );
       }
       customerUserId = user.id;
+      authUserEmail = user.email ?? null;
     } else {
       // Check if user is logged in (optional for direct payments)
       try {
         const serverSupabase = await createClient();
         const { data: { user } } = await serverSupabase.auth.getUser();
-        if (user) customerUserId = user.id;
+        if (user) {
+          customerUserId = user.id;
+          authUserEmail = user.email ?? null;
+        }
       } catch {
         // Not logged in, that's fine
       }
@@ -418,6 +433,8 @@ export async function POST(request: Request) {
     // Build customer info
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
+    const recipientEmail = sanitizedEmail || authUserEmail;
+    if (recipientEmail) customerInfo.email = recipientEmail;
     if (order_notes) customerInfo.notes = order_notes;
 
     // Generate display order number
@@ -514,6 +531,9 @@ export async function POST(request: Request) {
             .eq("status", "active");
         }
         notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+        sendOrderConfirmationEmail(order.id).catch((err) =>
+          console.error("Order confirmation email failed:", err)
+        );
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -530,19 +550,26 @@ export async function POST(request: Request) {
         );
       }
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        request.headers.get("origin") ||
+        new URL(request.url).origin;
+
+      const restaurantName = restaurant.name as string;
+      const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         locale: "fr",
+        ...(recipientEmail && { customer_email: recipientEmail }),
         line_items: [
           {
             price_data: {
               currency: "eur",
               product_data: {
-                name: `Commande ${displayOrderNumber} (complément)`,
-                description: `Total ${(totalPrice / 100).toFixed(2)} € - Solde déduit ${(walletAmount / 100).toFixed(2)} €`,
+                name: `Commande ${displayOrderNumber} chez ${restaurantName} (complément)`,
+                description: `Commande chez ${restaurantName} · Total ${(totalPrice / 100).toFixed(2)} € — Solde déduit ${(walletAmount / 100).toFixed(2)} €`,
               },
               unit_amount: remainder,
             },
@@ -550,9 +577,12 @@ export async function POST(request: Request) {
           },
         ],
         payment_intent_data: {
+          description: `Commande chez ${restaurantName} · ${displayOrderNumber} (complément solde)`,
           transfer_data: {
             destination: restaurant.stripe_account_id!,
           },
+          ...(recipientEmail && { receipt_email: recipientEmail }),
+          ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
         },
         metadata: {
           order_id: order.id,
@@ -560,8 +590,8 @@ export async function POST(request: Request) {
           type: "order",
           ...(queue_session_id && { queue_session_id }),
         },
-        success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-        cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+        success_url: `${appUrl}/restaurant/${restaurant_slug}/order-confirmation/${order.id}`,
+        cancel_url: `${appUrl}/restaurant/${restaurant_slug}/checkout`,
       });
 
       await supabase
@@ -618,25 +648,42 @@ export async function POST(request: Request) {
           .eq("status", "active");
       }
       notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+      sendOrderConfirmationEmail(order.id).catch((err) =>
+        console.error("Order confirmation email failed:", err)
+      );
       return NextResponse.json({ order_id: order.id });
     }
 
     // If online payment, create Stripe Checkout Session
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.headers.get("origin") ||
+      new URL(request.url).origin;
 
-    const stripeLineItems = orderItems.map((item) => ({
-      price_data: {
-        currency: "eur",
-        product_data: {
-          name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
-          description:
-            item.modifiers.map((m) => m.modifier_name).join(", ") || undefined,
+    const restaurantName = restaurant.name as string;
+    const merchantPrefix = `Commande chez ${restaurantName}`;
+
+    const stripeLineItems = orderItems.map((item) => {
+      const modifiersText = item.modifiers
+        .map((m) => m.modifier_name)
+        .filter(Boolean)
+        .join(", ");
+      const description = modifiersText
+        ? `${merchantPrefix} · ${modifiersText}`
+        : merchantPrefix;
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
+            description,
+          },
+          unit_amount:
+            item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
         },
-        unit_amount:
-          item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     if (deliveryFee > 0) {
       stripeLineItems.push({
@@ -644,7 +691,7 @@ export async function POST(request: Request) {
           currency: "eur",
           product_data: {
             name: "Frais de livraison",
-            description: undefined,
+            description: merchantPrefix,
           },
           unit_amount: deliveryFee,
         },
@@ -652,15 +699,21 @@ export async function POST(request: Request) {
       });
     }
 
+    const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
+      ...(recipientEmail && { customer_email: recipientEmail }),
       line_items: stripeLineItems,
       payment_intent_data: {
+        description: `${merchantPrefix} · ${displayOrderNumber}`,
         transfer_data: {
           destination: restaurant.stripe_account_id!,
         },
+        ...(recipientEmail && { receipt_email: recipientEmail }),
+        ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
       },
       metadata: {
         order_id: order.id,
@@ -668,8 +721,8 @@ export async function POST(request: Request) {
         type: "order",
         ...(queue_session_id && { queue_session_id }),
       },
-      success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-      cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+      success_url: `${appUrl}/restaurant/${restaurant_slug}/order-confirmation/${order.id}`,
+      cancel_url: `${appUrl}/restaurant/${restaurant_slug}/checkout`,
     });
 
     // Update order with stripe session id
