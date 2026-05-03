@@ -89,16 +89,58 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { id, is_active, verification_status } = body;
+  const { id } = body;
 
   if (!id) {
     return NextResponse.json({ error: "Donnees invalides" }, { status: 400 });
   }
 
   const update: Record<string, unknown> = {};
-  if (typeof is_active === "boolean") update.is_active = is_active;
-  if (verification_status && ["pending", "verified", "rejected"].includes(verification_status)) {
-    update.verification_status = verification_status;
+
+  if (typeof body.is_active === "boolean") update.is_active = body.is_active;
+  if (typeof body.is_accepting_orders === "boolean")
+    update.is_accepting_orders = body.is_accepting_orders;
+
+  if (
+    body.verification_status &&
+    ["pending", "verified", "rejected"].includes(body.verification_status)
+  ) {
+    update.verification_status = body.verification_status;
+  }
+
+  if (
+    body.subscription_tier &&
+    ["plat", "menu", "carte"].includes(body.subscription_tier)
+  ) {
+    update.subscription_tier = body.subscription_tier;
+  }
+
+  // Free-text fields
+  for (const field of [
+    "name",
+    "slug",
+    "description",
+    "address",
+    "phone",
+    "restaurant_type",
+    "siret",
+  ] as const) {
+    if (typeof body[field] === "string") {
+      update[field] = body[field].trim() || null;
+    }
+  }
+
+  // Boolean addon flags. Note: split_payment_enabled and floor_plan are not
+  // present on every environment yet (migration 016 partially applied), so we
+  // leave them out here and let the restaurateur's settings page handle them.
+  for (const flag of [
+    "delivery_addon_active",
+    "delivery_enabled",
+    "stock_module_active",
+    "stock_enabled",
+    "loyalty_enabled",
+  ] as const) {
+    if (typeof body[flag] === "boolean") update[flag] = body[flag];
   }
 
   if (Object.keys(update).length === 0) {
@@ -114,6 +156,12 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error("Super-admin restaurants error:", error);
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: "Ce slug est deja utilise par un autre restaurant" },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
