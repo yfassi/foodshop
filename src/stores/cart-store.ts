@@ -37,6 +37,8 @@ interface CartState {
   updateQuantity: (cartItemId: string, quantity: number) => void;
   orderType: OrderType | null;
   setOrderType: (type: OrderType) => void;
+  browseMode: boolean;
+  setBrowseMode: (value: boolean) => void;
   deliveryAddress: DeliveryAddress | null;
   deliveryFee: number;
   deliveryZoneId: string | null;
@@ -63,6 +65,7 @@ export const useCartStore = create<CartState>()(
       restaurantPublicId: null,
       lastAddedAt: 0,
       orderType: null,
+      browseMode: false,
       deliveryAddress: null,
       deliveryFee: 0,
       deliveryZoneId: null,
@@ -113,9 +116,12 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
+      setBrowseMode: (value) => set({ browseMode: value }),
+
       setOrderType: (type) =>
         set((state) => ({
           orderType: type,
+          browseMode: false,
           ...(type !== "delivery" && {
             deliveryAddress: null,
             deliveryFee: 0,
@@ -162,6 +168,7 @@ export const useCartStore = create<CartState>()(
             items: [],
             restaurantPublicId: publicId,
             orderType: null,
+            browseMode: false,
             deliveryAddress: null,
             deliveryFee: 0,
             deliveryZoneId: null,

@@ -36,6 +36,7 @@ export function MenuGrid({
 }) {
   const setRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
   const orderType = useCartStore((s) => s.orderType);
+  const browseMode = useCartStore((s) => s.browseMode);
   const [hydrated, setHydrated] = useState(false);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
   const [searchQuery, setSearchQuery] = useState("");
@@ -233,7 +234,7 @@ export function MenuGrid({
 
       {/* Welcome modal */}
       <WelcomeModal
-        open={hydrated && !orderType}
+        open={hydrated && !orderType && !browseMode}
         restaurantName={restaurantName}
         logoUrl={logoUrl}
         orderTypes={orderTypes}
