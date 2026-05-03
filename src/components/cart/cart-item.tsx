@@ -18,9 +18,11 @@ export function CartItem({ item }: { item: CartItemType }) {
 
   return (
     <div className="flex items-center gap-3 border-b border-border/60 py-3 last:border-b-0">
-      <div className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-xl bg-muted text-2xl">
-        {isReward ? "🎁" : "🍽"}
-      </div>
+      {isReward && (
+        <div className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-xl bg-muted text-2xl">
+          🎁
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold">{item.product_name}</p>
         {modifiersSummary && (

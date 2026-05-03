@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripeLive, stripeTest } from "@/lib/stripe/client";
+import { stripeLive, stripeTest, buildStatementDescriptorSuffix } from "@/lib/stripe/client";
 import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import type { WalletTopupTier } from "@/lib/types";
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     // Fetch restaurant
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
-      .select("id, stripe_account_id, stripe_onboarding_complete, wallet_topup_enabled, wallet_topup_tiers")
+      .select("id, name, stripe_account_id, stripe_onboarding_complete, wallet_topup_enabled, wallet_topup_tiers")
       .eq("public_id", restaurant_public_id)
       .single();
 
@@ -69,11 +69,17 @@ export async function POST(request: Request) {
       validatedBonus = bonus;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.headers.get("origin") ||
+      new URL(request.url).origin;
 
+    const restaurantName = restaurant.name as string;
     const productName = validatedBonus > 0
-      ? `Recharge ${(amount / 100).toFixed(2)} € + ${(validatedBonus / 100).toFixed(2)} € offerts`
-      : "Recharge de solde";
+      ? `Recharge solde ${restaurantName} · ${(amount / 100).toFixed(2)} € + ${(validatedBonus / 100).toFixed(2)} € offerts`
+      : `Recharge solde ${restaurantName}`;
+    const productDescription = `Crédit ajouté à votre solde chez ${restaurantName}`;
+    const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
 
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -83,7 +89,7 @@ export async function POST(request: Request) {
         {
           price_data: {
             currency: "eur",
-            product_data: { name: productName },
+            product_data: { name: productName, description: productDescription },
             unit_amount: amount,
           },
           quantity: 1,
@@ -93,9 +99,11 @@ export async function POST(request: Request) {
         ? {}
         : {
             payment_intent_data: {
+              description: `Recharge solde · ${restaurantName}`,
               transfer_data: {
                 destination: restaurant.stripe_account_id!,
               },
+              ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
             },
           }),
       metadata: {

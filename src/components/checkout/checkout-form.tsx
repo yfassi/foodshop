@@ -58,9 +58,9 @@ export function CheckoutForm({
   const [orderType, setOrderType] = useState<OrderType>(storedOrderType ?? orderTypes[0] ?? "dine_in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
-  const [loading, setLoading] = useState(false);
   const [customerEmail, setCustomerEmail] = useState<string>(defaultEmail ?? "");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const validateEmail = (raw: string) => {
     const v = raw.trim();
@@ -68,6 +68,9 @@ export function CheckoutForm({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Email invalide";
     return null;
   };
+
+  const needsEmail = !customerProfile && paymentMethod === "online" && paymentSource === "direct";
+  const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim());
 
   const showOrderTypeSelector = orderTypes.length > 1;
 
@@ -98,6 +101,12 @@ export function CheckoutForm({
       }
     }
 
+    if (needsEmail && !emailIsValid) {
+      const msg = "Veuillez renseigner un email valide pour recevoir votre reçu";
+      setEmailError(msg);
+      toast.error(msg);
+      return;
+    }
     const emailValidation = validateEmail(customerEmail);
     if (emailValidation) {
       setEmailError(emailValidation);
@@ -435,6 +444,32 @@ export function CheckoutForm({
         </div>
       </div>
 
+      {/* Email for guests paying online (receipt + order number) */}
+      {needsEmail && (
+        <div>
+          <Label
+            htmlFor="customer-email"
+            className="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+          >
+            Email
+          </Label>
+          <input
+            id="customer-email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            value={customerEmail}
+            onChange={(e) => setCustomerEmail(e.target.value)}
+            placeholder="vous@email.com"
+            className="block h-12 w-full rounded-xl border-[1.5px] border-border bg-background px-4 text-[14px] outline-none transition-colors focus:border-foreground"
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Pour recevoir votre reçu et le numéro de commande.
+          </p>
+        </div>
+      )}
+
       {/* Partial wallet info */}
       {isWalletSelected && !walletCoversAll && (
         <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
@@ -451,7 +486,7 @@ export function CheckoutForm({
       {/* Submit — pill button matching design system */}
       <button
         type="submit"
-        disabled={loading || deliveryBlocked}
+        disabled={loading || deliveryBlocked || (needsEmail && !emailIsValid)}
         className={`relative flex h-13 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
           isStripeFlow
             ? "bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/25 hover:bg-[#5448ff]"
