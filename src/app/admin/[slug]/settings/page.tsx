@@ -56,6 +56,9 @@ import {
   Key,
   Sparkles,
   ArrowUpRight,
+  ShieldCheck,
+  FileText,
+  BadgeCheck,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -1474,6 +1477,51 @@ export default function SettingsPage() {
                         </Button>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Fee transparency block */}
+                <Card size="sm">
+                  <CardContent className="pt-4">
+                    <div className="rounded-xl border border-border bg-muted/40 p-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Frais Stripe par transaction
+                          </p>
+                          <p className="mt-0.5 font-mono text-base font-extrabold tracking-tight">
+                            ~1,5 % <span className="text-muted-foreground">+</span> 0,20 €
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-green-100 px-2 py-1 text-[10px] font-bold text-green-700 dark:bg-green-950/40 dark:text-green-400">
+                          0 % TaapR
+                        </span>
+                      </div>
+
+                      <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
+                        <div className="flex items-start gap-2.5">
+                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/70" />
+                          <p className="text-[12px] leading-snug text-muted-foreground">
+                            <span className="font-semibold text-foreground">Comme un TPE bancaire.</span>{" "}
+                            Stripe sécurise chaque paiement aux normes PCI-DSS et 3D Secure.
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/70" />
+                          <p className="text-[12px] leading-snug text-muted-foreground">
+                            <span className="font-semibold text-foreground">Facturation incluse.</span>{" "}
+                            Justificatifs et reçus exportables directement depuis votre tableau Stripe.
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/70" />
+                          <p className="text-[12px] leading-snug text-muted-foreground">
+                            <span className="font-semibold text-foreground">TaapR ne prend aucune commission.</span>{" "}
+                            Nous négocions la meilleure tarification possible pour nos restaurants.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 

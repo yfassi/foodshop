@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: accountLink.url });
   } catch (err) {
     console.error("Stripe Connect error:", err);
+    if (err instanceof Stripe.errors.StripeError) {
+      return NextResponse.json(
+        { error: `Stripe : ${err.message}` },
+        { status: 502 },
+      );
+    }
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

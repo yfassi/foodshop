@@ -169,11 +169,6 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
               <>
                 {/* Total box matching the design system */}
                 <div className="rounded-2xl border-[1.5px] border-border bg-muted/40 p-4">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-muted-foreground">Sous-total</span>
-                    <span className="font-mono font-medium">{formatPrice(total)}</span>
-                  </div>
-                  <hr className="my-2.5 border-t border-dashed border-border" />
                   <div className="flex items-center justify-between text-[15px] font-bold">
                     <span>Total</span>
                     <span className="font-mono">{formatPrice(total)}</span>
