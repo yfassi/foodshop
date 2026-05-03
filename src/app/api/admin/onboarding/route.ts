@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +26,11 @@ function toSlug(name: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+// 6 hex chars \u2192 16M combinations: unguessable, collision-proof at our scale
+function shortId() {
+  return randomBytes(3).toString("hex");
 }
 
 export async function POST(request: Request) {
@@ -129,23 +135,18 @@ export async function POST(request: Request) {
       verification_document_url = urlData.publicUrl;
     }
 
-    // Generate unique slug from name
-    const baseSlug = toSlug(name);
-    let slug = baseSlug;
-    let suffix = 0;
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    // Slug = readable name + unguessable short ID. Retry on the astronomically
+    // rare collision (16M combinations).
+    const baseSlug = toSlug(name) || "restaurant";
+    let slug = `${baseSlug}-${shortId()}`;
+    for (let attempt = 0; attempt < 5; attempt++) {
       const { data: existing } = await supabase
         .from("restaurants")
         .select("id")
         .eq("slug", slug)
-        .single();
-
+        .maybeSingle();
       if (!existing) break;
-
-      suffix++;
-      slug = `${baseSlug}-${suffix}`;
+      slug = `${baseSlug}-${shortId()}`;
     }
 
     // Create restaurant (verification_status defaults to 'pending')
