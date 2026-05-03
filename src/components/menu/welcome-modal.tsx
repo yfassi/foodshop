@@ -161,7 +161,7 @@ export function WelcomeModal({
               </div>
 
               <div className="flex gap-2.5">
-                <Link href={`/${slug}/login`} className="flex-1">
+                <Link href={`/restaurant/${slug}/login`} className="flex-1">
                   <Button
                     className="h-12 w-full gap-2 rounded-xl font-semibold"
                     size="lg"
@@ -170,7 +170,7 @@ export function WelcomeModal({
                     Se connecter
                   </Button>
                 </Link>
-                <Link href={`/${slug}/signup`} className="flex-1">
+                <Link href={`/restaurant/${slug}/signup`} className="flex-1">
                   <Button
                     variant="outline"
                     className="h-12 w-full gap-2 rounded-xl font-semibold"

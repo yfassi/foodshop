@@ -120,6 +120,30 @@ export function generateTimeOptions(): { value: string; label: string }[] {
 
 export const TIME_OPTIONS = generateTimeOptions();
 
+const RESTAURANT_TIMEZONE = "Europe/Paris";
+
+/** Current day-of-week (0=Sun..6=Sat) and minutes-since-midnight in restaurant timezone. */
+function getNowInRestaurantTz(): { day: number; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: RESTAURANT_TIMEZONE,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
+  const hourStr = parts.find((p) => p.type === "hour")?.value ?? "0";
+  const minuteStr = parts.find((p) => p.type === "minute")?.value ?? "0";
+  // Intl can return "24" for hour at midnight in some runtimes
+  const hour = Number(hourStr) % 24;
+  const minute = Number(minuteStr);
+  return { day: weekdayMap[weekday] ?? 0, minutes: hour * 60 + minute };
+}
+
 /** Get the current closing time if restaurant is open, or next opening info if closed */
 export function getRestaurantStatusLabel(
   openingHours: Record<string, unknown> | null | undefined
@@ -129,10 +153,8 @@ export function getRestaurantStatusLabel(
   const dayKeys = [
     "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
   ];
-  const now = new Date();
-  const currentDay = now.getDay();
+  const { day: currentDay, minutes: currentMinutes } = getNowInRestaurantTz();
   const todayKey = dayKeys[currentDay];
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   // Check if currently open & get closing time
   const todayRanges = normalizeHoursEntry(openingHours[todayKey]);
@@ -185,13 +207,11 @@ export function isCurrentlyOpen(
     "friday",
     "saturday",
   ];
-  const now = new Date();
-  const todayKey = days[now.getDay()];
+  const { day, minutes: currentMinutes } = getNowInRestaurantTz();
+  const todayKey = days[day];
   const ranges = normalizeHoursEntry(openingHours[todayKey]);
 
   if (!ranges || ranges.length === 0) return false; // No hours today → closed
-
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   return ranges.some((range) => {
     const [openH, openM] = range.open.split(":").map(Number);

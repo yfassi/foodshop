@@ -99,7 +99,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   if (!isAuthenticated) {
     return (
       <Link
-        href={`/${slug}/login`}
+        href={`/restaurant/${slug}/login`}
         className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
       >
         <User className="h-3.5 w-3.5" />
@@ -112,7 +112,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   if (!profile) {
     return (
       <Link
-        href={`/${slug}/account`}
+        href={`/restaurant/${slug}/account`}
         className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
       >
         <User className="h-3.5 w-3.5" />
@@ -128,7 +128,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
 
   return (
     <Link
-      href={`/${slug}/account`}
+      href={`/restaurant/${slug}/account`}
       className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium transition-colors active:bg-muted/70"
     >
       <User className="h-3.5 w-3.5" />

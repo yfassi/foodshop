@@ -40,7 +40,7 @@ export default function CustomerLoginPage() {
     }
 
     // Full reload to ensure auth state propagates to all components
-    window.location.href = `/${slug}`;
+    window.location.href = `/restaurant/${slug}/order`;
   };
 
   const handleResetPassword = async () => {
@@ -52,7 +52,7 @@ export default function CustomerLoginPage() {
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/${slug}/reset-password`,
+      redirectTo: `${window.location.origin}/restaurant/${slug}/reset-password`,
     });
 
     if (error) {
@@ -69,7 +69,7 @@ export default function CustomerLoginPage() {
       <AnimatedBackground />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -139,7 +139,7 @@ export default function CustomerLoginPage() {
         <p className="mt-3 text-center text-sm text-muted-foreground">
           Pas encore de compte ?{" "}
           <Link
-            href={`/${slug}/signup`}
+            href={`/restaurant/${slug}/signup`}
             className="font-medium text-primary hover:underline"
           >
             Créer un compte

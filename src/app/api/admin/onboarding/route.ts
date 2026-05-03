@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +26,11 @@ function toSlug(name: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+// 6 hex chars \u2192 16M combinations: unguessable, collision-proof at our scale
+function shortId() {
+  return randomBytes(3).toString("hex");
 }
 
 export async function POST(request: Request) {
@@ -88,18 +94,22 @@ export async function POST(request: Request) {
       ownerId = user.id;
     }
 
-    // Check user doesn't already own a restaurant
-    const { data: owned } = await supabase
-      .from("restaurants")
-      .select("id")
-      .eq("owner_id", ownerId)
-      .single();
+    // For new account creation, prevent the same email from going through the
+    // signup flow twice (existing users can add more restaurants from the
+    // logged-in session flow above).
+    if (email && password) {
+      const { data: alreadyOwned } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .limit(1);
 
-    if (owned) {
-      return NextResponse.json(
-        { error: "Vous avez déjà un restaurant" },
-        { status: 409 }
-      );
+      if (alreadyOwned && alreadyOwned.length > 0) {
+        return NextResponse.json(
+          { error: "Vous avez déjà un restaurant" },
+          { status: 409 }
+        );
+      }
     }
 
     // Upload verification document if provided
@@ -129,23 +139,18 @@ export async function POST(request: Request) {
       verification_document_url = urlData.publicUrl;
     }
 
-    // Generate unique slug from name
-    const baseSlug = toSlug(name);
-    let slug = baseSlug;
-    let suffix = 0;
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    // Slug = readable name + unguessable short ID. Retry on the astronomically
+    // rare collision (16M combinations).
+    const baseSlug = toSlug(name) || "restaurant";
+    let slug = `${baseSlug}-${shortId()}`;
+    for (let attempt = 0; attempt < 5; attempt++) {
       const { data: existing } = await supabase
         .from("restaurants")
         .select("id")
         .eq("slug", slug)
-        .single();
-
+        .maybeSingle();
       if (!existing) break;
-
-      suffix++;
-      slug = `${baseSlug}-${suffix}`;
+      slug = `${baseSlug}-${shortId()}`;
     }
 
     // Create restaurant (verification_status defaults to 'pending')

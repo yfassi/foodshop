@@ -14,6 +14,8 @@ import {
   PanelLeft,
   LogOut,
   ChevronsUpDown,
+  Check,
+  Plus,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -51,6 +58,7 @@ export function AdminShell({
   openingHours,
   isAcceptingOrders,
   deliveryEnabled,
+  restaurants,
   children,
 }: {
   slug: string;
@@ -61,6 +69,7 @@ export function AdminShell({
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
+  restaurants: { name: string; slug: string }[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -71,6 +80,22 @@ export function AdminShell({
     : BASE_NAV_ITEMS;
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const hasMultipleRestaurants = !isDemo && restaurants.length > 1;
+  const canAddRestaurant = !isDemo;
+
+  const switchRestaurant = (targetSlug: string) => {
+    setSwitcherOpen(false);
+    setAccountOpen(false);
+    if (targetSlug === slug) return;
+    router.push(`/admin/${targetSlug}${qs}`);
+  };
+
+  const goToAddRestaurant = () => {
+    setSwitcherOpen(false);
+    setAccountOpen(false);
+    router.push("/admin/onboarding");
+  };
 
   // Live restaurant status (re-check every 60s)
   const getStatus = useCallback(
@@ -135,17 +160,94 @@ export function AdminShell({
             collapsed ? "w-[68px]" : "w-[240px]"
           )}
         >
-          {/* Brand */}
-          <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-xs font-bold">
-              {restaurantName.charAt(0).toUpperCase()}
-            </div>
-            {!collapsed && (
-              <span className="truncate text-sm font-semibold text-sidebar-foreground">
-                {restaurantName}
-              </span>
+          {/* Brand / Restaurant switcher */}
+          <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Changer de restaurant"
+                className={cn(
+                  "flex h-14 w-full items-center gap-3 border-b border-sidebar-border px-4 text-left transition-colors hover:bg-sidebar-accent/40 focus-visible:bg-sidebar-accent/40 focus-visible:outline-none",
+                  collapsed && "justify-center px-0"
+                )}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-xs font-bold">
+                  {restaurantName.charAt(0).toUpperCase()}
+                </div>
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 truncate text-sm font-semibold text-sidebar-foreground">
+                      {restaurantName}
+                    </span>
+                    {(hasMultipleRestaurants || canAddRestaurant) && (
+                      <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/40" />
+                    )}
+                  </>
+                )}
+              </button>
+            </PopoverTrigger>
+            {(hasMultipleRestaurants || canAddRestaurant) && (
+              <PopoverContent
+                align="start"
+                sideOffset={8}
+                className="w-64 gap-1 p-1.5"
+              >
+                {restaurants.length > 0 && (
+                  <>
+                    <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Mes restaurants
+                    </p>
+                    <div className="max-h-64 space-y-0.5 overflow-y-auto">
+                      {restaurants.map((r) => {
+                        const active = r.slug === slug;
+                        return (
+                          <button
+                            key={r.slug}
+                            type="button"
+                            onClick={() => switchRestaurant(r.slug)}
+                            className={cn(
+                              "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors",
+                              active
+                                ? "bg-accent text-accent-foreground"
+                                : "hover:bg-accent/50"
+                            )}
+                          >
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                              {r.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="flex-1 truncate font-medium">
+                              {r.name}
+                            </span>
+                            {active && (
+                              <Check className="h-4 w-4 shrink-0 text-primary" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {canAddRestaurant && (
+                  <>
+                    {restaurants.length > 0 && (
+                      <Separator className="my-1" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={goToAddRestaurant}
+                      className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      Ajouter un restaurant
+                    </button>
+                  </>
+                )}
+              </PopoverContent>
             )}
-          </div>
+          </Popover>
 
           {/* Nav */}
           <nav className="flex-1 space-y-1 p-3">
@@ -306,6 +408,56 @@ export function AdminShell({
             </div>
 
             <Separator />
+
+            {/* Restaurant switcher (mobile-friendly) */}
+            {(hasMultipleRestaurants || canAddRestaurant) && (
+              <div className="space-y-1">
+                <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Mes restaurants
+                </p>
+                <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                  {restaurants.map((r) => {
+                    const active = r.slug === slug;
+                    return (
+                      <button
+                        key={r.slug}
+                        type="button"
+                        onClick={() => switchRestaurant(r.slug)}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors",
+                          active
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-accent/50"
+                        )}
+                      >
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                          {r.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="flex-1 truncate font-medium">
+                          {r.name}
+                        </span>
+                        {active && (
+                          <Check className="h-4 w-4 shrink-0 text-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {canAddRestaurant && (
+                  <button
+                    type="button"
+                    onClick={goToAddRestaurant}
+                    className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    Ajouter un restaurant
+                  </button>
+                )}
+                <Separator className="!my-3" />
+              </div>
+            )}
 
             {/* Manage settings link */}
             <Button

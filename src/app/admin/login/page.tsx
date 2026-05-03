@@ -35,17 +35,16 @@ export default function AdminLoginPage() {
       return;
     }
 
-    // Find the restaurant owned by this user
-    const { data: restaurant } = await supabase
+    // Find restaurants owned by this user (a user may own several)
+    const { data: restaurants } = await supabase
       .from("restaurants")
       .select("slug")
       .eq("owner_id", data.user.id)
-      .single();
+      .order("created_at", { ascending: true });
 
-    if (restaurant) {
-      router.push(`/admin/${restaurant.slug}`);
+    if (restaurants && restaurants.length > 0) {
+      router.push(`/admin/${restaurants[0].slug}`);
     } else {
-      // User has account but no restaurant yet — go to onboarding
       router.push("/admin/onboarding");
     }
   };

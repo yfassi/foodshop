@@ -19,6 +19,7 @@ export default async function AdminLayout({
 
   let restaurant;
   let userEmail = "";
+  let ownedRestaurants: { name: string; slug: string }[] = [];
 
   if (isDemo) {
     const { data } = await supabase
@@ -29,6 +30,7 @@ export default async function AdminLayout({
 
     if (!data) redirect("/admin/login");
     restaurant = data;
+    ownedRestaurants = [{ name: data.name, slug }];
   } else {
     const {
       data: { user },
@@ -46,6 +48,13 @@ export default async function AdminLayout({
 
     if (!data) redirect("/admin/login");
     restaurant = data;
+
+    const { data: owned } = await supabase
+      .from("restaurants")
+      .select("name, slug")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true });
+    ownedRestaurants = owned || [];
   }
 
   return (
@@ -60,6 +69,7 @@ export default async function AdminLayout({
       deliveryEnabled={
         restaurant.delivery_enabled && restaurant.delivery_addon_active
       }
+      restaurants={ownedRestaurants}
     >
       {children}
     </AdminShell>

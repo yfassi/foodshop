@@ -50,7 +50,7 @@ export function CompleteProfileForm({ slug }: { slug: string }) {
   return (
     <div className="px-4 py-8">
       <Link
-        href={`/${slug}`}
+        href={`/restaurant/${slug}/order`}
         className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

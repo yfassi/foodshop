@@ -231,7 +231,7 @@ export function WalletLive({
       {/* Back link */}
       <div className="text-center">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
           Retour au menu

@@ -1,30 +1,20 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Loader2,
   Check,
   X,
-  ArrowRight,
-  ArrowLeft,
-  Store,
-  Clock,
-  Settings,
   Plus,
   Coins,
   ShieldCheck,
   Copy,
-  UserPlus,
   UtensilsCrossed,
   ShoppingBag,
   CreditCard,
-  MapPin,
   Users,
   FileCheck,
   Upload,
@@ -39,7 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
-import { AnimatedBackground } from "@/components/animated-background";
 import { TIME_OPTIONS } from "@/lib/constants";
 import {
   Select,
@@ -48,17 +37,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import "./onboarding.css";
 
 /* ─── Constants ─── */
 
-const STEPS = [
-  { label: "Restaurant", icon: Store },
-  { label: "Coordonnées", icon: MapPin },
-  { label: "Horaires", icon: Clock },
-  { label: "Configuration", icon: Settings },
-  { label: "Vérification", icon: FileCheck },
-  { label: "Compte", icon: UserPlus },
+const ALL_STEPS = [
+  { label: "Restaurant" },
+  { label: "Coordonnées" },
+  { label: "Horaires" },
+  { label: "Configuration" },
+  { label: "Vérification" },
+  { label: "Compte" },
 ];
+const ACCOUNT_STEP_INDEX = 5;
 
 const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
@@ -111,6 +102,22 @@ export default function OnboardingPage() {
   const [animClass, setAnimClass] = useState("");
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Detect existing session — logged-in users add a restaurant without
+  // re-creating an account.
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setHasSession(!!data.user);
+    });
+  }, []);
+
+  const STEPS = useMemo(
+    () => (hasSession ? ALL_STEPS.slice(0, ACCOUNT_STEP_INDEX) : ALL_STEPS),
+    [hasSession]
+  );
+
   // Success
   const [showSuccess, setShowSuccess] = useState(false);
   const [successSlug, setSuccessSlug] = useState("");
@@ -162,7 +169,9 @@ export default function OnboardingPage() {
           (cashEnabled || cardEnabled)
         );
       case 4:
-        return !!verificationDoc;
+        // Verification doc only required for first-time signups; existing
+        // owners adding another restaurant skip this requirement.
+        return hasSession ? true : !!verificationDoc;
       case 5:
         return (
           email.trim().length > 0 &&
@@ -178,8 +187,8 @@ export default function OnboardingPage() {
     const direction = next > step ? "forward" : "backward";
     setAnimClass(
       direction === "forward"
-        ? "step-enter-from-right"
-        : "step-enter-from-left"
+        ? "lv4-ob-step-enter-from-right"
+        : "lv4-ob-step-enter-from-left"
     );
     setStep(next);
     if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
@@ -214,10 +223,7 @@ export default function OnboardingPage() {
     if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify({
-        email: email.trim(),
-        password,
+      const payload: Record<string, unknown> = {
         name: name.trim(),
         description: description.trim() || undefined,
         restaurant_type: restaurantType || undefined,
@@ -227,7 +233,14 @@ export default function OnboardingPage() {
         order_types,
         accepted_payment_methods,
         queue_enabled: queueEnabled,
-      }));
+      };
+      if (!hasSession) {
+        payload.email = email.trim();
+        payload.password = password;
+      }
+
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(payload));
       if (verificationDoc) {
         formData.append("verification_document", verificationDoc);
       }
@@ -243,16 +256,18 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Erreur");
       }
 
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      if (!hasSession) {
+        const supabase = createClient();
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      if (signInError) {
-        toast.success("Restaurant créé ! Connectez-vous pour continuer.");
-        window.location.href = "/admin/login";
-        return;
+        if (signInError) {
+          toast.success("Restaurant créé ! Connectez-vous pour continuer.");
+          window.location.href = "/admin/login";
+          return;
+        }
       }
 
       setSuccessSlug(data.slug);
@@ -267,12 +282,14 @@ export default function OnboardingPage() {
           angle: 60,
           spread: 55,
           origin: { x: 0, y: 0.7 },
+          colors: ["#E64A19", "#F2B33D", "#1A1410"],
         });
         confetti({
           particleCount: 3,
           angle: 120,
           spread: 55,
           origin: { x: 1, y: 0.7 },
+          colors: ["#E64A19", "#F2B33D", "#1A1410"],
         });
         if (Date.now() < end) requestAnimationFrame(frame);
       };
@@ -363,36 +380,46 @@ export default function OnboardingPage() {
 
   if (showSuccess) {
     return (
-      <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
-        <AnimatedBackground />
-        <div className="relative z-10 w-full max-w-md step-enter-from-right">
-          <div className="space-y-5 rounded-2xl border border-border bg-card/90 p-8 text-center shadow-lg backdrop-blur-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              <FileCheck className="h-8 w-8" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Compte créé avec succès !</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Votre document de vérification a été envoyé. Les équipes{" "}
-                <span className="font-semibold text-foreground">TaapR</span>{" "}
-                vont examiner votre dossier et valider votre compte.
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                En attendant, vous pouvez déjà configurer votre menu et vos
-                réglages. Votre page client sera accessible une fois votre
-                compte vérifié.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                window.location.href = `/admin/${successSlug}?welcome=true`;
-              }}
-              className="h-12 w-full rounded-xl font-semibold"
-            >
-              Configurer mon restaurant
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+      <div className="lv4-ob">
+        <div className="lv4-ob-stamp" aria-hidden="true">
+          <div className="stamp">
+            <div className="stamp-stars">★ ★ ★</div>
+            <div className="stamp-num">0%</div>
+            <div className="stamp-label">commission</div>
+            <div className="stamp-stars">★ ★ ★</div>
           </div>
+        </div>
+
+        <div className="lv4-ob-top">
+          <Link href="/" className="lv4-ob-logo" aria-label="Taapr · accueil">
+            <span>taapr</span>
+            <span className="lv4-ob-logo-dot" />
+          </Link>
+        </div>
+
+        <div className="lv4-ob-success">
+          <div className="lv4-ob-success-stamp" aria-hidden="true">
+            <FileCheck strokeWidth={2} />
+          </div>
+          <p className="lv4-ob-success-script">bienvenue ✦</p>
+          <h2 className="lv4-ob-success-h">
+            Compte créé avec <em>succès.</em>
+          </h2>
+          <p className="lv4-ob-success-p">
+            Votre document de vérification a été envoyé. Les équipes <strong>TaapR</strong> vont
+            examiner votre dossier et valider votre compte. En attendant, vous pouvez configurer
+            votre menu et vos réglages — votre page client sera activée une fois la vérification
+            terminée.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = `/admin/${successSlug}?welcome=true`;
+            }}
+            className="lv4-ob-success-cta"
+          >
+            Configurer mon restaurant <span className="arrow">→</span>
+          </button>
         </div>
       </div>
     );
@@ -401,56 +428,45 @@ export default function OnboardingPage() {
   /* ─── Render ─── */
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
-      <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-md">
-        {/* Step counter */}
-        <p className="mb-4 text-center text-xs font-medium text-muted-foreground">
-          Étape {step + 1} sur {STEPS.length}
-        </p>
+    <div className="lv4-ob">
+      <div className="lv4-ob-stamp" aria-hidden="true">
+        <div className="stamp">
+          <div className="stamp-stars">★ ★ ★</div>
+          <div className="stamp-num">0%</div>
+          <div className="stamp-label">commission</div>
+          <div className="stamp-stars">★ ★ ★</div>
+        </div>
+      </div>
 
-        {/* Progress bar */}
-        <div className="mb-8 flex items-center justify-center gap-0">
+      <div className="lv4-ob-top">
+        <Link href="/" className="lv4-ob-logo" aria-label="Taapr · accueil">
+          <span>taapr</span>
+          <span className="lv4-ob-logo-dot" />
+        </Link>
+        <Link href="/" className="lv4-ob-back">
+          ← RETOUR
+        </Link>
+      </div>
+
+      <div className="lv4-ob-wrap">
+        <div className="lv4-ob-step-counter">★ ÉTAPE {step + 1} / {STEPS.length}</div>
+
+        {/* Stepper */}
+        <div className="lv4-ob-stepper" aria-label="Progression de l'inscription">
           {STEPS.map((s, i) => {
-            const Icon = s.icon;
             const isActive = i === step;
             const isDone = i < step;
+            const stateClass = isDone ? "done" : isActive ? "active" : "";
             return (
-              <div key={s.label} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                      isDone
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : isActive
-                          ? "scale-110 border-primary bg-primary/10 text-primary"
-                          : "border-muted-foreground/30 text-muted-foreground/50"
-                    }`}
-                  >
-                    {isDone ? (
-                      <Check className="h-3.5 w-3.5" />
-                    ) : (
-                      <Icon className="h-3.5 w-3.5" />
-                    )}
+              <div key={s.label} className="flex items-center" style={{ display: "flex" }}>
+                <div className={`lv4-ob-step-item ${stateClass}`}>
+                  <div className={`lv4-ob-step-circle ${stateClass}`}>
+                    {isDone ? <Check className="h-4 w-4" /> : i + 1}
                   </div>
-                  <span
-                    className={`mt-1.5 text-[9px] font-medium transition-colors duration-300 ${
-                      isActive
-                        ? "font-semibold text-primary"
-                        : isDone
-                          ? "text-foreground"
-                          : "text-muted-foreground/50"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
+                  <span className="lv4-ob-step-label">{s.label}</span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div
-                    className={`mx-1 mb-5 h-0.5 w-6 rounded-full transition-colors duration-500 ${
-                      i < step ? "bg-primary" : "bg-muted-foreground/20"
-                    }`}
-                  />
+                  <div className={`lv4-ob-step-line${i < step ? " done" : ""}`} />
                 )}
               </div>
             );
@@ -458,276 +474,273 @@ export default function OnboardingPage() {
         </div>
 
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
+        <div className="lv4-ob-card">
           <div key={step} className={animClass}>
             {/* ─── Step 1: Restaurant ─── */}
             {step === 0 && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-lg font-bold">Votre restaurant</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Commençons par l&apos;essentiel
-                  </p>
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ COMMENÇONS</div>
+                  <h2 className="lv4-ob-h">
+                    Votre <em>restaurant</em>.<span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">L&apos;essentiel d&apos;abord.</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-sm font-medium">
-                    Nom du restaurant
-                  </Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Les Saveurs du Midi"
-                    className="h-12"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Restaurant type grid */}
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">
-                    Type d&apos;établissement
-                  </Label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {RESTAURANT_TYPES.map((type) => (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() =>
-                          setRestaurantType(
-                            restaurantType === type.value ? "" : type.value
-                          )
-                        }
-                        className={`flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 transition-all ${
-                          restaurantType === type.value
-                            ? "scale-105 border-primary bg-primary/5"
-                            : "border-transparent bg-muted/50 hover:bg-muted"
-                        }`}
-                      >
-                        <span className="text-xl">{type.emoji}</span>
-                        <span className="text-center text-[9px] font-medium leading-tight">
-                          {type.label}
-                        </span>
-                      </button>
-                    ))}
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="name" className="lv4-ob-label">
+                      Nom du restaurant
+                    </label>
+                    <input
+                      id="name"
+                      className="lv4-ob-input"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Les Saveurs du Midi"
+                      autoFocus
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="description" className="text-sm font-medium">
-                    Description{" "}
-                    <span className="text-muted-foreground">(optionnel)</span>
-                  </Label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Cuisine marocaine traditionnelle..."
-                    rows={2}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <span className="lv4-ob-label">
+                      Type d&apos;établissement
+                    </span>
+                    <div className="lv4-ob-type-grid">
+                      {RESTAURANT_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() =>
+                            setRestaurantType(
+                              restaurantType === type.value ? "" : type.value
+                            )
+                          }
+                          className={`lv4-ob-type${restaurantType === type.value ? " on" : ""}`}
+                        >
+                          <span className="lv4-ob-type-emoji">{type.emoji}</span>
+                          <span className="lv4-ob-type-label">{type.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="description" className="lv4-ob-label">
+                      Description<span className="lv4-ob-label-opt">— optionnel</span>
+                    </label>
+                    <textarea
+                      id="description"
+                      className="lv4-ob-input"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Cuisine marocaine traditionnelle…"
+                      rows={2}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
             {/* ─── Step 2: Coordonnées ─── */}
             {step === 1 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold">Coordonnées</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Pour que vos clients vous trouvent
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ ON VOUS LOCALISE</div>
+                  <h2 className="lv4-ob-h">
+                    Vos <em>coordonnées</em>.<span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">
+                    Pour que vos clients vous trouvent du premier coup.
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="address" className="text-sm font-medium">
-                    Adresse
-                  </Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="12 rue de la Paix, 75002 Paris"
-                    className="h-12"
-                    autoFocus
-                  />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="address" className="lv4-ob-label">
+                      Adresse
+                    </label>
+                    <input
+                      id="address"
+                      className="lv4-ob-input"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="12 rue de la Paix, 75002 Paris"
+                      autoFocus
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone" className="text-sm font-medium">
-                    Téléphone
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10);
-                      const formatted = digits.replace(
-                        /(\d{2})(?=\d)/g,
-                        "$1 "
-                      );
-                      setPhone(formatted);
-                    }}
-                    placeholder="06 12 34 56 78"
-                    className="h-12"
-                    maxLength={14}
-                  />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="phone" className="lv4-ob-label">
+                      Téléphone
+                    </label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      className="lv4-ob-input"
+                      value={phone}
+                      onChange={(e) => {
+                        const digits = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                        const formatted = digits.replace(
+                          /(\d{2})(?=\d)/g,
+                          "$1 "
+                        );
+                        setPhone(formatted);
+                      }}
+                      placeholder="06 12 34 56 78"
+                      maxLength={14}
+                    />
+                  </div>
                 </div>
 
-                <p className="text-center text-xs text-muted-foreground">
-                  Ces informations sont optionnelles et modifiables plus tard
-                </p>
+                <p className="lv4-ob-hint-foot">★ MODIFIABLE PLUS TARD</p>
               </div>
             )}
 
             {/* ─── Step 3: Hours ─── */}
             {step === 2 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Horaires d&apos;ouverture
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ QUAND VOUS SERVEZ</div>
+                  <h2 className="lv4-ob-h">
+                    Vos <em>horaires</em>.<span className="lv4-ob-h-dot" />
                   </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Quand vos clients peuvent commander
+                  <p className="lv4-ob-h-sub">
+                    Quand vos clients peuvent commander.
                   </p>
                 </div>
 
-                <div className="divide-y divide-border rounded-xl border border-border bg-card">
-                  {DAYS.map((day) => {
-                    const ranges = hours[day.key];
-                    const isOpen = !!ranges && ranges.length > 0;
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-hours">
+                    {DAYS.map((day) => {
+                      const ranges = hours[day.key];
+                      const isOpen = !!ranges && ranges.length > 0;
 
-                    return (
-                      <div key={day.key} className="px-3 py-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div
-                              className={`h-2 w-2 rounded-full transition-colors ${
-                                isOpen ? "bg-green-500" : "bg-gray-300"
-                              }`}
-                            />
-                            <span className="text-sm font-medium">
-                              {day.label}
-                            </span>
+                      return (
+                        <div key={day.key} className="lv4-ob-day">
+                          <div className="lv4-ob-day-h">
+                            <div className="lv4-ob-day-l">
+                              <span className={`lv4-ob-day-dot${isOpen ? " open" : ""}`} />
+                              <span className="lv4-ob-day-name">{day.label}</span>
+                            </div>
+                            <div className="lv4-ob-day-r">
+                              {isOpen ? (
+                                <button
+                                  onClick={() => openCopyDialog(day.key)}
+                                  className="lv4-ob-icon-btn"
+                                  title="Dupliquer ces horaires"
+                                  type="button"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              ) : (
+                                <span className="lv4-ob-day-closed">FERMÉ</span>
+                              )}
+                              <Switch
+                                checked={isOpen}
+                                onCheckedChange={(v) => toggleDay(day.key, v)}
+                              />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isOpen && (
-                              <button
-                                onClick={() => openCopyDialog(day.key)}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                                title="Dupliquer ces horaires"
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                            {!isOpen && (
-                              <span className="text-xs text-muted-foreground">
-                                Fermé
-                              </span>
-                            )}
-                            <Switch
-                              checked={isOpen}
-                              onCheckedChange={(v) => toggleDay(day.key, v)}
-                            />
-                          </div>
+
+                          {isOpen && (
+                            <div className="lv4-ob-day-ranges">
+                              {ranges.map((range, idx) => (
+                                <div key={idx} className="lv4-ob-day-range">
+                                  <Select
+                                    value={range.open}
+                                    onValueChange={(v) =>
+                                      updateRange(day.key, idx, "open", v)
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      className="lv4-ob-time-trigger"
+                                      size="sm"
+                                    >
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent
+                                      position="popper"
+                                      className="max-h-52"
+                                    >
+                                      {TIME_OPTIONS.map((opt) => (
+                                        <SelectItem
+                                          key={opt.value}
+                                          value={opt.value}
+                                          className="text-xs"
+                                        >
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <span className="lv4-ob-time-sep">→</span>
+
+                                  <Select
+                                    value={range.close}
+                                    onValueChange={(v) =>
+                                      updateRange(day.key, idx, "close", v)
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      className="lv4-ob-time-trigger"
+                                      size="sm"
+                                    >
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent
+                                      position="popper"
+                                      className="max-h-52"
+                                    >
+                                      {TIME_OPTIONS.map((opt) => (
+                                        <SelectItem
+                                          key={opt.value}
+                                          value={opt.value}
+                                          className="text-xs"
+                                        >
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {ranges.length > 1 && (
+                                    <button
+                                      onClick={() => removeRange(day.key, idx)}
+                                      className="lv4-ob-icon-btn danger"
+                                      type="button"
+                                      title="Supprimer cette plage"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {ranges.length < 2 && (
+                                <button
+                                  onClick={() => addRange(day.key)}
+                                  className="lv4-ob-add-range"
+                                  type="button"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  AJOUTER UNE COUPURE
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-
-                        {isOpen && (
-                          <div className="mt-2.5 space-y-2 pl-[1.125rem]">
-                            {ranges.map((range, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2"
-                              >
-                                <Select
-                                  value={range.open}
-                                  onValueChange={(v) =>
-                                    updateRange(day.key, idx, "open", v)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className="h-9 w-[5.5rem] text-xs font-medium"
-                                    size="sm"
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent
-                                    position="popper"
-                                    className="max-h-52"
-                                  >
-                                    {TIME_OPTIONS.map((opt) => (
-                                      <SelectItem
-                                        key={opt.value}
-                                        value={opt.value}
-                                        className="text-xs"
-                                      >
-                                        {opt.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  à
-                                </span>
-
-                                <Select
-                                  value={range.close}
-                                  onValueChange={(v) =>
-                                    updateRange(day.key, idx, "close", v)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className="h-9 w-[5.5rem] text-xs font-medium"
-                                    size="sm"
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent
-                                    position="popper"
-                                    className="max-h-52"
-                                  >
-                                    {TIME_OPTIONS.map((opt) => (
-                                      <SelectItem
-                                        key={opt.value}
-                                        value={opt.value}
-                                        className="text-xs"
-                                      >
-                                        {opt.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-
-                                {ranges.length > 1 && (
-                                  <button
-                                    onClick={() => removeRange(day.key, idx)}
-                                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            {ranges.length < 2 && (
-                              <button
-                                onClick={() => addRange(day.key)}
-                                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-                              >
-                                <Plus className="h-3 w-3" />
-                                Ajouter une coupure
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <Dialog
@@ -739,23 +752,20 @@ export default function OnboardingPage() {
                     }
                   }}
                 >
-                  <DialogContent className="sm:max-w-sm">
+                  <DialogContent className="sm:max-w-sm lv4-ob-dialog">
                     <DialogHeader>
                       <DialogTitle>
-                        Dupliquer les horaires du{" "}
-                        {copyFromDay
-                          ? DAYS.find(
-                              (d) => d.key === copyFromDay
-                            )?.label.toLowerCase()
-                          : ""}
+                        Dupliquer{" "}
+                        <em style={{ fontStyle: "italic", color: "var(--paprika)" }}>
+                          {copyFromDay
+                            ? DAYS.find((d) => d.key === copyFromDay)?.label.toLowerCase()
+                            : ""}
+                        </em>
                       </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-2">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {DAYS.filter((d) => d.key !== copyFromDay).map((d) => (
-                        <label
-                          key={d.key}
-                          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
-                        >
+                        <label key={d.key} className="lv4-ob-dialog-day-row">
                           <input
                             type="checkbox"
                             checked={copyToDays.includes(d.key)}
@@ -766,15 +776,12 @@ export default function OnboardingPage() {
                                   : prev.filter((x) => x !== d.key)
                               );
                             }}
-                            className="h-4 w-4 rounded border-border text-primary accent-primary"
                           />
-                          <span className="text-sm font-medium">
-                            {d.label}
-                          </span>
+                          <span className="lv4-ob-dialog-day-name">{d.label}</span>
                         </label>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
                       <button
                         onClick={() => {
                           const allOtherDays = DAYS.filter(
@@ -786,23 +793,25 @@ export default function OnboardingPage() {
                               : allOtherDays
                           );
                         }}
-                        className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                        className="lv4-ob-dialog-toggle-all"
+                        type="button"
                       >
                         {copyToDays.length === DAYS.length - 1
-                          ? "Tout désélectionner"
-                          : "Tout sélectionner"}
+                          ? "TOUT DÉSÉLECTIONNER"
+                          : "TOUT SÉLECTIONNER"}
                       </button>
                     </div>
                     <DialogFooter>
-                      <Button
+                      <button
                         onClick={applyDuplicate}
                         disabled={copyToDays.length === 0}
-                        className="w-full"
-                        size="sm"
+                        className="lv4-ob-btn-primary"
+                        style={{ width: "100%" }}
+                        type="button"
                       >
-                        <Check className="mr-2 h-4 w-4" />
+                        <Check className="h-4 w-4" />
                         Appliquer
-                      </Button>
+                      </button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -811,219 +820,162 @@ export default function OnboardingPage() {
 
             {/* ─── Step 4: Configuration ─── */}
             {step === 3 && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-lg font-bold">Configuration</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Personnalisez le fonctionnement de votre restaurant
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ COMMENT VOUS SERVEZ</div>
+                  <h2 className="lv4-ob-h">
+                    Votre <em>configuration</em>.<span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">
+                    Quelques choix pour adapter Taapr à votre service.
                   </p>
                 </div>
 
                 {/* Service type */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Type de service
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDineInEnabled(!dineInEnabled)}
-                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
-                        dineInEnabled
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/40"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          dineInEnabled
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <span className="lv4-ob-label">Type de service</span>
+                    <div className="lv4-ob-choices">
+                      <button
+                        type="button"
+                        onClick={() => setDineInEnabled(!dineInEnabled)}
+                        className={`lv4-ob-choice${dineInEnabled ? " on" : ""}`}
                       >
-                        <UtensilsCrossed className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold">Sur place</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Consommation au restaurant
-                        </p>
-                      </div>
-                    </button>
+                        <div className="lv4-ob-choice-icon">
+                          <UtensilsCrossed className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="lv4-ob-choice-title">Sur place</div>
+                          <div className="lv4-ob-choice-sub">Consommation au resto</div>
+                        </div>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setTakeawayEnabled(!takeawayEnabled)}
-                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
-                        takeawayEnabled
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/40"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          takeawayEnabled
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => setTakeawayEnabled(!takeawayEnabled)}
+                        className={`lv4-ob-choice${takeawayEnabled ? " on" : ""}`}
                       >
-                        <ShoppingBag className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold">À emporter</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Retrait au comptoir
-                        </p>
-                      </div>
-                    </button>
+                        <div className="lv4-ob-choice-icon">
+                          <ShoppingBag className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="lv4-ob-choice-title">À emporter</div>
+                          <div className="lv4-ob-choice-sub">Retrait au comptoir</div>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Payment */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Modes de paiement
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCashEnabled(!cashEnabled)}
-                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
-                        cashEnabled
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/40"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          cashEnabled
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <span className="lv4-ob-label">Modes de paiement</span>
+                    <div className="lv4-ob-choices">
+                      <button
+                        type="button"
+                        onClick={() => setCashEnabled(!cashEnabled)}
+                        className={`lv4-ob-choice${cashEnabled ? " on" : ""}`}
                       >
-                        <Coins className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold">Au comptoir</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Espèces ou CB au retrait
-                        </p>
-                      </div>
-                    </button>
+                        <div className="lv4-ob-choice-icon">
+                          <Coins className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="lv4-ob-choice-title">Au comptoir</div>
+                          <div className="lv4-ob-choice-sub">Espèces ou CB au retrait</div>
+                        </div>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setCardEnabled(!cardEnabled)}
-                      className={`flex items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
-                        cardEnabled
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/40"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          cardEnabled
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => setCardEnabled(!cardEnabled)}
+                        className={`lv4-ob-choice${cardEnabled ? " on" : ""}`}
                       >
-                        <CreditCard className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold">En ligne</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          CB via Stripe
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-
-                  {cardEnabled && (
-                    <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-2.5">
-                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      <p className="text-[11px] leading-relaxed text-muted-foreground">
-                        Vous configurerez{" "}
-                        <span className="font-semibold text-foreground">
-                          Stripe
-                        </span>{" "}
-                        dans les réglages après la création.
-                      </p>
+                        <div className="lv4-ob-choice-icon">
+                          <CreditCard className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="lv4-ob-choice-title">En ligne</div>
+                          <div className="lv4-ob-choice-sub">CB via Stripe</div>
+                        </div>
+                      </button>
                     </div>
-                  )}
+
+                    {cardEnabled && (
+                      <div className="lv4-ob-callout" style={{ marginTop: 10 }}>
+                        <ShieldCheck className="h-4 w-4" />
+                        <p>
+                          Vous configurerez <strong>Stripe</strong> dans les réglages après
+                          la création.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Queue */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Options
-                  </Label>
-                  <div
-                    onClick={() => setQueueEnabled(!queueEnabled)}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3.5 transition-all ${
-                      queueEnabled
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                        queueEnabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <Users className="h-5 w-5" />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <span className="lv4-ob-label">Options</span>
+                    <div className="lv4-ob-choices">
+                      <button
+                        type="button"
+                        onClick={() => setQueueEnabled(!queueEnabled)}
+                        className={`lv4-ob-choice full${queueEnabled ? " on" : ""}`}
+                      >
+                        <div className="lv4-ob-choice-icon">
+                          <Users className="h-5 w-5" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div className="lv4-ob-choice-title">File d&apos;attente digitale</div>
+                          <div className="lv4-ob-choice-sub">
+                            Gérez l&apos;affluence aux heures de pointe
+                          </div>
+                        </div>
+                        <Switch
+                          checked={queueEnabled}
+                          onCheckedChange={setQueueEnabled}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </button>
                     </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-semibold">
-                        File d&apos;attente digitale
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Gérez l&apos;affluence aux heures de pointe
-                      </p>
-                    </div>
-                    <Switch
-                      checked={queueEnabled}
-                      onCheckedChange={setQueueEnabled}
-                      onClick={(e) => e.stopPropagation()}
-                    />
                   </div>
                 </div>
 
-                {(!dineInEnabled && !takeawayEnabled) ||
-                (!cashEnabled && !cardEnabled) ? (
-                  <p className="text-xs text-orange-500">
-                    Sélectionnez au moins un type de service et un mode de
-                    paiement
+                {((!dineInEnabled && !takeawayEnabled) ||
+                  (!cashEnabled && !cardEnabled)) && (
+                  <p className="lv4-ob-error">
+                    ★ SÉLECTIONNEZ AU MOINS UN TYPE DE SERVICE ET UN MODE DE PAIEMENT
                   </p>
-                ) : null}
+                )}
               </div>
             )}
 
             {/* ─── Step 5: Verification Document ─── */}
             {step === 4 && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Vérification de votre établissement
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ ON VOUS VÉRIFIE</div>
+                  <h2 className="lv4-ob-h">
+                    Justificatif de <em>propriété</em>.<span className="lv4-ob-h-dot" />
                   </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Pour garantir la sécurité de notre plateforme, nous avons
-                    besoin d&apos;un justificatif de propriété
+                  <p className="lv4-ob-h-sub">
+                    Pour garantir la sécurité de la plateforme, on a besoin d&apos;un
+                    justificatif officiel.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-info-card">
+                    <div className="lv4-ob-info-card-icon">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
                     <div>
-                      <p className="text-sm font-medium">
-                        Documents acceptés
-                      </p>
-                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                        <li>- Extrait KBIS (moins de 3 mois)</li>
-                        <li>- Certificat d&apos;inscription au répertoire SIRENE</li>
-                        <li>- Tout justificatif officiel attestant que vous êtes le propriétaire de l&apos;établissement</li>
+                      <h3 className="lv4-ob-info-card-h">Documents acceptés</h3>
+                      <ul className="lv4-ob-info-card-list">
+                        <li>Extrait KBIS (moins de 3 mois)</li>
+                        <li>Certificat d&apos;inscription au répertoire SIRENE</li>
+                        <li>Tout justificatif officiel attestant la propriété</li>
                       </ul>
                     </div>
                   </div>
@@ -1054,169 +1006,166 @@ export default function OnboardingPage() {
                   }}
                 />
 
-                {!verificationDoc ? (
-                  <button
-                    type="button"
-                    onClick={() => docInputRef.current?.click()}
-                    className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/30 p-8 transition-colors hover:border-primary hover:bg-primary/5"
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium">
-                        Cliquez pour importer votre document
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PDF, JPG, PNG ou WebP (max. 10 Mo)
-                      </p>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-xl border-2 border-primary bg-primary/5 p-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {verificationDocName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(verificationDoc.size / 1024 / 1024).toFixed(1)} Mo
-                      </p>
-                    </div>
+                <div className="lv4-ob-section">
+                  {!verificationDoc ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setVerificationDoc(null);
-                        setVerificationDocName("");
-                        if (docInputRef.current) docInputRef.current.value = "";
-                      }}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => docInputRef.current?.click()}
+                      className="lv4-ob-drop"
                     >
-                      <X className="h-4 w-4" />
+                      <div className="lv4-ob-drop-icon">
+                        <Upload className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="lv4-ob-drop-t">Cliquez pour importer</div>
+                        <div className="lv4-ob-drop-s">★ PDF · JPG · PNG · WEBP · 10 MO MAX</div>
+                      </div>
                     </button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="lv4-ob-doc-card">
+                      <div className="lv4-ob-doc-icon">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="lv4-ob-doc-name">{verificationDocName}</div>
+                        <div className="lv4-ob-doc-meta">
+                          ★ {(verificationDoc.size / 1024 / 1024).toFixed(1)} MO
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVerificationDoc(null);
+                          setVerificationDocName("");
+                          if (docInputRef.current) docInputRef.current.value = "";
+                        }}
+                        className="lv4-ob-icon-btn danger"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5">
-                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-                  <p className="text-[11px] leading-relaxed text-amber-700">
-                    Votre document sera examiné par les équipes{" "}
-                    <span className="font-semibold">TaapR</span>. Votre page
-                    client sera activée une fois votre compte vérifié.
-                  </p>
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-callout">
+                    <ShieldCheck className="h-4 w-4" />
+                    <p>
+                      Examen sous 48h. Votre page client sera activée une fois le
+                      compte vérifié.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* ─── Step 6: Account ─── */}
             {step === 5 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold">Créez votre compte</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Dernière étape pour accéder à votre espace de gestion
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ DERNIÈRE ÉTAPE</div>
+                  <h2 className="lv4-ob-h">
+                    Créez votre <em>compte</em>.<span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">
+                    Pour accéder à votre espace de gestion.
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="vous@restaurant.fr"
-                    className="h-12"
-                    autoFocus
-                  />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="email" className="lv4-ob-label">Email</label>
+                    <input
+                      id="email"
+                      type="email"
+                      className="lv4-ob-input"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="vous@restaurant.fr"
+                      autoFocus
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Mot de passe
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="6 caractères minimum"
-                    className="h-12"
-                  />
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="password" className="lv4-ob-label">
+                      Mot de passe
+                    </label>
+                    <input
+                      id="password"
+                      type="password"
+                      className="lv4-ob-input"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="6 caractères minimum"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="confirm-password"
-                    className="text-sm font-medium"
-                  >
-                    Confirmer le mot de passe
-                  </Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12"
-                  />
-                  {confirmPassword && password !== confirmPassword && (
-                    <p className="text-xs text-orange-500">
-                      Les mots de passe ne correspondent pas
-                    </p>
-                  )}
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-field">
+                    <label htmlFor="confirm-password" className="lv4-ob-label">
+                      Confirmer le mot de passe
+                    </label>
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      className="lv4-ob-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    {confirmPassword && password !== confirmPassword && (
+                      <p className="lv4-ob-error">
+                        ★ LES MOTS DE PASSE NE CORRESPONDENT PAS
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <p className="text-center text-xs text-muted-foreground">
-                  Déjà un compte ?{" "}
-                  <Link
-                    href="/admin/login"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Connexion
-                  </Link>
+                <p className="lv4-ob-foot">
+                  Déjà un compte ? <Link href="/admin/login">Connexion</Link>
                 </p>
               </div>
             )}
           </div>
 
           {/* Navigation */}
-          <div className="mt-6 flex gap-3">
+          <div className="lv4-ob-nav">
             {step > 0 && (
-              <Button
-                variant="outline"
+              <button
+                type="button"
                 onClick={handleBack}
-                className="h-12 flex-1 rounded-xl font-semibold"
+                className="lv4-ob-btn-ghost"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
-              </Button>
+                ← Retour
+              </button>
             )}
 
             {step < STEPS.length - 1 ? (
-              <Button
+              <button
+                type="button"
                 onClick={handleNext}
                 disabled={!canAdvance()}
-                className="h-12 flex-1 rounded-xl font-semibold"
+                className="lv4-ob-btn-primary"
               >
-                Suivant
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+                Suivant <span className="arrow">→</span>
+              </button>
             ) : (
-              <Button
+              <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={!canAdvance() || submitting}
-                className="h-12 flex-1 rounded-xl font-semibold"
+                className="lv4-ob-btn-primary"
               >
                 {submitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  "Créer mon restaurant"
+                  <>
+                    Créer mon restaurant <span className="arrow">→</span>
+                  </>
                 )}
-              </Button>
+              </button>
             )}
           </div>
         </div>

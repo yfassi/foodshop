@@ -15,13 +15,15 @@ export function ProductCardSmall({ product }: { product: ProductWithModifiers })
     setShowModal(true);
   };
 
+  const isUnavailable = !product.is_available;
+
   return (
     <>
       <button
         onClick={handleClick}
-        disabled={!product.is_available}
-        className="relative flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors active:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ width: "140px" }}
+        disabled={isUnavailable}
+        className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-left transition-colors active:bg-accent/40 disabled:cursor-not-allowed"
+        style={{ width: "148px" }}
       >
         {product.image_url ? (
           <div className="relative h-24 w-full">
@@ -29,29 +31,41 @@ export function ProductCardSmall({ product }: { product: ProductWithModifiers })
               src={product.image_url}
               alt={product.name}
               fill
-              className="object-cover"
-              sizes="140px"
+              className={`object-cover ${isUnavailable ? "opacity-40 grayscale" : ""}`}
+              sizes="148px"
             />
-            <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Plus className="h-3 w-3" />
-            </div>
           </div>
         ) : (
-          <div className="flex h-24 w-full items-center justify-center bg-muted">
-            <Plus className="h-5 w-5 text-muted-foreground" />
+          <div className={`flex h-24 w-full items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 text-3xl ${isUnavailable ? "opacity-40 grayscale" : ""}`}>
+            🍽
           </div>
         )}
-        <div className="p-2.5">
-          <p className="truncate text-xs font-semibold">{product.name}</p>
-          <p className="mt-0.5 text-xs font-bold text-primary">
-            {formatPrice(product.price)}
+        <div className="px-3 pb-3 pt-2.5">
+          <p className={`truncate text-[13px] font-semibold leading-tight tracking-tight ${isUnavailable ? "text-muted-foreground" : ""}`}>
+            {product.name}
           </p>
-        </div>
-        {!product.is_available && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/80">
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Indisponible
+          {product.description && (
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+              {product.description}
+            </p>
+          )}
+          <div className="mt-2 flex items-center justify-between">
+            <span className={`font-mono text-[13px] font-bold ${isUnavailable ? "text-muted-foreground" : "text-foreground"}`}>
+              {formatPrice(product.price)}
             </span>
+            {!isUnavailable && (
+              <span
+                aria-hidden
+                className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"
+              >
+                <Plus className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+        </div>
+        {isUnavailable && (
+          <div className="absolute left-2 top-2 rounded-full bg-foreground/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-background">
+            Indispo.
           </div>
         )}
       </button>

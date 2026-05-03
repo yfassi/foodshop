@@ -139,22 +139,22 @@ export function MenuGrid({
     <div>
       {/* Sticky category nav + search */}
       <nav className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
-        {/* Search bar */}
-        <div className="px-3 pt-2.5">
+        {/* Search bar — pill, gris clair (matches mobile UI kit) */}
+        <div className="px-4 pt-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher un produit..."
+              placeholder="Rechercher un plat, une boisson…"
               aria-label="Rechercher un produit"
-              className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:bg-muted/70"
+              className="h-11 w-full rounded-full border border-transparent bg-muted pl-10 pr-9 text-sm outline-none transition-all placeholder:text-muted-foreground/70 focus:border-border focus:bg-background"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
                 aria-label="Effacer la recherche"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -165,7 +165,7 @@ export function MenuGrid({
         {/* Category chips (hidden when searching) */}
         {!query && (
           <ScrollArea className="w-full">
-            <div className="flex gap-1.5 px-3 py-2">
+            <div className="flex gap-1.5 px-4 py-3">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -173,10 +173,10 @@ export function MenuGrid({
                     if (el) chipRefs.current.set(cat.id, el);
                   }}
                   onClick={() => scrollToCategory(cat.id)}
-                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`h-[34px] shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-medium transition-colors ${
                     activeCategoryId === cat.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground active:text-foreground"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-muted-foreground/40 active:text-foreground"
                   }`}
                 >
                   {cat.name}

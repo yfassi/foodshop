@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice, formatDate } from "@/lib/format";
 import { TopupDrawer } from "@/components/wallet/topup-drawer";
+import { useCartStore } from "@/stores/cart-store";
 import type { LoyaltyTier, WalletTopupTier, WalletTransaction, WalletTxType, OrderItem } from "@/lib/types";
 
 interface AccountOrder {
@@ -39,6 +41,7 @@ import {
   Banknote,
   UtensilsCrossed,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -144,8 +147,9 @@ export function AccountPage({
   orders: AccountOrder[];
   topupTiers?: WalletTopupTier[];
 }) {
+  const hasUnlockedReward = loyaltyEnabled && loyaltyTiers.some((t) => totalPoints >= t.points);
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(
-    new Set(["wallet"])
+    () => new Set<SectionKey>(hasUnlockedReward ? ["loyalty", "wallet"] : ["wallet"])
   );
   const [balance, setBalance] = useState(walletBalance);
   const [transactions, setTransactions] = useState(walletTransactions);
@@ -208,12 +212,46 @@ export function AccountPage({
   const maxTierPoints = sortedTiers.length > 0 ? sortedTiers[sortedTiers.length - 1].points : 100;
   const progressPercent = maxTierPoints > 0 ? Math.min((totalPoints / maxTierPoints) * 100, 100) : 0;
 
+  const cartItems = useCartStore((s) => s.items);
+  const addCartItem = useCartStore((s) => s.addItem);
+  const removeCartItem = useCartStore((s) => s.removeItem);
+  const setCartRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
+
+  const findRewardLine = (tier: LoyaltyTier) =>
+    tier.product_id
+      ? cartItems.find(
+          (it) => it.product_id === tier.product_id && it.base_price === 0
+        )
+      : undefined;
+
+  const handleClaimReward = (tier: LoyaltyTier) => {
+    if (tier.reward_type !== "free_product" || !tier.product_id) return;
+    const productName = tier.product_name ?? tier.label ?? "Article offert";
+    const existing = findRewardLine(tier);
+    if (existing) {
+      removeCartItem(existing.id);
+      toast(`${productName} retiré de votre panier`);
+      return;
+    }
+    setCartRestaurantSlug(slug);
+    addCartItem({
+      product_id: tier.product_id,
+      product_name: `🎁 ${productName} (offert)`,
+      base_price: 0,
+      quantity: 1,
+      modifiers: [],
+      is_menu: false,
+      menu_supplement: 0,
+    });
+    toast.success(`${productName} ajouté gratuitement à votre commande`);
+  };
+
   return (
     <div className="space-y-3 px-4 pb-8 pt-4">
       {/* Header */}
       <div className="mb-2 flex items-center gap-3">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors active:bg-muted/70"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -290,7 +328,7 @@ export function AccountPage({
                 {nextTier.points - totalPoints} pts restants
               </span>
             ) : unlockedTiers.length > 0 ? (
-              <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                 Tout débloqué
               </span>
             ) : null
@@ -298,21 +336,43 @@ export function AccountPage({
           isOpen={openSections.has("loyalty")}
           onToggle={toggleSection}
         >
-          {/* Points counter */}
-          <div className="mb-5 text-center">
-            <p className="text-4xl font-bold text-primary">{totalPoints}</p>
-            <p className="text-sm text-muted-foreground">points de fidélité</p>
+          {/* Hero: gradient block with points + next-tier teaser */}
+          <div className="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-amber-500 px-5 py-6 text-center shadow-md">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-amber-200/30 blur-xl" />
+            <Sparkles className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-white/60" />
+            <div className="relative">
+              <p className="text-5xl font-black leading-none tracking-tight text-primary-foreground drop-shadow-sm">
+                {totalPoints}
+              </p>
+              <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
+                points de fidélité
+              </p>
+              {nextTier ? (
+                <p className="mt-3 text-xs text-primary-foreground/95">
+                  Encore{" "}
+                  <span className="font-bold">{nextTier.points - totalPoints} pts</span>{" "}
+                  pour débloquer{" "}
+                  <span className="font-bold">
+                    {nextTier.label || nextTier.product_name || "votre récompense"}
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-3 text-xs font-semibold text-primary-foreground/95">
+                  🎉 Toutes les récompenses sont à vous !
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="relative mb-8">
-            <div className="h-3 w-full rounded-full bg-muted">
+          {/* Progress bar with tier milestones */}
+          <div className="relative mb-7 px-1">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-3 rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-700"
+                className="h-full rounded-full bg-gradient-to-r from-primary to-amber-500 shadow-[0_0_12px_rgba(0,0,0,0.08)] transition-all duration-700"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            {/* Tier markers */}
             {sortedTiers.map((tier, i) => {
               const pos = maxTierPoints > 0 ? (tier.points / maxTierPoints) * 100 : 0;
               const unlocked = totalPoints >= tier.points;
@@ -320,69 +380,145 @@ export function AccountPage({
                 <div
                   key={tier.id}
                   className="absolute -translate-x-1/2"
-                  style={{ left: `${Math.min(pos, 100)}%`, top: "-4px" }}
+                  style={{ left: `${Math.min(pos, 100)}%`, top: "-5px" }}
                 >
                   <div
-                    className={`flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full border-2 text-[9px] font-bold shadow-sm transition-colors ${
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border-2 text-[9px] font-bold shadow-sm transition-all ${
                       unlocked
-                        ? "border-primary bg-primary text-primary-foreground"
+                        ? "border-amber-500 bg-amber-500 text-white"
                         : "border-muted-foreground/30 bg-background text-muted-foreground"
                     }`}
                   >
-                    {unlocked ? <Check className="h-3 w-3" /> : i + 1}
+                    {unlocked ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : i + 1}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Tier cards */}
-          <div className="space-y-2">
+          {/* Tier reward cards — clickable to add free product to cart */}
+          <div className="space-y-2.5">
             {sortedTiers.map((tier) => {
               const unlocked = totalPoints >= tier.points;
+              const isFreeProduct =
+                tier.reward_type === "free_product" && !!tier.product_id;
+              const claimable = unlocked && isFreeProduct;
+              const inCart = !!findRewardLine(tier);
+              const ptsLeft = tier.points - totalPoints;
+              const title =
+                tier.label ||
+                tier.product_name ||
+                (tier.reward_type === "free_product"
+                  ? "Article offert"
+                  : "Réduction");
+
+              const Wrapper = claimable ? "button" : "div";
+              const wrapperProps = claimable
+                ? {
+                    type: "button" as const,
+                    onClick: () => handleClaimReward(tier),
+                    "aria-label": inCart
+                      ? `Retirer ${title} du panier`
+                      : `Ajouter ${title} gratuitement à votre commande`,
+                  }
+                : {};
+
               return (
-                <div
+                <Wrapper
                   key={tier.id}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                    unlocked
+                  {...wrapperProps}
+                  className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border-2 px-3 py-3 text-left transition-all ${
+                    inCart
+                      ? "border-emerald-300 bg-emerald-50 active:scale-[0.98]"
+                      : claimable
+                      ? "border-amber-300 bg-gradient-to-r from-amber-50 via-amber-50 to-orange-50 shadow-sm active:scale-[0.98]"
+                      : unlocked
                       ? "border-primary/30 bg-primary/5"
                       : "border-border bg-muted/30"
                   }`}
                 >
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                      unlocked
+                    className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm ${
+                      inCart
+                        ? "bg-emerald-500 text-white"
+                        : claimable
+                        ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+                        : unlocked
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {unlocked ? (
-                      <Check className="h-4 w-4" />
+                      inCart ? (
+                        <Check className="h-5 w-5" strokeWidth={3} />
+                      ) : (
+                        <Gift className="h-5 w-5" />
+                      )
                     ) : (
-                      <Lock className="h-3.5 w-3.5" />
+                      <Lock className="h-4 w-4" />
+                    )}
+                    {claimable && !inCart && (
+                      <Sparkles className="absolute -right-1 -top-1 h-3.5 w-3.5 text-amber-300 drop-shadow" />
                     )}
                   </div>
+
                   <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-semibold ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>
-                      {tier.label || (tier.reward_type === "free_product" ? "Article offert" : "Réduction")}
+                    <div className="flex items-center gap-1.5">
+                      <p
+                        className={`truncate text-sm font-bold ${
+                          unlocked ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {title}
+                      </p>
+                      {claimable && !inCart && (
+                        <span className="shrink-0 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">
+                          Offert
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {!unlocked
+                        ? `Encore ${ptsLeft} pts à gagner`
+                        : inCart
+                        ? "Dans votre panier · touchez pour retirer"
+                        : claimable
+                        ? "Touchez pour l'ajouter à votre commande"
+                        : `${tier.points} pts · débloqué`}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {tier.points} points
-                      {!unlocked && ` — encore ${tier.points - totalPoints} pts`}
-                    </p>
+                    {!unlocked && (
+                      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-background">
+                        <div
+                          className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                          style={{
+                            width: `${Math.min(
+                              (totalPoints / tier.points) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
-                  {unlocked && (
-                    <span className="shrink-0 text-xs font-semibold text-primary">
-                      Débloqué
+
+                  {claimable && (
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                        inCart
+                          ? "bg-emerald-500 text-white"
+                          : "bg-foreground text-background"
+                      }`}
+                    >
+                      {inCart ? "Ajouté" : "+ Ajouter"}
                     </span>
                   )}
-                </div>
+                </Wrapper>
               );
             })}
           </div>
 
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            1 EUR dépensé = 1 point de fidélité
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            1 € dépensé = 1 point de fidélité
           </p>
         </SectionToggle>
       )}
@@ -531,7 +667,7 @@ export function AccountPage({
         onClick={async () => {
           const supabase = createClient();
           await supabase.auth.signOut();
-          window.location.href = `/${slug}`;
+          window.location.href = `/restaurant/${slug}/order`;
         }}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-muted py-3 text-sm text-muted-foreground transition-colors active:bg-muted/70 active:text-foreground"
       >
@@ -542,7 +678,7 @@ export function AccountPage({
       {/* Back link */}
       <div className="pt-1 text-center">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
           Retour au menu

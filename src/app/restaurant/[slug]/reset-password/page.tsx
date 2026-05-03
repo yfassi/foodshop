@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
     }
 
     toast.success("Mot de passe modifié avec succès !");
-    router.push(`/${slug}`);
+    router.push(`/restaurant/${slug}/order`);
   };
 
   if (!ready) {
@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="mx-auto max-w-sm px-4 py-8">
       <Link
-        href={`/${slug}/login`}
+        href={`/restaurant/${slug}/login`}
         className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

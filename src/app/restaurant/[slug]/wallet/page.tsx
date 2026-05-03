@@ -17,7 +17,7 @@ export default async function WalletPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/${slug}/login`);
+    redirect(`/restaurant/${slug}/login`);
   }
 
   // Get restaurant
@@ -28,7 +28,7 @@ export default async function WalletPage({
     .single();
 
   if (!restaurant) {
-    redirect(`/${slug}`);
+    redirect(`/restaurant/${slug}/order`);
   }
 
   // Get wallet

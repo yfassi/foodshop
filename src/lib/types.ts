@@ -3,7 +3,7 @@
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
 export type OrderType = "dine_in" | "takeaway" | "delivery";
-export type SubscriptionTier = "essentiel" | "pro" | "business";
+export type SubscriptionTier = "plat" | "menu" | "carte";
 
 export type DeliveryStatus =
   | "pending"
@@ -75,6 +75,44 @@ export interface WalletTopupTier {
 
 export type VerificationStatus = "pending" | "verified" | "rejected";
 
+export interface FloorPlanTable {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  shape: "rect" | "circle";
+  seats: number;
+}
+
+export interface FloorPlan {
+  tables?: FloorPlanTable[];
+  grid?: { cols: number; rows: number };
+  updated_at?: string;
+}
+
+export interface ApiKey {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export type RestaurantAdminRole = "owner" | "manager";
+
+export interface RestaurantAdmin {
+  id: string;
+  restaurant_id: string;
+  user_id: string;
+  role: RestaurantAdminRole;
+  created_at: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -105,6 +143,10 @@ export interface Restaurant {
   delivery_addon_active: boolean;
   delivery_enabled: boolean;
   delivery_config: DeliveryConfig;
+  stock_module_active: boolean;
+  stock_enabled: boolean;
+  split_payment_enabled: boolean;
+  floor_plan: FloorPlan;
   created_at: string;
   updated_at: string;
 }
