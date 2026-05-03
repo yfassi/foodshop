@@ -47,7 +47,7 @@ export async function GET(req: Request) {
   }
   if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "menu")) {
     return NextResponse.json(
-      { error: "Export disponible dès Le Menu" },
+      { error: "Export disponible dès le plan Pro" },
       { status: 403 },
     );
   }
