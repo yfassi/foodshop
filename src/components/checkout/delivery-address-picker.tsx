@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/format";
@@ -12,6 +11,17 @@ import type { DeliveryAddress } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
 type Leaflet = typeof import("leaflet");
+
+const TAAPR_PIN_HTML = `
+  <div class="taapr-pin">
+    <svg viewBox="0 0 36 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M18 2C9.7 2 3 8.6 3 16.7c0 11.3 13 26.4 14.2 27.7.5.6 1.1.6 1.6 0C20 43.1 33 28 33 16.7 33 8.6 26.3 2 18 2Z"
+            fill="#E64A19" stroke="#1A1410" stroke-width="1.4" stroke-linejoin="round"/>
+      <circle cx="18" cy="17" r="6" fill="#F4ECDB" stroke="#1A1410" stroke-width="1.2"/>
+    </svg>
+    <span class="taapr-pin-pulse"></span>
+  </div>
+`;
 
 interface NominatimResult {
   lat: string;
@@ -80,22 +90,21 @@ export function DeliveryAddressPicker({
         zoom: 14,
         zoomControl: true,
       });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: "abcd",
+          maxZoom: 20,
+        },
+      ).addTo(map);
 
-      const icon = L.icon({
-        iconUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
+      const icon = L.divIcon({
+        className: "taapr-pin-icon",
+        html: TAAPR_PIN_HTML,
+        iconSize: [36, 46],
+        iconAnchor: [18, 44],
       });
 
       const marker = L.marker([initial.lat, initial.lng], {
@@ -254,29 +263,28 @@ export function DeliveryAddressPicker({
   }, [floorNotes]);
 
   return (
-    <div className="space-y-3">
+    <div className="taapr-map-shell">
       <Label className="text-sm font-medium">Adresse de livraison</Label>
 
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <Input
+      <form onSubmit={handleSearch} className="taapr-map-search">
+        <input
+          type="text"
           placeholder="Rechercher une adresse…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1"
         />
-        <Button type="submit" disabled={searching} variant="outline" size="icon">
+        <button type="submit" disabled={searching} aria-label="Rechercher">
           {searching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Search className="h-4 w-4" />
           )}
-        </Button>
+        </button>
       </form>
 
-      <div
-        ref={containerRef}
-        className="h-64 w-full overflow-hidden rounded-xl border border-border"
-      />
+      <div className="taapr-map h-64">
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
       {!mounted && (
         <p className="text-xs text-muted-foreground">Chargement de la carte…</p>
       )}
@@ -289,38 +297,45 @@ export function DeliveryAddressPicker({
       )}
 
       {deliveryAddress && !outOfZone && (
-        <div className="rounded-xl bg-muted/40 p-3 text-sm">
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="flex-1">
-              <p className="font-medium">{deliveryAddress.formatted}</p>
-              {deliveryFee > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Frais de livraison :{" "}
-                  <span className="font-semibold text-foreground">
-                    {formatPrice(deliveryFee)}
-                  </span>
-                  {deliveryMinOrder > 0 && (
-                    <>
-                      {" "}
-                      · Minimum de commande{" "}
-                      <span className="font-semibold text-foreground">
-                        {formatPrice(deliveryMinOrder)}
-                      </span>
-                    </>
-                  )}
-                </p>
-              )}
-            </div>
+        <div className="taapr-map-info">
+          <span className="pin-dot">
+            <MapPin className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="taapr-map-info-strong">
+              {deliveryAddress.formatted}
+            </span>
+            {deliveryFee > 0 && (
+              <small>
+                Frais de livraison :{" "}
+                <span className="font-semibold text-[#1A1410]">
+                  {formatPrice(deliveryFee)}
+                </span>
+                {deliveryMinOrder > 0 && (
+                  <>
+                    {" "}
+                    · Minimum{" "}
+                    <span className="font-semibold text-[#1A1410]">
+                      {formatPrice(deliveryMinOrder)}
+                    </span>
+                  </>
+                )}
+              </small>
+            )}
           </div>
         </div>
       )}
 
       {outOfZone && (
-        <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
-          Adresse hors zone de livraison. Déplacez le pin sur une zone
-          desservie.
-        </p>
+        <div className="taapr-map-info taapr-map-info--alert">
+          <span className="pin-dot">
+            <MapPin className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="taapr-map-info-strong">Hors zone de livraison</span>
+            <small>Déplacez le pin sur une zone desservie pour continuer.</small>
+          </div>
+        </div>
       )}
 
       <div>

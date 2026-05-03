@@ -129,6 +129,7 @@ export interface Restaurant {
   owner_id: string | null;
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
+  stripe_customer_id: string | null;
   accepted_payment_methods: AcceptedPaymentMethod[];
   order_types: OrderType[];
   loyalty_enabled: boolean;

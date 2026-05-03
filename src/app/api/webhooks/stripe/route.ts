@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
+import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { formatPrice } from "@/lib/format";
 import Stripe from "stripe";
 
@@ -117,6 +118,10 @@ export async function POST(request: Request) {
             stripe_payment_intent_id: session.payment_intent as string,
           })
           .eq("id", orderId);
+
+        sendOrderConfirmationEmail(orderId).catch((err) =>
+          console.error("Order confirmation email failed:", err)
+        );
 
         // Send push notification to admin
         if (order) {
