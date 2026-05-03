@@ -17,7 +17,7 @@ export default async function CustomerAccountPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/${slug}/login`);
+    redirect(`/restaurant/${slug}/login`);
   }
 
   // Fetch restaurant with loyalty config
@@ -28,7 +28,7 @@ export default async function CustomerAccountPage({
     .single();
 
   if (!restaurant) {
-    redirect(`/${slug}`);
+    redirect(`/restaurant/${slug}/order`);
   }
 
   // Fetch customer profile

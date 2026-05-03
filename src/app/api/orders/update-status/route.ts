@@ -94,7 +94,7 @@ export async function POST(request: Request) {
                 title: messageTemplate.title,
                 body: messageTemplate.body.replace("{order}", orderNumber),
                 url: restaurant
-                  ? `/${restaurant.slug}/order-confirmation/${order_id}`
+                  ? `/restaurant/${restaurant.slug}/order-confirmation/${order_id}`
                   : undefined,
                 tag: `order-${order_id}`,
               }

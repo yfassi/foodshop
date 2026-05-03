@@ -165,7 +165,7 @@ export default function SuperAdminRestaurantsPage() {
                     </div>
 
                     <a
-                      href={`/${r.slug}`}
+                      href={`/restaurant/${r.slug}/order`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"

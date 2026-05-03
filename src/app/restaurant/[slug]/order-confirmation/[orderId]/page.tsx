@@ -167,7 +167,7 @@ export default async function OrderConfirmationPage({
       {/* New order button — outline pill */}
       <div className="mt-5 text-center">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-border bg-background px-5 text-[13px] font-semibold transition-colors hover:bg-muted"
         >
           <ShoppingBag className="h-4 w-4" />
@@ -188,7 +188,7 @@ export default async function OrderConfirmationPage({
             Cumulez des points à chaque commande et débloquez des avantages.
           </p>
           <Link
-            href={`/${slug}/signup`}
+            href={`/restaurant/${slug}/signup`}
             className="mt-3.5 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Créer mon compte

@@ -229,12 +229,12 @@ export default function SuperAdminRestaurantDetailPage() {
                 />
               </div>
               <a
-                href={`/${restaurant.slug}`}
+                href={`/restaurant/${restaurant.slug}/order`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-0.5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
-                /{restaurant.slug}
+                /restaurant/{restaurant.slug}/order
                 <ExternalLink className="h-3 w-3" />
               </a>
               <div className="mt-2 flex items-center gap-2">

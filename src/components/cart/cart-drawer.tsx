@@ -74,7 +74,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
 
   const handleCheckout = () => {
     onClose();
-    router.push(`/${slug}/checkout`);
+    router.push(`/restaurant/${slug}/checkout`);
   };
 
   const handleQueueReady = useCallback(() => {

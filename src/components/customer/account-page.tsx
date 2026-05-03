@@ -251,7 +251,7 @@ export function AccountPage({
       {/* Header */}
       <div className="mb-2 flex items-center gap-3">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors active:bg-muted/70"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -667,7 +667,7 @@ export function AccountPage({
         onClick={async () => {
           const supabase = createClient();
           await supabase.auth.signOut();
-          window.location.href = `/${slug}`;
+          window.location.href = `/restaurant/${slug}/order`;
         }}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-muted py-3 text-sm text-muted-foreground transition-colors active:bg-muted/70 active:text-foreground"
       >
@@ -678,7 +678,7 @@ export function AccountPage({
       {/* Back link */}
       <div className="pt-1 text-center">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
           Retour au menu

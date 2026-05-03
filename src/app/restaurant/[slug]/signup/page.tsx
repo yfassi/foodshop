@@ -98,7 +98,7 @@ export default function CustomerSignupPage() {
     }
 
     toast.success("Compte créé avec succès !");
-    window.location.href = `/${slug}`;
+    window.location.href = `/restaurant/${slug}/order`;
   };
 
   return (
@@ -106,7 +106,7 @@ export default function CustomerSignupPage() {
       <AnimatedBackground />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -228,7 +228,7 @@ export default function CustomerSignupPage() {
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Déjà un compte ?{" "}
           <Link
-            href={`/${slug}/login`}
+            href={`/restaurant/${slug}/login`}
             className="font-medium text-primary hover:underline"
           >
             Connexion

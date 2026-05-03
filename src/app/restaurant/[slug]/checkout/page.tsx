@@ -28,7 +28,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (items.length === 0) {
-      router.replace(`/${slug}`);
+      router.replace(`/restaurant/${slug}/order`);
       return;
     }
 
@@ -43,7 +43,7 @@ export default function CheckoutPage() {
         .single();
 
       if (restaurant && (!restaurant.is_accepting_orders || !isCurrentlyOpen(restaurant.opening_hours as Record<string, unknown> | null))) {
-        router.replace(`/${slug}`);
+        router.replace(`/restaurant/${slug}/order`);
         return;
       }
 
@@ -143,7 +143,7 @@ export default function CheckoutPage() {
     <div className="px-4 py-4 md:px-6">
       <div className="mx-auto max-w-lg">
         <Link
-          href={`/${slug}`}
+          href={`/restaurant/${slug}/order`}
           className="mb-4 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

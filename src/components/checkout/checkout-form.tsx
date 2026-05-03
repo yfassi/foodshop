@@ -123,7 +123,7 @@ export function CheckoutForm({
         window.location.href = data.url;
       } else if (data.order_id) {
         clearCart();
-        window.location.href = `/${slug}/order-confirmation/${data.order_id}`;
+        window.location.href = `/restaurant/${slug}/order-confirmation/${data.order_id}`;
       }
     } catch (err) {
       toast.error(
