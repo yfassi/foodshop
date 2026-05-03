@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
+import { resolveAppUrl } from "@/lib/app-url";
 
 interface ConnectBody {
   restaurant_slug: string;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = resolveAppUrl(request);
     let stripeAccountId = restaurant.stripe_account_id;
 
     // Create Stripe Express account if it does not exist yet

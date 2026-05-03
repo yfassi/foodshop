@@ -7,6 +7,7 @@ import { sendPushNotification } from "@/lib/push";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
+import { resolveAppUrl } from "@/lib/app-url";
 import type {
   DeliveryAddress,
   DeliveryConfig,
@@ -550,10 +551,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        request.headers.get("origin") ||
-        new URL(request.url).origin;
+      const appUrl = resolveAppUrl(request);
 
       const restaurantName = restaurant.name as string;
       const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
@@ -655,10 +653,7 @@ export async function POST(request: Request) {
     }
 
     // If online payment, create Stripe Checkout Session
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      request.headers.get("origin") ||
-      new URL(request.url).origin;
+    const appUrl = resolveAppUrl(request);
 
     const restaurantName = restaurant.name as string;
     const merchantPrefix = `Commande chez ${restaurantName}`;

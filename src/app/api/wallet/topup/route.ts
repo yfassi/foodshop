@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, buildStatementDescriptorSuffix } from "@/lib/stripe/client";
+import { resolveAppUrl } from "@/lib/app-url";
 import type { WalletTopupTier } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -62,10 +63,7 @@ export async function POST(request: Request) {
       validatedBonus = bonus;
     }
 
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      request.headers.get("origin") ||
-      new URL(request.url).origin;
+    const appUrl = resolveAppUrl(request);
 
     const restaurantName = restaurant.name as string;
     const productName = validatedBonus > 0
