@@ -6,7 +6,8 @@ import { formatPrice } from "@/lib/format";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, ChevronRight, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { DeliveryAddressPicker } from "./delivery-address-picker";
 
 const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
@@ -270,29 +271,36 @@ export function CheckoutForm({
 
       {/* Loyalty banner — green soft like the design system */}
       {loyaltyEnabled && (
-        <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
-            <Gift className="h-4 w-4" />
+        customerProfile ? (
+          <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
+              <Gift className="h-4 w-4" />
+            </div>
+            <p className="flex-1 text-[13px]">
+              <span className="block text-[13px] font-semibold text-success-strong">
+                Cette commande vous rapporte{" "}
+                <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
+              </span>
+              <span className="text-[11px] text-success-strong/75">À ajouter à votre cagnotte fidélité</span>
+            </p>
           </div>
-          <p className="flex-1 text-[13px]">
-            {customerProfile ? (
-              <>
-                <span className="block text-[13px] font-semibold text-success-strong">
-                  Cette commande vous rapporte{" "}
-                  <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
-                </span>
-                <span className="text-[11px] text-success-strong/75">À ajouter à votre cagnotte fidélité</span>
-              </>
-            ) : (
-              <>
-                <span className="block text-[13px] font-semibold text-success-strong">
-                  Connectez-vous pour cumuler des points
-                </span>
-                <span className="text-[11px] text-success-strong/75">+1 pt par tranche de 1 €</span>
-              </>
-            )}
-          </p>
-        </div>
+        ) : (
+          <Link
+            href={`/restaurant/${slug}/login`}
+            className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5 transition-colors active:bg-success-soft"
+          >
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
+              <Gift className="h-4 w-4" />
+            </div>
+            <p className="flex-1 text-[13px]">
+              <span className="block text-[13px] font-semibold text-success-strong">
+                Connectez-vous pour cumuler des points
+              </span>
+              <span className="text-[11px] text-success-strong/75">+1 pt par tranche de 1 €</span>
+            </p>
+            <ChevronRight className="h-4 w-4 shrink-0 text-success-strong/70" />
+          </Link>
+        )
       )}
 
       {/* Payment method */}

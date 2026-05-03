@@ -21,11 +21,15 @@ interface ModifierModalProps {
   onClose: () => void;
 }
 
+const SNAP_POINTS = [0.7, 1] as const;
+
 export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [isMenu, setIsMenu] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
+  const [snap, setSnap] = useState<number | string | null>(SNAP_POINTS[0]);
+  const isFullscreen = snap === 1;
   const [selections, setSelections] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     for (const group of product.modifier_groups) {
@@ -148,8 +152,25 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   };
 
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[92vh]">
+    <Drawer
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setSnap(SNAP_POINTS[0]);
+          onClose();
+        }
+      }}
+      snapPoints={[...SNAP_POINTS]}
+      activeSnapPoint={snap}
+      setActiveSnapPoint={setSnap}
+    >
+      <DrawerContent
+        className={`h-[100dvh] max-h-[100dvh] data-[vaul-drawer-direction=bottom]:max-h-[100dvh] transition-[border-radius] duration-200 ease-out ${
+          isFullscreen
+            ? "data-[vaul-drawer-direction=bottom]:rounded-t-none"
+            : ""
+        }`}
+      >
         <DrawerHeader className="px-4 pb-3 pt-3">
           {product.image_url ? (
             <button
