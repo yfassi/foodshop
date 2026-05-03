@@ -7,10 +7,12 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
 };
 
 const TIER_LABEL: Record<SubscriptionTier, string> = {
-  plat: "Le Plat",
-  menu: "Le Menu",
-  carte: "Carte Blanche",
+  plat: "Starter",
+  menu: "Pro",
+  carte: "Business",
 };
+
+export const EXTRA_RESTAURANT_PRICE = 39;
 
 const TIER_PRICE: Record<SubscriptionTier, number> = {
   plat: 29,

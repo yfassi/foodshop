@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "carte")) {
-    return NextResponse.json({ error: "Plan Carte Blanche requis" }, { status: 403 });
+    return NextResponse.json({ error: "Plan Business requis" }, { status: 403 });
   }
 
   // Generate a 32-byte token. Prefix is the first 12 chars of the visible part.
