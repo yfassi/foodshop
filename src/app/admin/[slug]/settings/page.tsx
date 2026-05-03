@@ -47,7 +47,6 @@ import {
   ExternalLink,
   Wallet,
   Users,
-  Download,
   Bike,
   Lock,
   Package,
@@ -91,6 +90,8 @@ import { DriverManager } from "@/components/admin/driver-manager";
 import { TierLockBanner } from "@/components/admin/tier-lock-banner";
 import { FloorPlanEditor } from "@/components/admin/floor-plan-editor";
 import { ApiKeysManager } from "@/components/admin/api-keys-manager";
+import { QrPosterDownload } from "@/components/admin/qr-poster-download";
+import { buildCustomerOrderUrl } from "@/lib/qr";
 import {
   Select,
   SelectContent,
@@ -1123,23 +1124,14 @@ export default function SettingsPage() {
                   <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-muted/30 px-3 py-2">
                     <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="truncate font-mono text-xs">
-                      {process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "")}/restaurant/{params.slug}/order
+                      {buildCustomerOrderUrl(params.slug)}
                     </span>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => { const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin; navigator.clipboard.writeText(`${appUrl}/restaurant/${params.slug}/order`); toast.success("Lien copié !"); }}>
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(buildCustomerOrderUrl(params.slug)); toast.success("Lien copié !"); }}>
                     <Copy className="mr-1.5 h-3.5 w-3.5" />Copier
                   </Button>
                 </div>
-                <div className="mt-5 flex flex-col items-center gap-3">
-                  <div className="rounded-xl border border-border bg-white p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "")}/restaurant/${params.slug}/order`)}`} alt="QR Code" width={180} height={180} className="h-[180px] w-[180px]" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Scannez pour commander</p>
-                  <Button variant="outline" size="sm" onClick={() => { const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/restaurant/${params.slug}/order`)}`; const link = document.createElement("a"); link.href = qrUrl; link.download = `qr-${params.slug}.png`; link.click(); }}>
-                    <Download className="mr-1.5 h-3.5 w-3.5" />Télécharger le QR code
-                  </Button>
-                </div>
+                <QrPosterDownload slug={params.slug} restaurantName={name} />
               </CollapsibleCard>
 
               {/* Informations */}
