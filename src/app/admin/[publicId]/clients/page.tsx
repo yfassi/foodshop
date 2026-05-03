@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { TypographyH2, TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
-import { Loader2, Plus, Wallet } from "lucide-react";
+import { TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
+import { Loader2, Plus, Users, Wallet } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 interface ClientEntry {
   wallet_id: string;
@@ -97,19 +98,28 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="px-4 py-4 md:px-6">
+    <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <TypographyH2>Clients</TypographyH2>
-          <Button
-            onClick={() => setShowCreditForm(!showCreditForm)}
-            variant="outline"
-            size="sm"
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Crediter
-          </Button>
-        </div>
+        <AdminPageHeader
+          kicker="Carnet client"
+          icon={Users}
+          title="Clients"
+          subtitle={
+            clients.length === 0
+              ? "Aucun client avec un solde pour le moment."
+              : `${clients.length} client${clients.length > 1 ? "s" : ""} avec un solde actif`
+          }
+          actions={
+            <Button
+              onClick={() => setShowCreditForm(!showCreditForm)}
+              variant="outline"
+              size="sm"
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Créditer
+            </Button>
+          }
+        />
 
         {/* Credit form */}
         {showCreditForm && (

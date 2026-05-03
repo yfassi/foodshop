@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ClipboardList,
   UtensilsCrossed,
@@ -16,8 +16,20 @@ import {
   ChevronsUpDown,
   Check,
   Plus,
+  ChevronDown,
+  Store,
+  CreditCard,
+  Gift,
+  Wallet,
+  Package,
+  LayoutGrid,
+  Key,
+  User,
+  Power,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getRestaurantStatusLabel } from "@/lib/constants";
@@ -35,15 +47,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-const BASE_NAV_ITEMS = [
+type SettingsSection = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  tab: string;
+};
+
+const SETTINGS_SECTIONS: SettingsSection[] = [
+  { icon: Store, label: "Établissement", tab: "restaurant" },
+  { icon: CreditCard, label: "Paiement", tab: "payment" },
+  { icon: Gift, label: "Fidélité", tab: "loyalty" },
+  { icon: Wallet, label: "Solde", tab: "wallet" },
+  { icon: Users, label: "File d'attente", tab: "queue" },
+  { icon: Bike, label: "Livraison", tab: "delivery" },
+  { icon: Package, label: "Stock", tab: "stock" },
+  { icon: LayoutGrid, label: "Plan de salle", tab: "floor" },
+  { icon: Key, label: "API", tab: "api" },
+  { icon: User, label: "Compte", tab: "account" },
+];
+
+type NavItem = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  href: string;
+  sections?: SettingsSection[];
+};
+
+const BASE_NAV_ITEMS: NavItem[] = [
   { icon: ClipboardList, label: "Commandes", href: "" },
   { icon: UtensilsCrossed, label: "Articles", href: "/menu" },
   { icon: BarChart3, label: "Tableau de bord", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
-  { icon: Settings, label: "Réglages", href: "/settings" },
+  { icon: Settings, label: "Réglages", href: "/settings", sections: SETTINGS_SECTIONS },
 ];
 
-const DELIVERY_NAV_ITEM = {
+const DELIVERY_NAV_ITEM: NavItem = {
   icon: Bike,
   label: "Livraison",
   href: "/delivery",
@@ -51,17 +89,19 @@ const DELIVERY_NAV_ITEM = {
 
 export function AdminShell({
   publicId,
+  restaurantId,
   restaurantName,
   verificationStatus,
   isDemo,
   userEmail,
   openingHours,
-  isAcceptingOrders,
+  isAcceptingOrders: initialIsAcceptingOrders,
   deliveryEnabled,
   restaurants,
   children,
 }: {
   publicId: string;
+  restaurantId: string;
   restaurantName: string;
   verificationStatus: string;
   isDemo: boolean;
@@ -72,15 +112,47 @@ export function AdminShell({
   restaurants: { name: string; public_id: string }[];
   children: React.ReactNode;
 }) {
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(initialIsAcceptingOrders);
+  const [togglingOrders, setTogglingOrders] = useState(false);
+  const handleToggleOrders = async () => {
+    if (togglingOrders || isDemo) return;
+    setTogglingOrders(true);
+    const next = !isAcceptingOrders;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ is_accepting_orders: next })
+      .eq("id", restaurantId);
+    if (error) {
+      toast.error("Impossible de mettre à jour le statut");
+    } else {
+      setIsAcceptingOrders(next);
+      toast.success(next ? "Commandes ouvertes" : "Commandes fermées");
+    }
+    setTogglingOrders(false);
+  };
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const qs = isDemo ? "?demo=true" : "";
   const NAV_ITEMS = deliveryEnabled
     ? [...BASE_NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...BASE_NAV_ITEMS.slice(4)]
     : BASE_NAV_ITEMS;
+  const settingsBase = `/admin/${publicId}/settings`;
+  const onSettingsRoute = pathname?.startsWith(settingsBase) ?? false;
+  const activeTab = searchParams?.get("tab");
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  // Per-group "user has manually toggled" state. `null` means "follow the route":
+  // settings group is auto-open while you're on a settings page, closed otherwise.
+  const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({});
+  const isGroupOpen = (href: string) => {
+    if (href in groupOverrides) return groupOverrides[href];
+    return href === "/settings" ? onSettingsRoute : false;
+  };
+  const toggleGroup = (key: string) =>
+    setGroupOverrides((prev) => ({ ...prev, [key]: !isGroupOpen(key) }));
   const hasMultipleRestaurants = !isDemo && restaurants.length > 1;
   const canAddRestaurant = !isDemo;
 
@@ -253,87 +325,179 @@ export function AdminShell({
           <nav className="flex-1 space-y-1 p-3">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href);
+              const hasSubs = !!item.sections && !collapsed;
+              const expanded = hasSubs && isGroupOpen(item.href);
+              const itemHref = `/admin/${publicId}${item.href}${qs}`;
+
               return (
-                <Link
-                  key={item.href}
-                  href={`/admin/${publicId}${item.href}${qs}`}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                <div key={item.href} className="space-y-0.5">
+                  <div
+                    className={cn(
+                      "group flex items-center gap-1 rounded-lg transition-colors",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <Link
+                      href={itemHref}
+                      className={cn(
+                        "flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                        collapsed && "justify-center"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    </Link>
+                    {hasSubs && (
+                      <button
+                        type="button"
+                        aria-label={expanded ? "Replier" : "Déplier"}
+                        aria-expanded={expanded}
+                        onClick={() => toggleGroup(item.href)}
+                        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform duration-200",
+                            expanded && "rotate-180"
+                          )}
+                        />
+                      </button>
+                    )}
+                  </div>
+
+                  {hasSubs && (
+                    <div
+                      className={cn(
+                        "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
+                        expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      )}
+                    >
+                      <div className="min-h-0">
+                        <div className="ml-4 mt-0.5 space-y-px border-l border-sidebar-border/60 pl-2">
+                          {item.sections!.map((sec) => {
+                            const subActive =
+                              onSettingsRoute && (activeTab ?? "restaurant") === sec.tab;
+                            return (
+                              <Link
+                                key={sec.tab}
+                                href={`${settingsBase}?tab=${sec.tab}${isDemo ? "&demo=true" : ""}`}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
+                                  subActive
+                                    ? "bg-primary/10 font-medium text-primary"
+                                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                )}
+                              >
+                                <sec.icon className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{sec.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
+                </div>
               );
             })}
           </nav>
 
-          {/* Bottom section: status + profile */}
-          <div className="border-t border-sidebar-border p-3 space-y-2">
-            {/* Restaurant status */}
-            <div
+          {/* Bottom section: live status toggle + profile + collapse */}
+          <div className="space-y-2 border-t border-sidebar-border p-3">
+            {/* Live "accepting orders" toggle — primary admin action during service */}
+            <button
+              type="button"
+              onClick={handleToggleOrders}
+              disabled={togglingOrders || isDemo}
+              aria-label={
+                isAcceptingOrders ? "Fermer les commandes" : "Rouvrir les commandes"
+              }
+              title={
+                isDemo
+                  ? "Mode démo — toggle indisponible"
+                  : isAcceptingOrders
+                    ? "Cliquer pour fermer les commandes"
+                    : "Cliquer pour rouvrir les commandes"
+              }
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium",
-                collapsed && "justify-center px-0"
+                "group flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition-all",
+                "disabled:cursor-not-allowed disabled:opacity-70",
+                isAcceptingOrders
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400"
+                  : "border-rose-500/30 bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-400",
+                collapsed && "justify-center px-0",
               )}
             >
-              <span
-                className={cn(
-                  "h-2 w-2 shrink-0 rounded-full",
-                  status.isOpen
-                    ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
-                    : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
-                )}
-              />
-              {!collapsed && (
-                <span className="truncate text-sidebar-foreground/70">
-                  {status.label}
+              {togglingOrders ? (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+              ) : (
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span
+                    className={cn(
+                      "absolute inline-flex h-full w-full animate-ping rounded-full opacity-60",
+                      isAcceptingOrders ? "bg-emerald-400" : "bg-rose-400",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "relative inline-flex h-2 w-2 rounded-full",
+                      isAcceptingOrders ? "bg-emerald-500" : "bg-rose-500",
+                    )}
+                  />
                 </span>
               )}
-            </div>
-
-            {/* Profile card */}
-            <button
-              onClick={() => setAccountOpen(true)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent/50",
-                collapsed && "justify-center px-0"
-              )}
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
-                {(userEmail?.charAt(0) || restaurantName.charAt(0)).toUpperCase()}
-              </div>
               {!collapsed && (
                 <>
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="truncate text-sm font-medium text-sidebar-foreground">
-                      {restaurantName}
-                    </p>
-                    <p className="truncate text-xs text-sidebar-foreground/50">
-                      {userEmail || "demo@taapr.com"}
-                    </p>
-                  </div>
-                  <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/40" />
+                  <span className="flex-1 truncate">
+                    {isAcceptingOrders ? status.label : "Commandes fermées"}
+                  </span>
+                  <Power className="h-3.5 w-3.5 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
                 </>
               )}
             </button>
 
-            {/* Collapse toggle */}
+            {/* Profile card — restaurant identity is in the brand block, here we focus on the user */}
+            <button
+              onClick={() => setAccountOpen(true)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent/50",
+                collapsed && "justify-center px-0",
+              )}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                {(userEmail?.charAt(0) || restaurantName.charAt(0)).toUpperCase()}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="truncate text-xs font-medium text-sidebar-foreground">
+                      Mon compte
+                    </p>
+                    <p className="truncate text-[11px] text-sidebar-foreground/50">
+                      {userEmail || "demo@taapr.com"}
+                    </p>
+                  </div>
+                  <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" />
+                </>
+              )}
+            </button>
+
+            {/* Collapse toggle — discreet at the very bottom */}
             <button
               onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Étendre la barre latérale" : "Réduire la barre latérale"}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                collapsed && "justify-center px-0"
+                "flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-xs text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                collapsed && "justify-center px-0",
               )}
             >
               {collapsed ? (
-                <PanelLeft className="h-4 w-4 shrink-0" />
+                <PanelLeft className="h-3.5 w-3.5 shrink-0" />
               ) : (
                 <>
-                  <PanelLeftClose className="h-4 w-4 shrink-0" />
+                  <PanelLeftClose className="h-3.5 w-3.5 shrink-0" />
                   <span>Réduire</span>
                 </>
               )}

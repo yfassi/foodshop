@@ -65,6 +65,7 @@ export default async function AdminLayout({
   return (
     <AdminShell
       publicId={publicId}
+      restaurantId={restaurant.id}
       restaurantName={restaurant.name}
       verificationStatus={restaurant.verification_status}
       isDemo={isDemo}
