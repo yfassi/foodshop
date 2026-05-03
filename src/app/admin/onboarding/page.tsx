@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -41,14 +41,15 @@ import "./onboarding.css";
 
 /* ─── Constants ─── */
 
-const STEPS = [
-  { label: "Restaurant", kicker: "★ ÉTAPE 1 / 6" },
-  { label: "Coordonnées", kicker: "★ ÉTAPE 2 / 6" },
-  { label: "Horaires", kicker: "★ ÉTAPE 3 / 6" },
-  { label: "Configuration", kicker: "★ ÉTAPE 4 / 6" },
-  { label: "Vérification", kicker: "★ ÉTAPE 5 / 6" },
-  { label: "Compte", kicker: "★ ÉTAPE 6 / 6" },
+const ALL_STEPS = [
+  { label: "Restaurant" },
+  { label: "Coordonnées" },
+  { label: "Horaires" },
+  { label: "Configuration" },
+  { label: "Vérification" },
+  { label: "Compte" },
 ];
+const ACCOUNT_STEP_INDEX = 5;
 
 const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
@@ -101,6 +102,22 @@ export default function OnboardingPage() {
   const [animClass, setAnimClass] = useState("");
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Detect existing session — logged-in users add a restaurant without
+  // re-creating an account.
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setHasSession(!!data.user);
+    });
+  }, []);
+
+  const STEPS = useMemo(
+    () => (hasSession ? ALL_STEPS.slice(0, ACCOUNT_STEP_INDEX) : ALL_STEPS),
+    [hasSession]
+  );
+
   // Success
   const [showSuccess, setShowSuccess] = useState(false);
   const [successSlug, setSuccessSlug] = useState("");
@@ -152,7 +169,9 @@ export default function OnboardingPage() {
           (cashEnabled || cardEnabled)
         );
       case 4:
-        return !!verificationDoc;
+        // Verification doc only required for first-time signups; existing
+        // owners adding another restaurant skip this requirement.
+        return hasSession ? true : !!verificationDoc;
       case 5:
         return (
           email.trim().length > 0 &&
@@ -204,10 +223,7 @@ export default function OnboardingPage() {
     if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify({
-        email: email.trim(),
-        password,
+      const payload: Record<string, unknown> = {
         name: name.trim(),
         description: description.trim() || undefined,
         restaurant_type: restaurantType || undefined,
@@ -217,7 +233,14 @@ export default function OnboardingPage() {
         order_types,
         accepted_payment_methods,
         queue_enabled: queueEnabled,
-      }));
+      };
+      if (!hasSession) {
+        payload.email = email.trim();
+        payload.password = password;
+      }
+
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(payload));
       if (verificationDoc) {
         formData.append("verification_document", verificationDoc);
       }
@@ -233,16 +256,18 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Erreur");
       }
 
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      if (!hasSession) {
+        const supabase = createClient();
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      if (signInError) {
-        toast.success("Restaurant créé ! Connectez-vous pour continuer.");
-        window.location.href = "/admin/login";
-        return;
+        if (signInError) {
+          toast.success("Restaurant créé ! Connectez-vous pour continuer.");
+          window.location.href = "/admin/login";
+          return;
+        }
       }
 
       setSuccessSlug(data.slug);
@@ -424,7 +449,7 @@ export default function OnboardingPage() {
       </div>
 
       <div className="lv4-ob-wrap">
-        <div className="lv4-ob-step-counter">{STEPS[step].kicker}</div>
+        <div className="lv4-ob-step-counter">★ ÉTAPE {step + 1} / {STEPS.length}</div>
 
         {/* Stepper */}
         <div className="lv4-ob-stepper" aria-label="Progression de l'inscription">

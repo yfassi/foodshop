@@ -94,18 +94,22 @@ export async function POST(request: Request) {
       ownerId = user.id;
     }
 
-    // Check user doesn't already own a restaurant
-    const { data: owned } = await supabase
-      .from("restaurants")
-      .select("id")
-      .eq("owner_id", ownerId)
-      .single();
+    // For new account creation, prevent the same email from going through the
+    // signup flow twice (existing users can add more restaurants from the
+    // logged-in session flow above).
+    if (email && password) {
+      const { data: alreadyOwned } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .limit(1);
 
-    if (owned) {
-      return NextResponse.json(
-        { error: "Vous avez déjà un restaurant" },
-        { status: 409 }
-      );
+      if (alreadyOwned && alreadyOwned.length > 0) {
+        return NextResponse.json(
+          { error: "Vous avez déjà un restaurant" },
+          { status: 409 }
+        );
+      }
     }
 
     // Upload verification document if provided
