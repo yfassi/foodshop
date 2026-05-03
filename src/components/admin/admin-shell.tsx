@@ -16,6 +16,7 @@ import {
   ChevronsUpDown,
   Check,
   Plus,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,9 @@ export function AdminShell({
   isAcceptingOrders,
   deliveryEnabled,
   restaurants,
+  isSuperAdmin = false,
+  actingAsSuperAdmin = false,
+  actingOwnerEmail = null,
   children,
 }: {
   slug: string;
@@ -70,6 +74,9 @@ export function AdminShell({
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
   restaurants: { name: string; slug: string }[];
+  isSuperAdmin?: boolean;
+  actingAsSuperAdmin?: boolean;
+  actingOwnerEmail?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -131,6 +138,25 @@ export function AdminShell({
   return (
     <div className="min-h-screen bg-background">
       {/* Banners */}
+      {actingAsSuperAdmin && (
+        <div className="flex flex-col items-center justify-center gap-1 bg-primary px-4 py-2.5 text-center text-xs font-medium text-primary-foreground sm:flex-row sm:gap-3">
+          <span className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 shrink-0" />
+            Mode super admin
+            {actingOwnerEmail && (
+              <span className="opacity-90">
+                — vous gérez le compte de {actingOwnerEmail}
+              </span>
+            )}
+          </span>
+          <Link
+            href="/super-admin/restaurants"
+            className="rounded-full bg-primary-foreground/15 px-3 py-0.5 text-[11px] font-semibold underline-offset-2 transition-colors hover:bg-primary-foreground/25"
+          >
+            Retour au panneau
+          </Link>
+        </div>
+      )}
       {isDemo && (
         <div className="bg-primary/10 px-4 py-2 text-center text-xs font-medium text-primary">
           Mode Démo
@@ -471,6 +497,20 @@ export function AdminShell({
               <Settings className="mr-2 h-4 w-4" />
               Gérer mon compte
             </Button>
+
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                className="w-full border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+                onClick={() => {
+                  setAccountOpen(false);
+                  router.push("/super-admin");
+                }}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Espace Super Admin
+              </Button>
+            )}
 
             {/* Logout */}
             <Button
