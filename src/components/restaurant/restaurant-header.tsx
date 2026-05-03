@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Clock, ChevronDown } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
-import { DAYS_FR, normalizeHoursEntry } from "@/lib/constants";
+import { DAYS_FR, getRestaurantStatusLabel, normalizeHoursEntry } from "@/lib/constants";
 import { CustomerAuthButton } from "./customer-auth-button";
 
 function getTodayKey() {
@@ -35,6 +35,9 @@ export function RestaurantHeader({
   const [showHours, setShowHours] = useState(false);
   const todayHours = getTodayHours(restaurant);
   const todayName = DAYS_FR[getTodayKey()];
+  const status = getRestaurantStatusLabel(restaurant.opening_hours);
+  const isOpen = status.isOpen && restaurant.is_accepting_orders;
+  const statusLabel = restaurant.is_accepting_orders ? status.label : "Fermé";
 
   return (
     <header className="border-b border-border bg-card px-4 py-3.5">
@@ -64,12 +67,20 @@ export function RestaurantHeader({
             </p>
           )}
         </div>
-        {restaurant.is_accepting_orders && (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-semibold text-success">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            Ouvert
-          </span>
-        )}
+        <span
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+            isOpen
+              ? "bg-success-soft text-success"
+              : "bg-destructive/10 text-destructive"
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              isOpen ? "bg-success" : "bg-destructive"
+            }`}
+          />
+          {statusLabel}
+        </span>
         <div className="ml-1">
           <CustomerAuthButton slug={restaurant.slug} />
         </div>
