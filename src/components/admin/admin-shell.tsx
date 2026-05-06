@@ -9,6 +9,7 @@ import {
   Users,
   BarChart3,
   Bike,
+  Package,
   Clock,
   PanelLeftClose,
   PanelLeft,
@@ -21,7 +22,6 @@ import {
   CreditCard,
   Gift,
   Wallet,
-  Package,
   LayoutGrid,
   Key,
   User,
@@ -87,16 +87,22 @@ const DELIVERY_NAV_ITEM: NavItem = {
   href: "/delivery",
 };
 
+const STOCK_NAV_ITEM: NavItem = {
+  icon: Package,
+  label: "Stock",
+  href: "/stock",
+};
+
 export function AdminShell({
   slug,
   restaurantId,
   restaurantName,
   verificationStatus,
-  isDemo,
   userEmail,
   openingHours,
   isAcceptingOrders: initialIsAcceptingOrders,
   deliveryEnabled,
+  stockEnabled,
   restaurants,
   children,
 }: {
@@ -104,18 +110,18 @@ export function AdminShell({
   restaurantId: string;
   restaurantName: string;
   verificationStatus: string;
-  isDemo: boolean;
   userEmail: string;
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
+  stockEnabled?: boolean;
   restaurants: { name: string; slug: string }[];
   children: React.ReactNode;
 }) {
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(initialIsAcceptingOrders);
   const [togglingOrders, setTogglingOrders] = useState(false);
   const handleToggleOrders = async () => {
-    if (togglingOrders || isDemo) return;
+    if (togglingOrders) return;
     setTogglingOrders(true);
     const next = !isAcceptingOrders;
     const supabase = createClient();
@@ -134,18 +140,22 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const qs = isDemo ? "?demo=true" : "";
-  const NAV_ITEMS = deliveryEnabled
-    ? [...BASE_NAV_ITEMS.slice(0, 4), DELIVERY_NAV_ITEM, ...BASE_NAV_ITEMS.slice(4)]
-    : BASE_NAV_ITEMS;
+  const NAV_ITEMS = (() => {
+    const items = [...BASE_NAV_ITEMS];
+    // Insert before "Réglages" (last item).
+    const insertAt = items.length - 1;
+    if (stockEnabled) items.splice(insertAt, 0, STOCK_NAV_ITEM);
+    if (deliveryEnabled) items.splice(insertAt, 0, DELIVERY_NAV_ITEM);
+    return items;
+  })();
   const settingsBase = `/admin/${slug}/settings`;
   const onSettingsRoute = pathname?.startsWith(settingsBase) ?? false;
   const activeTab = searchParams?.get("tab");
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  // Per-group "user has manually toggled" state. `null` means "follow the route":
-  // settings group is auto-open while you're on a settings page, closed otherwise.
+  // Per-group "user has manually toggled" state. Settings group is auto-open
+  // while you're on a settings page, closed otherwise.
   const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({});
   const isGroupOpen = (href: string) => {
     if (href in groupOverrides) return groupOverrides[href];
@@ -153,14 +163,14 @@ export function AdminShell({
   };
   const toggleGroup = (key: string) =>
     setGroupOverrides((prev) => ({ ...prev, [key]: !isGroupOpen(key) }));
-  const hasMultipleRestaurants = !isDemo && restaurants.length > 1;
-  const canAddRestaurant = !isDemo;
+  const hasMultipleRestaurants = restaurants.length > 1;
+  const canAddRestaurant = true;
 
   const switchRestaurant = (targetSlug: string) => {
     setSwitcherOpen(false);
     setAccountOpen(false);
     if (targetSlug === slug) return;
-    router.push(`/admin/${targetSlug}${qs}`);
+    router.push(`/admin/${targetSlug}`);
   };
 
   const goToAddRestaurant = () => {
@@ -203,11 +213,6 @@ export function AdminShell({
   return (
     <div className="min-h-screen bg-background">
       {/* Banners */}
-      {isDemo && (
-        <div className="bg-primary/10 px-4 py-2 text-center text-xs font-medium text-primary">
-          Mode Démo
-        </div>
-      )}
       {verificationStatus === "pending" && (
         <div className="flex items-center justify-center gap-2 bg-amber-50 px-4 py-2.5 text-center text-xs font-medium text-amber-700">
           <Clock className="h-3.5 w-3.5 shrink-0" />
@@ -327,7 +332,7 @@ export function AdminShell({
               const active = isActive(item.href);
               const hasSubs = !!item.sections && !collapsed;
               const expanded = hasSubs && isGroupOpen(item.href);
-              const itemHref = `/admin/${slug}${item.href}${qs}`;
+              const itemHref = `/admin/${slug}${item.href}`;
 
               return (
                 <div key={item.href} className="space-y-0.5">
@@ -382,7 +387,7 @@ export function AdminShell({
                             return (
                               <Link
                                 key={sec.tab}
-                                href={`${settingsBase}?tab=${sec.tab}${isDemo ? "&demo=true" : ""}`}
+                                href={`${settingsBase}?tab=${sec.tab}`}
                                 className={cn(
                                   "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
                                   subActive
@@ -410,16 +415,14 @@ export function AdminShell({
             <button
               type="button"
               onClick={handleToggleOrders}
-              disabled={togglingOrders || isDemo}
+              disabled={togglingOrders}
               aria-label={
                 isAcceptingOrders ? "Fermer les commandes" : "Rouvrir les commandes"
               }
               title={
-                isDemo
-                  ? "Mode démo — toggle indisponible"
-                  : isAcceptingOrders
-                    ? "Cliquer pour fermer les commandes"
-                    : "Cliquer pour rouvrir les commandes"
+                isAcceptingOrders
+                  ? "Cliquer pour fermer les commandes"
+                  : "Cliquer pour rouvrir les commandes"
               }
               className={cn(
                 "group flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition-all",
@@ -476,7 +479,7 @@ export function AdminShell({
                       Mon compte
                     </p>
                     <p className="truncate text-[11px] text-sidebar-foreground/50">
-                      {userEmail || "demo@taapr.com"}
+                      {userEmail}
                     </p>
                   </div>
                   <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" />
@@ -520,7 +523,7 @@ export function AdminShell({
           return (
             <Link
               key={item.href}
-              href={`/admin/${slug}${item.href}${qs}`}
+              href={`/admin/${slug}${item.href}`}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
                 active
@@ -551,7 +554,7 @@ export function AdminShell({
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{restaurantName}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {userEmail || "demo@taapr.com"}
+                  {userEmail}
                 </p>
               </div>
             </div>
@@ -629,7 +632,7 @@ export function AdminShell({
               className="w-full"
               onClick={() => {
                 setAccountOpen(false);
-                router.push(`/admin/${slug}/settings${qs}`);
+                router.push(`/admin/${slug}/settings`);
               }}
             >
               <Settings className="mr-2 h-4 w-4" />

@@ -52,7 +52,7 @@ const MODULES: Module[] = [
       "Pourboires paramétrables",
     ],
     price: "Inclus dans tous les plans",
-    cta: { label: "Voir une démo", href: "/admin/chez-momo?demo=true" },
+    cta: { label: "Voir les tarifs", href: "#pricing" },
     visualKey: "qr",
   },
   {
@@ -94,7 +94,7 @@ const MODULES: Module[] = [
       "Multi-établissements (Business)",
     ],
     price: "Inclus dans tous les plans",
-    cta: { label: "Voir le back-office", href: "/admin/chez-momo?demo=true" },
+    cta: { label: "Voir les tarifs", href: "#pricing" },
     visualKey: "dashboard",
   },
   {
@@ -251,7 +251,6 @@ const COMPARE: FeatureCategory[] = [
       { label: "Apple Pay · Google Pay", values: { plat: true, menu: true, carte: true } },
       { label: "Tickets-restos", values: { plat: true, menu: true, carte: true } },
       { label: "Pourboires", values: { plat: true, menu: true, carte: true } },
-      { label: "Paiement fractionné", values: { plat: false, menu: true, carte: true } },
     ],
   },
   {
@@ -500,7 +499,7 @@ export default function Home() {
             <Link href="/admin/onboarding" className="btn-primary big">
               Démarrer gratuitement <span className="arrow">→</span>
             </Link>
-            <a href="#features" className="btn-ghost big">Voir une démo · 2 min</a>
+            <a href="#features" className="btn-ghost big">Découvrir le produit</a>
           </div>
 
           <div className="hero-proof">
