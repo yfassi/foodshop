@@ -41,17 +41,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protect admin routes (except login; demo mode only in dev)
-  const isDemo =
-    process.env.NODE_ENV !== "production" &&
-    request.nextUrl.searchParams.get("demo") === "true";
+  // Protect admin routes (except login/signup/onboarding/reset)
   if (
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login") &&
     !request.nextUrl.pathname.startsWith("/admin/signup") &&
     !request.nextUrl.pathname.startsWith("/admin/onboarding") &&
-    !request.nextUrl.pathname.startsWith("/admin/reset-password") &&
-    !isDemo
+    !request.nextUrl.pathname.startsWith("/admin/reset-password")
   ) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -71,9 +67,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
   }
-
-  // Forward the full URL so server components can read query params
-  supabaseResponse.headers.set("x-url", request.url);
 
   return supabaseResponse;
 }

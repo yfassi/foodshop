@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
@@ -11,51 +10,30 @@ export default async function AdminLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const headersList = await headers();
-  const currentUrl = headersList.get("x-url") || "";
-  const isDemo =
-    process.env.NODE_ENV !== "production" && currentUrl.includes("demo=true");
   const supabase = await createClient();
 
-  let restaurant;
-  let userEmail = "";
-  let ownedRestaurants: { name: string; slug: string }[] = [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (isDemo) {
-    const { data } = await supabase
-      .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
-      .eq("slug", slug)
-      .single();
+  if (!user) redirect("/admin/login");
+  const userEmail = user.email || "";
 
-    if (!data) redirect("/admin/login");
-    restaurant = data;
-    ownedRestaurants = [{ name: data.name, slug }];
-  } else {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const { data: restaurant } = await supabase
+    .from("restaurants")
+    .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active, stock_enabled, stock_module_active")
+    .eq("slug", slug)
+    .eq("owner_id", user.id)
+    .single();
 
-    if (!user) redirect("/admin/login");
-    userEmail = user.email || "";
+  if (!restaurant) redirect("/admin/login");
 
-    const { data } = await supabase
-      .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
-      .eq("slug", slug)
-      .eq("owner_id", user.id)
-      .single();
-
-    if (!data) redirect("/admin/login");
-    restaurant = data;
-
-    const { data: owned } = await supabase
-      .from("restaurants")
-      .select("name, slug")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: true });
-    ownedRestaurants = owned || [];
-  }
+  const { data: owned } = await supabase
+    .from("restaurants")
+    .select("name, slug")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: true });
+  const ownedRestaurants = owned || [];
 
   return (
     <AdminShell
@@ -63,12 +41,14 @@ export default async function AdminLayout({
       restaurantId={restaurant.id}
       restaurantName={restaurant.name}
       verificationStatus={restaurant.verification_status}
-      isDemo={isDemo}
       userEmail={userEmail}
       openingHours={restaurant.opening_hours as Record<string, unknown> | null}
       isAcceptingOrders={restaurant.is_accepting_orders}
       deliveryEnabled={
         restaurant.delivery_enabled && restaurant.delivery_addon_active
+      }
+      stockEnabled={
+        restaurant.stock_enabled && restaurant.stock_module_active
       }
       restaurants={ownedRestaurants}
     >
