@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Bike, Loader2 } from "lucide-react";
+import { Bike, Loader2, ArrowLeft } from "lucide-react";
+import { AnimatedBackground } from "@/components/animated-background";
 
 export default function DriverLoginPage() {
   const router = useRouter();
@@ -66,64 +67,100 @@ export default function DriverLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Bike className="h-6 w-6" />
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-10">
+      <AnimatedBackground />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm sm:p-8">
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Bike className="h-6 w-6" strokeWidth={2} />
           </div>
-          <h1 className="text-xl font-bold">Espace livreur</h1>
-          <p className="text-sm text-muted-foreground">
-            {step === "phone"
-              ? "Connectez-vous avec votre numéro de téléphone"
-              : "Entrez le code reçu par SMS"}
-          </p>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Espace livreur</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {step === "phone"
+                ? "Connectez-vous avec votre numéro"
+                : "Entrez le code reçu par SMS"}
+            </p>
+          </div>
         </div>
 
         {step === "phone" ? (
-          <form onSubmit={sendOtp} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Téléphone</Label>
+          <form onSubmit={sendOtp} className="space-y-4">
+            <div>
+              <Label htmlFor="phone" className="text-sm font-medium">
+                Téléphone
+              </Label>
               <Input
+                id="phone"
                 type="tel"
-                placeholder="+33612345678"
+                inputMode="tel"
+                placeholder="+33 6 12 34 56 78"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
                 autoFocus
+                required
+                className="mt-1.5 h-12"
               />
             </div>
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button
+              type="submit"
+              disabled={loading || !phone.trim()}
+              className="h-12 w-full rounded-xl font-semibold"
+            >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 "Recevoir le code"
               )}
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Vous recevrez un SMS avec un code à 6 chiffres
+            </p>
           </form>
         ) : (
-          <form onSubmit={verifyOtp} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Code SMS</Label>
+          <form onSubmit={verifyOtp} className="space-y-4">
+            <div>
+              <Label htmlFor="code" className="text-sm font-medium">
+                Code SMS
+              </Label>
               <Input
+                id="code"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="123456"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                autoComplete="one-time-code"
+                maxLength={6}
                 autoFocus
+                required
+                className="mt-1.5 h-12 text-center text-lg font-semibold tracking-[0.4em]"
               />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Envoyé au {phone}
+              </p>
             </div>
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button
+              type="submit"
+              disabled={loading || code.length < 4}
+              className="h-12 w-full rounded-xl font-semibold"
+            >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 "Valider"
               )}
             </Button>
             <button
               type="button"
-              onClick={() => setStep("phone")}
-              className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setCode("");
+                setStep("phone");
+              }}
+              className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
+              <ArrowLeft className="h-4 w-4" />
               Changer de numéro
             </button>
           </form>

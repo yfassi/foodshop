@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCanonicalPublicId } from "@/lib/resolve-restaurant";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -29,7 +29,7 @@ export default async function AdminLayout({
   if (isDemo) {
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active, stock_enabled, stock_module_active")
       .eq("public_id", publicId)
       .single();
 
@@ -40,13 +40,12 @@ export default async function AdminLayout({
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user) redirect("/admin/login");
     userEmail = user.email || "";
 
     const { data } = await supabase
       .from("restaurants")
-      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active")
+      .select("id, name, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active, stock_enabled, stock_module_active")
       .eq("public_id", publicId)
       .eq("owner_id", user.id)
       .single();
@@ -74,6 +73,9 @@ export default async function AdminLayout({
       isAcceptingOrders={restaurant.is_accepting_orders}
       deliveryEnabled={
         restaurant.delivery_enabled && restaurant.delivery_addon_active
+      }
+      stockEnabled={
+        restaurant.stock_enabled && restaurant.stock_module_active
       }
       restaurants={ownedRestaurants}
     >

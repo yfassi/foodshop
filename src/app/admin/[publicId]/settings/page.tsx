@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,6 @@ import {
   nextTier,
   canUseLoyalty,
   canUseFloorPlan,
-  canUseSplitPayment,
   canUseApi,
 } from "@/lib/subscription";
 import {
@@ -275,9 +275,6 @@ export default function SettingsPage() {
   const [stockModuleActive, setStockModuleActive] = useState(false);
   const [stockEnabled, setStockEnabled] = useState(false);
 
-  // Split payment
-  const [splitPaymentEnabled, setSplitPaymentEnabled] = useState(false);
-
   // Floor plan
   const [floorPlan, setFloorPlan] = useState<FloorPlan>({ tables: [] });
 
@@ -408,7 +405,6 @@ export default function SettingsPage() {
 
         setStockModuleActive(data.stock_module_active ?? false);
         setStockEnabled(data.stock_enabled ?? false);
-        setSplitPaymentEnabled(data.split_payment_enabled ?? false);
         setFloorPlan((data.floor_plan as FloorPlan) ?? { tables: [] });
       }
 
@@ -635,18 +631,6 @@ export default function SettingsPage() {
     else toast.success("Enregistré");
   }, [restaurant, stockEnabled]);
 
-  const autoSaveSplitPayment = useCallback(async () => {
-    if (!hasLoaded.current) return;
-    if (!restaurant) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("restaurants")
-      .update({ split_payment_enabled: splitPaymentEnabled })
-      .eq("id", restaurant.id);
-    if (error) toast.error("Erreur lors de la sauvegarde");
-    else toast.success("Enregistré");
-  }, [restaurant, splitPaymentEnabled]);
-
   const autoSaveFloorPlan = useCallback(async () => {
     if (!hasLoaded.current) return;
     if (!restaurant) return;
@@ -707,12 +691,6 @@ export default function SettingsPage() {
     const t = setTimeout(autoSaveStock, 600);
     return () => clearTimeout(t);
   }, [autoSaveStock]);
-
-  useEffect(() => {
-    if (!hasLoaded.current) return;
-    const t = setTimeout(autoSaveSplitPayment, 600);
-    return () => clearTimeout(t);
-  }, [autoSaveSplitPayment]);
 
   useEffect(() => {
     if (!hasLoaded.current) return;
@@ -1286,36 +1264,6 @@ export default function SettingsPage() {
                   </CardContent>
                 </Card>
 
-                {canUseSplitPayment(subscriptionTier) ? (
-                  <Card size="sm">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <CardTitle className="text-sm">Paiement fractionné</CardTitle>
-                          <CardDescription className="text-xs">
-                            Permet aux convives de partager l&apos;addition (par parts égales)
-                          </CardDescription>
-                        </div>
-                        <CardAction>
-                          <Switch
-                            checked={splitPaymentEnabled}
-                            onCheckedChange={setSplitPaymentEnabled}
-                          />
-                        </CardAction>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ) : (
-                  <TierLockBanner
-                    current={subscriptionTier}
-                    required="menu"
-                    feature="Paiement fractionné"
-                    description="Partage de l'addition entre convives"
-                  />
-                )}
               </section>
 
               {/* ═══════════════════════════════════════════
@@ -1907,10 +1855,28 @@ export default function SettingsPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xs text-muted-foreground">
-                      Plan actuel : <strong>{getTierLabel(subscriptionTier)}</strong>.
-                      Contactez le support pour activer le module Stock sur votre abonnement.
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      14 jours d&apos;essai gratuit. Sans engagement.
                     </p>
+                    <Button
+                      type="button"
+                      className="rounded-xl"
+                      onClick={async () => {
+                        const res = await fetch("/api/admin/stock/subscribe", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ restaurant_id: restaurant.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.url) {
+                          toast.error(data.error || "Erreur");
+                          return;
+                        }
+                        window.location.href = data.url;
+                      }}
+                    >
+                      Activer le module
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -1939,12 +1905,40 @@ export default function SettingsPage() {
 
                   {stockEnabled && (
                     <Card size="sm">
-                      <CardContent className="py-6">
-                        <p className="text-center text-xs text-muted-foreground">
-                          ★ Bientôt : numérisation OCR, recettes, alertes seuil bas.
-                          <br />
-                          Le module est activé — l&apos;interface complète arrive très vite.
+                      <CardContent className="space-y-3 py-6">
+                        <p className="text-sm">
+                          Module Stock actif. Retrouvez les ingrédients, recettes,
+                          scans et mouvements depuis la nav.
                         </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Link href={`/admin/${restaurant.slug}/stock`}>
+                            <Button variant="outline" className="rounded-lg" size="sm">
+                              Ouvrir le module
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg text-destructive hover:bg-destructive/5 hover:text-destructive"
+                            onClick={async () => {
+                              if (!confirm("Annuler l'abonnement Stock ?")) return;
+                              const res = await fetch("/api/admin/stock/cancel", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ restaurant_id: restaurant.id }),
+                              });
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                toast.error(data.error || "Erreur");
+                                return;
+                              }
+                              toast.success("Abonnement annulé");
+                              window.location.reload();
+                            }}
+                          >
+                            Annuler l&apos;abonnement
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   )}

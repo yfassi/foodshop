@@ -68,10 +68,6 @@ export function canUseExportCsv(tier: SubscriptionTier): boolean {
   return tierAtLeast(tier, "menu");
 }
 
-export function canUseSplitPayment(tier: SubscriptionTier): boolean {
-  return tierAtLeast(tier, "menu");
-}
-
 export function canUseKitchenScreen(tier: SubscriptionTier): boolean {
   return tierAtLeast(tier, "menu");
 }

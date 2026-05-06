@@ -56,7 +56,24 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const sessionType = session.metadata?.type;
 
-    if (sessionType === "wallet_topup") {
+    if (sessionType === "stock_subscription") {
+      const restaurantId = session.metadata?.restaurant_id;
+      const subscriptionId =
+        typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription?.id;
+      if (restaurantId && subscriptionId) {
+        await supabase
+          .from("restaurants")
+          .update({
+            stock_module_active: true,
+            stock_enabled: true,
+            stock_stripe_subscription_id: subscriptionId,
+            stock_subscription_status: "active",
+          })
+          .eq("id", restaurantId);
+      }
+    } else if (sessionType === "wallet_topup") {
       // Handle wallet top-up
       const userId = session.metadata?.user_id;
       const restaurantId = session.metadata?.restaurant_id;
@@ -200,6 +217,31 @@ export async function POST(request: Request) {
         .from("orders")
         .update({ status: "cancelled" })
         .eq("id", orderId);
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const sub = event.data.object as Stripe.Subscription;
+    if (sub.metadata?.type === "stock_subscription") {
+      const restaurantId = sub.metadata?.restaurant_id;
+      if (restaurantId) {
+        const isCanceled =
+          event.type === "customer.subscription.deleted" ||
+          sub.status === "canceled" ||
+          sub.status === "unpaid" ||
+          sub.status === "incomplete_expired";
+        await supabase
+          .from("restaurants")
+          .update({
+            stock_subscription_status: sub.status,
+            stock_module_active: !isCanceled,
+            ...(isCanceled ? { stock_enabled: false } : {}),
+          })
+          .eq("id", restaurantId);
+      }
     }
   }
 

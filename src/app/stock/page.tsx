@@ -60,7 +60,7 @@ export default function StockPage() {
               <Link href="/admin/onboarding" className="btn-primary big">
                 Activer le module <span className="arrow">→</span>
               </Link>
-              <Link href="/admin/chez-momo?demo=true" className="btn-ghost big">Voir une démo</Link>
+              <Link href="/#pricing" className="btn-ghost big">Voir les tarifs</Link>
             </div>
           </div>
 
