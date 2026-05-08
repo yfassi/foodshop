@@ -4,17 +4,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, customer_email, amount, description } =
+    const { restaurant_slug, customer_email, wallet_id, amount, description } =
       (await request.json()) as {
         restaurant_slug: string;
-        customer_email: string;
+        customer_email?: string;
+        wallet_id?: string;
         amount: number; // in cents
         description?: string;
       };
 
-    if (!restaurant_slug || !customer_email || !amount || amount <= 0) {
+    if (!restaurant_slug || !amount || amount <= 0) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
+        { status: 400 }
+      );
+    }
+    if (!customer_email && !wallet_id) {
+      return NextResponse.json(
+        { error: "Email ou wallet_id requis" },
         { status: 400 }
       );
     }
@@ -40,49 +47,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Non autorise" }, { status: 403 });
     }
 
-    // Find customer by email
-    const { data: userData } = await adminSupabase.auth.admin.listUsers();
-    const customer = userData?.users?.find(
-      (u) => u.email === customer_email
-    );
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: "Client introuvable avec cet email" },
-        { status: 404 }
-      );
-    }
-
-    // Get or create wallet
-    const { data: existingWallet } = await adminSupabase
-      .from("wallets")
-      .select("id, balance")
-      .eq("user_id", customer.id)
-      .eq("restaurant_id", restaurant.id)
-      .single();
-
     let walletId: string;
 
-    if (existingWallet) {
-      walletId = existingWallet.id;
-    } else {
-      const { data: newWallet, error: walletError } = await adminSupabase
+    if (wallet_id) {
+      // Path direct : on vérifie que le wallet appartient bien à ce resto
+      const { data: w } = await adminSupabase
         .from("wallets")
-        .insert({
-          user_id: customer.id,
-          restaurant_id: restaurant.id,
-          balance: 0,
-        })
         .select("id")
-        .single();
-
-      if (walletError || !newWallet) {
+        .eq("id", wallet_id)
+        .eq("restaurant_id", restaurant.id)
+        .maybeSingle();
+      if (!w) {
         return NextResponse.json(
-          { error: "Erreur lors de la creation du portefeuille" },
-          { status: 500 }
+          { error: "Portefeuille introuvable" },
+          { status: 404 }
         );
       }
-      walletId = newWallet.id;
+      walletId = w.id;
+    } else {
+      // Path email : recherche du user via listUsers paginé
+      const targetEmail = (customer_email || "").toLowerCase();
+      let customerId: string | null = null;
+      const PER_PAGE = 1000;
+      for (let page = 1; page <= 50; page += 1) {
+        const { data: usersPage, error: errUsers } =
+          await adminSupabase.auth.admin.listUsers({ page, perPage: PER_PAGE });
+        if (errUsers) break;
+        const found = usersPage.users.find(
+          (u) => (u.email || "").toLowerCase() === targetEmail
+        );
+        if (found) {
+          customerId = found.id;
+          break;
+        }
+        if (usersPage.users.length < PER_PAGE) break;
+      }
+      if (!customerId) {
+        return NextResponse.json(
+          { error: "Client introuvable avec cet email" },
+          { status: 404 }
+        );
+      }
+
+      const { data: existingWallet } = await adminSupabase
+        .from("wallets")
+        .select("id")
+        .eq("user_id", customerId)
+        .eq("restaurant_id", restaurant.id)
+        .maybeSingle();
+      if (existingWallet) {
+        walletId = existingWallet.id;
+      } else {
+        const { data: newWallet, error: walletError } = await adminSupabase
+          .from("wallets")
+          .insert({
+            user_id: customerId,
+            restaurant_id: restaurant.id,
+            balance: 0,
+          })
+          .select("id")
+          .single();
+        if (walletError || !newWallet) {
+          return NextResponse.json(
+            { error: "Erreur lors de la creation du portefeuille" },
+            { status: 500 }
+          );
+        }
+        walletId = newWallet.id;
+      }
     }
 
     // Use atomic credit function

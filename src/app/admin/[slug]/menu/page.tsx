@@ -267,9 +267,12 @@ export default function MenuManagementPage() {
   type MenuTab = "articles" | "sections";
   const [activeTab, setActiveTab] = useState<MenuTab>("articles");
 
-  // Articles filter (search + category dropdown)
+  // Articles filter (search + category dropdown + availability)
   const [search, setSearch] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
+  type AvailabilityFilter = "all" | "available" | "unavailable";
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<AvailabilityFilter>("all");
 
   // Shared sections
   const [sharedGroups, setSharedGroups] = useState<SharedGroupWithModifiers[]>([]);
@@ -761,23 +764,40 @@ export default function MenuManagementPage() {
 
   // ─── Derived data — must run before any early return to keep hook order stable ───
   const totalProducts = categories.reduce((sum, c) => sum + (c.products?.length ?? 0), 0);
-  const filterActive = search.trim() !== "" || filterCategoryId !== "all";
+  const filterActive =
+    search.trim() !== "" ||
+    filterCategoryId !== "all" ||
+    availabilityFilter !== "all";
   const visibleCategories = useMemo(() => {
     const q = search.trim().toLowerCase();
     return categories
       .filter((c) => filterCategoryId === "all" || c.id === filterCategoryId)
       .map((c) => ({
         ...c,
-        products: q
-          ? (c.products ?? []).filter(
-              (p) =>
-                p.name.toLowerCase().includes(q) ||
-                (p.description ?? "").toLowerCase().includes(q),
-            )
-          : c.products,
+        products: (c.products ?? []).filter((p) => {
+          if (
+            availabilityFilter === "available" && !p.is_available
+          )
+            return false;
+          if (
+            availabilityFilter === "unavailable" && p.is_available
+          )
+            return false;
+          if (q) {
+            return (
+              p.name.toLowerCase().includes(q) ||
+              (p.description ?? "").toLowerCase().includes(q)
+            );
+          }
+          return true;
+        }),
       }))
-      .filter((c) => !q || (c.products?.length ?? 0) > 0);
-  }, [categories, search, filterCategoryId]);
+      .filter(
+        (c) =>
+          (!q && availabilityFilter === "all") ||
+          (c.products?.length ?? 0) > 0,
+      );
+  }, [categories, search, filterCategoryId, availabilityFilter]);
   const filteredProductCount = visibleCategories.reduce(
     (sum, c) => sum + (c.products?.length ?? 0),
     0,
@@ -785,6 +805,7 @@ export default function MenuManagementPage() {
   const resetFilters = () => {
     setSearch("");
     setFilterCategoryId("all");
+    setAvailabilityFilter("all");
   };
 
   if (loading) {
@@ -854,7 +875,7 @@ export default function MenuManagementPage() {
         {activeTab === "articles" && (
           <>
             {categories.length > 0 && (
-              <div className="mb-6 flex flex-col gap-2 sm:flex-row">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -891,6 +912,30 @@ export default function MenuManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {categories.length > 0 && (
+              <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+                {(
+                  [
+                    { key: "all", label: "Tous" },
+                    { key: "available", label: "Disponibles" },
+                    { key: "unavailable", label: "Non disponibles" },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setAvailabilityFilter(key)}
+                    className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                      availabilityFilter === key
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
 
