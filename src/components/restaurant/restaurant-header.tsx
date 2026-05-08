@@ -40,37 +40,34 @@ export function RestaurantHeader({
   const statusLabel = restaurant.is_accepting_orders ? status.label : "Fermé";
 
   return (
-    <header className="border-b border-[#dbd7d2] bg-white px-4 py-3">
-      {/* Main row — logo + name + status + auth */}
-      <div className="flex items-center gap-2.5">
+    <header className="border-b border-[#E6D9C2] bg-[#F5EBDB] px-4 py-3">
+      {/* Row 1: logo + name + login button (always visible) */}
+      <div className="flex items-center gap-3">
         {restaurant.logo_url ? (
-          <div className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[13px] border border-[#dbd7d2] bg-[#fdf9f3]">
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[13px] border border-[#E6D9C2] bg-[#fdf9f3]">
             <Image
               src={restaurant.logo_url}
               alt={`${restaurant.name} logo`}
               fill
               className="object-cover"
-              sizes="46px"
+              sizes="44px"
             />
           </div>
         ) : (
-          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] border border-[#dbd7d2] bg-[#fdf9f3] text-base font-bold text-[#1c1410]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-[#E6D9C2] bg-[#fdf9f3] text-base font-bold text-[#1c1410]">
             {restaurant.name.charAt(0).toUpperCase()}
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[17px] font-extrabold leading-tight tracking-[-0.025em] text-[#1c1410]">
-            {restaurant.name}
-          </h1>
-          {restaurant.description && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] tracking-[0.03em] text-[#68625e]">
-              {restaurant.description}
-            </p>
-          )}
-        </div>
-        {/* Open/closed badge — kit style */}
+        <h1 className="min-w-0 flex-1 truncate text-[17px] font-extrabold leading-tight tracking-[-0.025em] text-[#1c1410]">
+          {restaurant.name}
+        </h1>
+        <CustomerAuthButton slug={restaurant.slug} />
+      </div>
+
+      {/* Row 2: status + hours toggle + description */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <span
-          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${
             isOpen
               ? "bg-[#d8efd9] text-[#00873a]"
               : "bg-[#fbdadd] text-[#bf000f]"
@@ -83,29 +80,29 @@ export function RestaurantHeader({
           />
           {statusLabel}
         </span>
-        <div className="ml-0.5">
-          <CustomerAuthButton slug={restaurant.slug} />
-        </div>
-      </div>
-      {/* Opening hours expandable */}
-      {todayHours && (
-        <div className="mt-2">
+        {todayHours && (
           <button
             onClick={() => setShowHours(!showHours)}
             aria-expanded={showHours}
-            className="flex items-center gap-1 text-[11px] font-medium text-[#68625e] transition-colors hover:text-[#1c1410]"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#68625e] transition-colors hover:text-[#1c1410]"
           >
             <Clock className="h-3 w-3" />
-            <span>Horaires du jour</span>
+            <span className="font-mono">{todayHours}</span>
             <ChevronDown
               className={`h-3 w-3 transition-transform ${showHours ? "rotate-180" : ""}`}
             />
           </button>
-          {showHours && (
-            <div className="mt-1.5 text-[11px] text-[#68625e]">
-              {todayName} : <span className="font-mono font-semibold text-[#1c1410]">{todayHours}</span>
-            </div>
-          )}
+        )}
+        {restaurant.description && (
+          <p className="min-w-0 flex-1 truncate text-[11px] tracking-[0.03em] text-[#68625e]">
+            · {restaurant.description}
+          </p>
+        )}
+      </div>
+
+      {showHours && todayHours && (
+        <div className="mt-1.5 text-[11px] text-[#68625e]">
+          {todayName} : <span className="font-mono font-semibold text-[#1c1410]">{todayHours}</span>
         </div>
       )}
     </header>
