@@ -113,6 +113,16 @@ export interface RestaurantAdmin {
   created_at: string;
 }
 
+export interface RestaurantSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  twitter?: string;
+  youtube?: string;
+  linkedin?: string;
+  website?: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -123,6 +133,8 @@ export interface Restaurant {
   logo_url: string | null;
   address: string | null;
   phone: string | null;
+  email: string | null;
+  social_links: RestaurantSocialLinks;
   opening_hours: Record<string, { open: string; close: string }[]>;
   is_accepting_orders: boolean;
   is_active: boolean;
