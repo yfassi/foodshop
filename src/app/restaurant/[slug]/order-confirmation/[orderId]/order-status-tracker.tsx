@@ -42,20 +42,20 @@ function deriveDeliveryStep(
   return "new";
 }
 
-function getStandardLiveLabel(status: OrderStatus): { headline: string; emoji: string; eta?: string } {
-  if (status === "ready") return { headline: "Votre commande est prête", emoji: "🍽", eta: "À récupérer" };
-  if (status === "done") return { headline: "Commande terminée", emoji: "✓", eta: "Bon appétit !" };
-  if (status === "preparing") return { headline: "En préparation", emoji: "🧑‍🍳", eta: "~3 min" };
-  if (status === "cancelled") return { headline: "Commande annulée", emoji: "✕" };
-  return { headline: "Commande reçue", emoji: "✓", eta: "On s'en occupe" };
+function getStandardLiveLabel(status: OrderStatus): { headline: string; eta?: string } {
+  if (status === "ready") return { headline: "Votre commande est prête", eta: "À récupérer" };
+  if (status === "done") return { headline: "Commande terminée", eta: "Bon appétit !" };
+  if (status === "preparing") return { headline: "En préparation", eta: "~3 min" };
+  if (status === "cancelled") return { headline: "Commande annulée" };
+  return { headline: "Commande reçue", eta: "On s'en occupe" };
 }
 
-function getDeliveryLiveLabel(step: DeliveryStep): { headline: string; emoji: string; eta?: string } {
-  if (step === "delivered") return { headline: "Livrée", emoji: "✓", eta: "Bon appétit !" };
-  if (step === "picked_up") return { headline: "En route vers vous", emoji: "🛵", eta: "~10 min" };
-  if (step === "assigned") return { headline: "Livreur assigné", emoji: "🛵", eta: "Préparation en cours" };
-  if (step === "preparing") return { headline: "En préparation", emoji: "🧑‍🍳", eta: "~5 min" };
-  return { headline: "Commande reçue", emoji: "✓", eta: "On s'en occupe" };
+function getDeliveryLiveLabel(step: DeliveryStep): { headline: string; eta?: string } {
+  if (step === "delivered") return { headline: "Livrée", eta: "Bon appétit !" };
+  if (step === "picked_up") return { headline: "En route vers vous", eta: "~10 min" };
+  if (step === "assigned") return { headline: "Livreur assigné", eta: "Préparation en cours" };
+  if (step === "preparing") return { headline: "En préparation", eta: "~5 min" };
+  return { headline: "Commande reçue", eta: "On s'en occupe" };
 }
 
 export function OrderStatusTracker({
@@ -165,12 +165,12 @@ export function OrderStatusTracker({
 
   return (
     <div className="space-y-4">
-      {/* Live status banner — dark */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-foreground to-foreground/85 p-4 text-background">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_90%_50%,rgba(48,128,255,0.12),transparent_60%)]" />
+      {/* Live status banner — kit: navy gradient + tomato red glow accent */}
+      <div className="relative overflow-hidden rounded-2xl p-4 text-[#f8f1e7]" style={{ background: "linear-gradient(135deg, #172846, #0c1a36)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 90% 50%, #d7352d33, transparent 60%)" }} />
         <div className="relative">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-background/50">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#d7352d]">
               Statut en direct
             </span>
             {isSupported && status !== "done" && status !== "cancelled" && (
@@ -179,8 +179,8 @@ export function OrderStatusTracker({
                 disabled={isSubscribed || loading}
                 className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
                   isSubscribed
-                    ? "bg-background/15 text-background"
-                    : "bg-background/10 text-background/80 hover:bg-background/15"
+                    ? "bg-white/15 text-white"
+                    : "bg-white/10 text-white/80 hover:bg-white/15"
                 }`}
               >
                 {isSubscribed ? (
@@ -198,28 +198,31 @@ export function OrderStatusTracker({
             )}
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-lg">{liveLabel.emoji}</span>
-            <h3 className="text-[18px] font-bold tracking-tight">{liveLabel.headline}</h3>
+            <h3 className="text-[18px] font-extrabold tracking-[-0.02em]">{liveLabel.headline}</h3>
           </div>
           {liveLabel.eta && (
-            <p className="mt-0.5 text-[12px] text-background/60">
+            <p className="mt-0.5 text-[12px] text-[#f8f1e7]/65">
               Temps estimé :{" "}
-              <span className="font-semibold text-[#54a2ff]">{liveLabel.eta}</span>
+              <span className="font-mono font-bold text-white">{liveLabel.eta}</span>
             </p>
           )}
-          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-background/15">
+          {/* Progress bar — kit: tomato red gradient */}
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[#0c1a36]">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#54a2ff] to-[#3080ff] transition-all duration-700"
-              style={{ width: `${progressPct}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${progressPct}%`,
+                background: "linear-gradient(90deg, #d7352d, #f56e54)",
+              }}
             />
           </div>
         </div>
       </div>
 
-      {/* Timeline — vertical with circle icons */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-          Étapes
+      {/* Timeline — kit: dashed connector, green done, tomato active, muted pending */}
+      <div className="rounded-[14px] border border-[#dbd7d2] bg-white p-4">
+        <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[#a89e94]">
+          Etapes
         </h3>
         <div className="flex flex-col">
           {isDelivery
@@ -233,11 +236,12 @@ export function OrderStatusTracker({
                       <div
                         className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-colors ${
                           isDone
-                            ? "bg-success-soft text-success"
+                            ? "bg-[#d8efd9] text-[#00873a]"
                             : isActive
-                              ? "bg-foreground text-background ring-4 ring-foreground/10"
-                              : "bg-muted text-muted-foreground"
+                              ? "text-white"
+                              : "bg-[#f0ebe1] text-[#68625e]"
                         }`}
+                        style={isActive ? { backgroundColor: "#d7352d", boxShadow: "0 0 0 5px #d7352d2e" } : {}}
                       >
                         {isDone ? (
                           <Check className="h-3.5 w-3.5" strokeWidth={3} />
@@ -252,23 +256,22 @@ export function OrderStatusTracker({
                         )}
                       </div>
                       {!isLast && (
+                        /* Dashed connector — kit: 2px dashed repeating */
                         <div
-                          className={`mt-0.5 w-[2px] flex-1 ${
-                            isDone ? "bg-success" : "bg-border"
-                          }`}
-                          style={{ minHeight: "20px" }}
+                          className="mt-0.5 flex-1"
+                          style={{
+                            width: 2,
+                            minHeight: 20,
+                            backgroundImage: `repeating-linear-gradient(to bottom, ${isDone ? "#00873a" : "#dbd7d2"} 0, ${isDone ? "#00873a" : "#dbd7d2"} 3px, transparent 3px, transparent 6px)`,
+                          }}
                         />
                       )}
                     </div>
                     <div className={`flex-1 ${!isLast ? "pb-4" : ""}`}>
-                      <p
-                        className={`text-[14px] font-semibold ${
-                          isDone || isActive ? "text-foreground" : "text-muted-foreground"
-                        }`}
-                      >
+                      <p className={`text-[14px] font-bold ${isDone || isActive ? "text-[#1c1410]" : "text-[#a89e94]"}`}>
                         {DELIVERY_STEP_LABELS[s]}
                       </p>
-                      <p className={`mt-0.5 font-mono text-[11px] ${isActive ? "text-info" : "text-muted-foreground"}`}>
+                      <p className={`mt-0.5 font-mono text-[12px] ${isActive ? "text-[#3080ff]" : "text-[#a89e94]"}`}>
                         {isDone ? "Fait" : isActive ? "En cours…" : "—"}
                       </p>
                     </div>
@@ -285,32 +288,31 @@ export function OrderStatusTracker({
                       <div
                         className={`grid h-7 w-7 shrink-0 place-items-center rounded-full transition-colors ${
                           isDone
-                            ? "bg-success-soft text-success"
+                            ? "bg-[#d8efd9] text-[#00873a]"
                             : isActive
-                              ? "bg-foreground text-background ring-4 ring-foreground/10"
-                              : "bg-muted text-muted-foreground"
+                              ? "text-white"
+                              : "bg-[#f0ebe1] text-[#68625e]"
                         }`}
+                        style={isActive ? { backgroundColor: "#d7352d", boxShadow: "0 0 0 5px #d7352d2e" } : {}}
                       >
                         {isDone ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : standardIcons[s]}
                       </div>
                       {!isLast && (
                         <div
-                          className={`mt-0.5 w-[2px] flex-1 ${
-                            isDone ? "bg-success" : "bg-border"
-                          }`}
-                          style={{ minHeight: "20px" }}
+                          className="mt-0.5 flex-1"
+                          style={{
+                            width: 2,
+                            minHeight: 20,
+                            backgroundImage: `repeating-linear-gradient(to bottom, ${isDone ? "#00873a" : "#dbd7d2"} 0, ${isDone ? "#00873a" : "#dbd7d2"} 3px, transparent 3px, transparent 6px)`,
+                          }}
                         />
                       )}
                     </div>
                     <div className={`flex-1 ${!isLast ? "pb-4" : ""}`}>
-                      <p
-                        className={`text-[14px] font-semibold ${
-                          isDone || isActive ? "text-foreground" : "text-muted-foreground"
-                        }`}
-                      >
+                      <p className={`text-[14px] font-bold ${isDone || isActive ? "text-[#1c1410]" : "text-[#a89e94]"}`}>
                         {STANDARD_STEP_LABELS[s]}
                       </p>
-                      <p className={`mt-0.5 font-mono text-[11px] ${isActive ? "text-info" : "text-muted-foreground"}`}>
+                      <p className={`mt-0.5 font-mono text-[12px] ${isActive ? "text-[#3080ff]" : "text-[#a89e94]"}`}>
                         {isDone ? "Fait" : isActive ? "En cours…" : "—"}
                       </p>
                     </div>
@@ -320,22 +322,22 @@ export function OrderStatusTracker({
         </div>
       </div>
 
-      {/* Driver card */}
+      {/* Driver card — kit: navy bg, blue accent */}
       {isDelivery && driver && (
-        <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-info/20 bg-info-soft/40 p-3.5">
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-info text-background">
+        <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d8e3f4] bg-[#d8e3f4]/40 p-3.5">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-[#172846] text-white">
             <Bike className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-info">
+            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#172846]">
               Votre livreur
             </p>
-            <p className="truncate text-[14px] font-bold">{driver.full_name}</p>
+            <p className="truncate text-[14px] font-bold text-[#1c1410]">{driver.full_name}</p>
           </div>
           {driver.phone && (
             <a
               href={`tel:${driver.phone}`}
-              className="flex h-10 items-center gap-1.5 rounded-full bg-info px-4 text-[12px] font-semibold text-background transition-opacity active:opacity-90"
+              className="flex h-10 items-center gap-1.5 rounded-full bg-[#172846] px-4 text-[12px] font-semibold text-white transition-opacity active:opacity-90"
             >
               <Phone className="h-3.5 w-3.5" />
               Appeler
