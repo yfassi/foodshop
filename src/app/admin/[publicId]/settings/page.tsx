@@ -66,6 +66,7 @@ import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
 import type {
   Restaurant,
+  RestaurantSocialLinks,
   LoyaltyTier,
   WalletTopupTier,
   OrderType,
@@ -253,6 +254,8 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [socialLinks, setSocialLinks] = useState<RestaurantSocialLinks>({});
   const [description, setDescription] = useState("");
   const [hours, setHours] = useState<Record<string, TimeRange[] | null>>({});
   const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
@@ -368,6 +371,8 @@ export default function SettingsPage() {
         setName(data.name);
         setAddress(data.address || "");
         setPhone(data.phone || "");
+        setContactEmail(data.email || "");
+        setSocialLinks((data.social_links as RestaurantSocialLinks) ?? {});
         setDescription(data.description || "");
         setIsAcceptingOrders(data.is_accepting_orders);
 
@@ -522,12 +527,20 @@ export default function SettingsPage() {
     if (orderTypeTakeaway) orderTypes.push("takeaway");
     if (orderTypeDelivery && deliveryAddonActive) orderTypes.push("delivery");
 
+    const cleanedSocials: RestaurantSocialLinks = {};
+    for (const [key, value] of Object.entries(socialLinks)) {
+      const v = (value ?? "").trim();
+      if (v) cleanedSocials[key as keyof RestaurantSocialLinks] = v;
+    }
+
     const { error } = await supabase
       .from("restaurants")
       .update({
         name: name.trim(),
         address: address.trim() || null,
         phone: phone.trim() || null,
+        email: contactEmail.trim() || null,
+        social_links: cleanedSocials,
         description: description.trim() || null,
         opening_hours: openingHours,
         order_types: orderTypes,
@@ -539,7 +552,7 @@ export default function SettingsPage() {
     } else {
       toast.success("Enregistré");
     }
-  }, [restaurant, name, address, phone, description, hours, orderTypeDineIn, orderTypeTakeaway, orderTypeDelivery, deliveryAddonActive]);
+  }, [restaurant, name, address, phone, contactEmail, socialLinks, description, hours, orderTypeDineIn, orderTypeTakeaway, orderTypeDelivery, deliveryAddonActive]);
 
   const autoSavePaymentMethods = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -1208,6 +1221,37 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <Label htmlFor="r-phone">Téléphone</Label>
                       <Input id="r-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="06 12 34 56 78" />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="r-email">Email de contact</Label>
+                      <Input id="r-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@restaurant.fr" />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Réseaux sociaux</p>
+                      <p className="text-xs text-muted-foreground">URL complète, laisser vide si non concerné</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="r-instagram">Instagram</Label>
+                        <Input id="r-instagram" value={socialLinks.instagram ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, instagram: e.target.value }))} placeholder="https://instagram.com/..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-facebook">Facebook</Label>
+                        <Input id="r-facebook" value={socialLinks.facebook ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, facebook: e.target.value }))} placeholder="https://facebook.com/..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-tiktok">TikTok</Label>
+                        <Input id="r-tiktok" value={socialLinks.tiktok ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, tiktok: e.target.value }))} placeholder="https://tiktok.com/@..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-website">Site web</Label>
+                        <Input id="r-website" value={socialLinks.website ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, website: e.target.value }))} placeholder="https://..." />
+                      </div>
                     </div>
                   </div>
                 </div>
