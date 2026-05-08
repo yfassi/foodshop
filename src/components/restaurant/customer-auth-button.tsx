@@ -99,18 +99,23 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
     window.location.href = `/restaurant/${slug}/order`;
   };
 
-  if (loading) return null;
+  // Skeleton while loading to avoid layout shift
+  if (loading) {
+    return (
+      <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-[#fdf9f3]" />
+    );
+  }
   if (isOwner) return null;
 
-  // Not authenticated: show login link
+  // Not authenticated: visible login pill (kit dark)
   if (!isAuthenticated) {
     return (
       <Link
         href={`/restaurant/${slug}/login`}
-        className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
+        className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1c1410] px-3.5 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors active:bg-[#1c1410]/85"
       >
-        <User className="h-3.5 w-3.5" />
-        Connexion
+        <User className="h-3.5 w-3.5" strokeWidth={2.5} />
+        <span>Connexion</span>
       </Link>
     );
   }
