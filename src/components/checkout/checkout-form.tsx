@@ -191,44 +191,51 @@ export function CheckoutForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Order summary — total box matching design */}
-      <div className="rounded-2xl border-[1.5px] border-border bg-muted/40 p-4">
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+      {/* Order summary — kit: ticket-paper style, dashed dividers, Space Mono */}
+      <div className="rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-4">
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[#68625e]">
           Votre commande
         </p>
         <div className="space-y-1.5">
           {items.map((item) => (
             <div key={item.id} className="flex items-baseline justify-between gap-3 text-[13px]">
               <span className="min-w-0">
-                <span className="font-mono text-muted-foreground">{item.quantity}×</span>{" "}
-                <span className="text-foreground">{item.product_name}</span>
+                <span className="font-mono text-[#a89e94]">{item.quantity}×</span>{" "}
+                <span className="text-[#1c1410]">{item.product_name}</span>
                 {item.is_menu && (
-                  <span className="ml-1 rounded bg-warning-soft px-1 text-[10px] font-bold text-warning">
+                  <span className="ml-1 rounded-full bg-[#fdebc8] px-1.5 text-[10px] font-bold text-[#b75000]">
                     MENU
                   </span>
                 )}
                 {item.modifiers.length > 0 && (
-                  <span className="ml-1 text-[11px] text-muted-foreground">
+                  <span className="ml-1 text-[11px] text-[#68625e]">
                     · {item.modifiers.map((m) => m.modifier_name).join(", ")}
                   </span>
                 )}
               </span>
-              <span className="shrink-0 font-mono text-[13px] font-medium text-foreground">
+              <span className="shrink-0 font-mono text-[13px] font-medium text-[#1c1410]">
                 {formatPrice(item.line_total)}
               </span>
             </div>
           ))}
           {orderType === "delivery" && applicableDeliveryFee > 0 && (
             <div className="flex justify-between text-[13px]">
-              <span className="text-muted-foreground">Frais de livraison</span>
-              <span className="font-mono font-medium text-foreground">
+              <span className="text-[#68625e]">Frais de livraison</span>
+              <span className="font-mono font-medium text-[#1c1410]">
                 {formatPrice(applicableDeliveryFee)}
               </span>
             </div>
           )}
         </div>
-        <hr className="my-3 border-t border-dashed border-border" />
-        <div className="flex items-baseline justify-between text-[15px] font-bold">
+        {/* Dashed divider */}
+        <div
+          className="my-3"
+          style={{
+            height: 1,
+            background: "repeating-linear-gradient(to right, #dbd7d2 0, #dbd7d2 4px, transparent 4px, transparent 8px)",
+          }}
+        />
+        <div className="flex items-baseline justify-between text-[15px] font-extrabold text-[#1c1410]">
           <span>Total</span>
           <span className="font-mono">{formatPrice(total)}</span>
         </div>
@@ -237,7 +244,7 @@ export function CheckoutForm({
       {/* Order type */}
       {showOrderTypeSelector && (
         <div>
-          <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+          <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#68625e]">
             Type de commande
           </Label>
           <div
@@ -258,10 +265,10 @@ export function CheckoutForm({
                     setOrderType(type);
                     setStoredOrderType(type);
                   }}
-                  className={`flex h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3 text-[13px] font-semibold transition-colors ${
+                  className={`flex h-12 items-center justify-center gap-2 rounded-[12px] border-[1.5px] px-3 text-[13px] font-semibold transition-colors ${
                     isActive
-                      ? "border-foreground bg-foreground/[0.03]"
-                      : "border-border bg-background active:bg-accent"
+                      ? "border-[#1c1410] bg-[#fdf9f3] text-[#1c1410]"
+                      : "border-[#dbd7d2] bg-white text-[#68625e] active:bg-[#fdf9f3]"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -288,36 +295,36 @@ export function CheckoutForm({
         </p>
       )}
 
-      {/* Loyalty banner — green soft like the design system */}
+      {/* Loyalty banner — kit: fdf9f3 bg, tomato red border when active */}
       {loyaltyEnabled && (
         customerProfile ? (
-          <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
+          <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d7352d] bg-[#fdf9f3] p-3.5">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d7352d] text-white">
               <Gift className="h-4 w-4" />
             </div>
-            <p className="flex-1 text-[13px]">
-              <span className="block text-[13px] font-semibold text-success-strong">
+            <div className="flex-1">
+              <p className="text-[13px] font-bold text-[#1c1410]">
                 Cette commande vous rapporte{" "}
                 <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
-              </span>
-              <span className="text-[11px] text-success-strong/75">À ajouter à votre cagnotte fidélité</span>
-            </p>
+              </p>
+              <p className="text-[11px] text-[#68625e]">A ajouter a votre cagnotte fidelite</p>
+            </div>
           </div>
         ) : (
           <Link
             href={`/restaurant/${slug}/login`}
-            className="flex items-center gap-3 rounded-2xl border-[1.5px] border-success/20 bg-success-soft/60 p-3.5 transition-colors active:bg-success-soft"
+            className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
           >
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-background">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">
               <Gift className="h-4 w-4" />
             </div>
-            <p className="flex-1 text-[13px]">
-              <span className="block text-[13px] font-semibold text-success-strong">
+            <div className="flex-1">
+              <p className="text-[13px] font-bold text-[#1c1410]">
                 Connectez-vous pour cumuler des points
-              </span>
-              <span className="text-[11px] text-success-strong/75">+1 pt par tranche de 1 €</span>
-            </p>
-            <ChevronRight className="h-4 w-4 shrink-0 text-success-strong/70" />
+              </p>
+              <p className="text-[11px] text-[#68625e]">+1 pt par tranche de 1 €</p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#a89e94]" />
           </Link>
         )
       )}
@@ -353,7 +360,7 @@ export function CheckoutForm({
 
       {/* Payment method */}
       <div>
-        <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        <Label className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#68625e]">
           Mode de paiement
         </Label>
         <div className="space-y-2">
@@ -361,28 +368,28 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={() => selectDirect("on_site")}
-              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-[12px] border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 !isWalletSelected && paymentMethod === "on_site"
-                  ? "border-foreground bg-foreground/[0.03]"
-                  : "border-border bg-background active:bg-accent"
+                  ? "border-[#1c1410] bg-[#fdf9f3]"
+                  : "border-[#dbd7d2] bg-white active:bg-[#fdf9f3]"
               }`}
             >
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#f0ebe1] text-[#68625e]">
                 <Banknote className="h-4 w-4" />
               </div>
               <div className="flex-1">
-                <p className="text-[14px] font-semibold">Sur place</p>
-                <p className="text-[11px] text-muted-foreground">CB / espèces · au comptoir</p>
+                <p className="text-[14px] font-bold text-[#1c1410]">Sur place</p>
+                <p className="text-[11px] text-[#68625e]">CB / espèces · au comptoir</p>
               </div>
               <span
                 className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
                   !isWalletSelected && paymentMethod === "on_site"
-                    ? "border-foreground bg-foreground"
-                    : "border-border"
+                    ? "border-[#d7352d] bg-[#d7352d]"
+                    : "border-[#dbd7d2]"
                 }`}
               >
                 {!isWalletSelected && paymentMethod === "on_site" && (
-                  <span className="h-2 w-2 rounded-full bg-background" />
+                  <span className="h-2 w-2 rounded-full bg-white" />
                 )}
               </span>
             </button>
@@ -391,28 +398,28 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={() => selectDirect("online")}
-              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-[12px] border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 !isWalletSelected && paymentMethod === "online"
-                  ? "border-foreground bg-foreground/[0.03]"
-                  : "border-border bg-background active:bg-accent"
+                  ? "border-[#1c1410] bg-[#fdf9f3]"
+                  : "border-[#dbd7d2] bg-white active:bg-[#fdf9f3]"
               }`}
             >
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#f0ebe1] text-[#68625e]">
                 <CreditCard className="h-4 w-4" />
               </div>
               <div className="flex-1">
-                <p className="text-[14px] font-semibold">Carte bancaire</p>
-                <p className="text-[11px] text-muted-foreground">Sécurisé par Stripe · Apple/Google Pay</p>
+                <p className="text-[14px] font-bold text-[#1c1410]">Carte bancaire</p>
+                <p className="text-[11px] text-[#68625e]">Sécurisé par Stripe · Apple/Google Pay</p>
               </div>
               <span
                 className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
                   !isWalletSelected && paymentMethod === "online"
-                    ? "border-foreground bg-foreground"
-                    : "border-border"
+                    ? "border-[#d7352d] bg-[#d7352d]"
+                    : "border-[#dbd7d2]"
                 }`}
               >
                 {!isWalletSelected && paymentMethod === "online" && (
-                  <span className="h-2 w-2 rounded-full bg-background" />
+                  <span className="h-2 w-2 rounded-full bg-white" />
                 )}
               </span>
             </button>
@@ -421,30 +428,30 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={selectWallet}
-              className={`flex w-full items-center gap-3 rounded-xl border-[1.5px] px-4 py-3.5 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-[12px] border-[1.5px] px-4 py-3.5 text-left transition-colors ${
                 isWalletSelected
-                  ? "border-foreground bg-foreground/[0.03]"
-                  : "border-border bg-background active:bg-accent"
+                  ? "border-[#1c1410] bg-[#fdf9f3]"
+                  : "border-[#dbd7d2] bg-white active:bg-[#fdf9f3]"
               }`}
             >
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-info-soft text-info">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#d8e3f4] text-[#172846]">
                 <Wallet className="h-4 w-4" />
               </div>
               <div className="flex-1">
-                <p className="text-[14px] font-semibold">Solde</p>
-                <p className="font-mono text-[11px] text-muted-foreground">
+                <p className="text-[14px] font-bold text-[#1c1410]">Solde</p>
+                <p className="font-mono text-[11px] text-[#68625e]">
                   Disponible : {formatPrice(walletBalance)}
                 </p>
               </div>
               <span
                 className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-[2px] ${
                   isWalletSelected
-                    ? "border-foreground bg-foreground"
-                    : "border-border"
+                    ? "border-[#d7352d] bg-[#d7352d]"
+                    : "border-[#dbd7d2]"
                 }`}
               >
                 {isWalletSelected && (
-                  <span className="h-2 w-2 rounded-full bg-background" />
+                  <span className="h-2 w-2 rounded-full bg-white" />
                 )}
               </span>
             </button>
@@ -457,7 +464,7 @@ export function CheckoutForm({
         <div>
           <Label
             htmlFor="customer-email"
-            className="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+            className="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#68625e]"
           >
             Email
           </Label>
@@ -470,9 +477,9 @@ export function CheckoutForm({
             value={customerEmail}
             onChange={(e) => setCustomerEmail(e.target.value)}
             placeholder="vous@email.com"
-            className="block h-12 w-full rounded-xl border-[1.5px] border-border bg-background px-4 text-[14px] outline-none transition-colors focus:border-foreground"
+            className="block h-12 w-full rounded-[12px] border-[1.5px] border-[#dbd7d2] bg-white px-4 text-[15px] font-medium text-[#1c1410] outline-none transition-colors placeholder:text-[#a89e94] focus:border-[#1c1410] focus:shadow-[0_0_0_3px_#1c14101a]"
           />
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
+          <p className="mt-1.5 text-[12px] text-[#68625e]">
             Pour recevoir votre reçu et le numéro de commande.
           </p>
         </div>
@@ -480,9 +487,9 @@ export function CheckoutForm({
 
       {/* Partial wallet info */}
       {isWalletSelected && !walletCoversAll && (
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
-          <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-info" />
-          <p className="text-[12px] leading-snug">
+        <div className="flex items-start gap-3 rounded-[12px] border border-[#d8e3f4] bg-[#d8e3f4]/40 px-4 py-3">
+          <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-[#172846]" />
+          <p className="text-[12px] leading-snug text-[#1c1410]">
             Votre solde de{" "}
             <span className="font-mono font-bold">{formatPrice(walletBalance)}</span> sera
             déduit. Reste à payer en ligne :{" "}
@@ -491,14 +498,14 @@ export function CheckoutForm({
         </div>
       )}
 
-      {/* Submit — pill button matching design system */}
+      {/* Submit — kit: tomato red primary pill (or Stripe purple for card flow) */}
       <button
         type="submit"
         disabled={loading || deliveryBlocked || (needsEmail && !emailIsValid)}
-        className={`relative flex h-13 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`relative flex w-full items-center justify-center gap-2 rounded-full text-[14px] font-bold uppercase tracking-[0.06em] transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
           isStripeFlow
-            ? "bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/25 hover:bg-[#5448ff]"
-            : "bg-success text-white shadow-lg shadow-emerald-600/20"
+            ? "bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/25"
+            : "bg-[#d7352d] text-white shadow-[0_0_20px_#d7352d4d]"
         }`}
         style={{ height: 52 }}
       >
@@ -522,7 +529,7 @@ export function CheckoutForm({
         )}
       </button>
       {isStripeFlow && (
-        <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+        <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-[#a89e94]">
           Paiement sécurisé · Stripe
         </p>
       )}

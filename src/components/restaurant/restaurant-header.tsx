@@ -40,10 +40,11 @@ export function RestaurantHeader({
   const statusLabel = restaurant.is_accepting_orders ? status.label : "Fermé";
 
   return (
-    <header className="border-b border-border bg-card px-4 py-3.5">
-      <div className="flex items-center gap-3">
+    <header className="border-b border-[#dbd7d2] bg-white px-4 py-3">
+      {/* Main row — logo + name + status + auth */}
+      <div className="flex items-center gap-2.5">
         {restaurant.logo_url ? (
-          <div className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[13px]">
+          <div className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[13px] border border-[#dbd7d2] bg-[#fdf9f3]">
             <Image
               src={restaurant.logo_url}
               alt={`${restaurant.name} logo`}
@@ -53,30 +54,31 @@ export function RestaurantHeader({
             />
           </div>
         ) : (
-          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
+          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] border border-[#dbd7d2] bg-[#fdf9f3] text-base font-bold text-[#1c1410]">
             {restaurant.name.charAt(0).toUpperCase()}
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[17px] font-extrabold tracking-tight">
+          <h1 className="truncate text-[17px] font-extrabold leading-tight tracking-[-0.025em] text-[#1c1410]">
             {restaurant.name}
           </h1>
           {restaurant.description && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 line-clamp-1 text-[11px] tracking-[0.03em] text-[#68625e]">
               {restaurant.description}
             </p>
           )}
         </div>
+        {/* Open/closed badge — kit style */}
         <span
-          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${
             isOpen
-              ? "bg-success-soft text-success"
-              : "bg-destructive/10 text-destructive"
+              ? "bg-[#d8efd9] text-[#00873a]"
+              : "bg-[#fbdadd] text-[#bf000f]"
           }`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              isOpen ? "bg-success" : "bg-destructive"
+              isOpen ? "bg-[#00873a]" : "bg-[#bf000f]"
             }`}
           />
           {statusLabel}
@@ -85,12 +87,13 @@ export function RestaurantHeader({
           <CustomerAuthButton publicId={restaurant.public_id} />
         </div>
       </div>
+      {/* Opening hours expandable */}
       {todayHours && (
         <div className="mt-2">
           <button
             onClick={() => setShowHours(!showHours)}
             aria-expanded={showHours}
-            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 text-[11px] font-medium text-[#68625e] transition-colors hover:text-[#1c1410]"
           >
             <Clock className="h-3 w-3" />
             <span>Horaires du jour</span>
@@ -99,8 +102,8 @@ export function RestaurantHeader({
             />
           </button>
           {showHours && (
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {todayName} : <span className="font-mono font-semibold text-foreground">{todayHours}</span>
+            <div className="mt-1.5 text-[11px] text-[#68625e]">
+              {todayName} : <span className="font-mono font-semibold text-[#1c1410]">{todayHours}</span>
             </div>
           )}
         </div>

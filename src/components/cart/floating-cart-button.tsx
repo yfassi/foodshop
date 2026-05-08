@@ -41,21 +41,27 @@ export function FloatingCartButton({
 
   return (
     <>
-      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6">
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background via-background/85 to-transparent" />
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6">
+        {/* Fade gradient beneath the FAB */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white via-white/85 to-transparent" />
+        {/* Cart FAB — kit: dark pill (#1c1410) + red circle count badge + mono total */}
         <button
           onClick={() => setOpen(true)}
           aria-label={`Voir mon panier — ${count} article${count > 1 ? "s" : ""}, ${formatPrice(total)}`}
-          className="pointer-events-auto relative flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground shadow-xl shadow-black/20 transition-transform active:scale-[0.99]"
-          style={bounce ? { animation: "cart-bounce 0.5s ease-in-out" } : undefined}
+          className="pointer-events-auto relative flex w-full items-center gap-3 rounded-full bg-[#1c1410] px-4 py-3 text-white transition-transform active:scale-[0.99]"
+          style={{
+            boxShadow: "0 16px 32px -10px #1c141066, inset 0 0 0 1px #ffffff14",
+            ...(bounce ? { animation: "cart-bounce 0.5s ease-in-out" } : {}),
+          }}
         >
-          <span className="grid h-[26px] w-[26px] place-items-center rounded-lg bg-background font-mono text-xs font-bold text-primary">
+          {/* Count badge — tomato red circle */}
+          <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-[#d7352d] font-mono text-[12px] font-bold text-white">
             {count}
           </span>
-          <span className="text-sm font-semibold tracking-tight">
+          <span className="text-[14px] font-semibold tracking-[-0.01em]">
             Voir mon panier
           </span>
-          <span className="ml-auto font-mono text-sm font-bold">
+          <span className="ml-auto font-mono text-[14px] font-bold">
             {formatPrice(total)}
           </span>
         </button>

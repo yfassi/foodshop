@@ -174,9 +174,73 @@ html {
   .bg-success-soft { background-color: #dcfce7; }
   .text-success-strong { color: #008138; }
   .text-info { color: #1447e6; }
+  .bg-info { background-color: #3080ff; }
   .bg-info-soft { background-color: #dbeafe; }
   .text-warning { color: #b75000; }
   .bg-warning-soft { background-color: #fef3c6; }
+
+  /* TaapR client mobile UI kit tokens — warm bistro palette */
+  .client-bg { background-color: #fdf9f3; }
+  .client-card { background-color: #fff; }
+  .client-fg { color: #1c1410; }
+  .client-muted { color: #68625e; }
+  .client-border { border-color: #dbd7d2; }
+  .bg-client-muted { background-color: #fdf9f3; }
+
+  /* Category pill active state — uses foreground (#1c1410) per kit */
+  .cat-pill-active {
+    background-color: #1c1410;
+    color: #fff;
+    border-color: #1c1410;
+  }
+
+  /* Add-to-cart button — tomato red circle per kit */
+  .add-btn-kit {
+    background-color: #d7352d;
+    box-shadow: 0 0 12px #d7352d4d;
+  }
+  .add-btn-kit:hover { transform: scale(1.08); }
+
+  /* Cart FAB — dark pill with red badge per kit */
+  .cart-fab-kit {
+    background-color: #1c1410;
+    box-shadow: 0 16px 32px -10px #1c141066, inset 0 0 0 1px #ffffff14;
+  }
+
+  /* Loyalty card gradient */
+  .loyalty-card-bg {
+    background: #172846;
+    background-image: radial-gradient(ellipse at 90% 10%, #d7352d33 0%, transparent 55%),
+                      radial-gradient(ellipse at 10% 90%, #f8f1e70a 0%, transparent 55%);
+  }
+
+  /* Dashed divider per kit */
+  .dashed-divider {
+    border: none;
+    height: 1px;
+    background: repeating-linear-gradient(
+      to right,
+      #dbd7d2 0,
+      #dbd7d2 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  /* Toast border-left variants */
+  .toast-success-kit { border-left: 4px solid #00873a; }
+  .toast-warn-kit { border-left: 4px solid #b75000; }
+  .toast-err-kit { border-left: 4px solid #d7352d; }
+  .toast-info-kit { border-left: 4px solid #172846; }
+
+  /* Timeline icon states */
+  .tl-done { background-color: #d8efd9; color: #00873a; }
+  .tl-active {
+    background-color: #d7352d;
+    color: #fff;
+    box-shadow: 0 0 0 5px #d7352d2e;
+  }
+  .tl-pending { background-color: #f0ebe1; color: #68625e; }
 
   .step-enter-from-right {
     animation: stepSlideInRight 300ms ease-out forwards;
