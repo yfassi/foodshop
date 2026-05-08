@@ -16,14 +16,15 @@ export const CategorySection = forwardRef<
 
   return (
     <section ref={ref} className="mb-6 scroll-mt-14">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted text-muted-foreground">
+      {/* Section heading — kit: Poppins 800, -0.02em tracking */}
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#fdf9f3] text-[#68625e]">
           <Icon className="h-3.5 w-3.5" />
         </span>
-        <h2 className="text-[15px] font-bold tracking-tight">
+        <h2 className="text-[14px] font-extrabold tracking-[-0.02em] text-[#1c1410]">
           {category.name}
         </h2>
-        <span className="ml-1 font-mono text-[11px] font-semibold text-muted-foreground">
+        <span className="ml-1 font-mono text-[11px] font-semibold text-[#a89e94]">
           {category.products.length}
         </span>
       </div>
@@ -34,7 +35,8 @@ export const CategorySection = forwardRef<
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        /* List rows — no card wrapper, dashed dividers via product-card itself */
+        <div className="flex flex-col">
           {category.products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

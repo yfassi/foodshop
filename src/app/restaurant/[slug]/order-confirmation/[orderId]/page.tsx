@@ -74,71 +74,84 @@ export default async function OrderConfirmationPage({
   });
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-7 md:px-6">
-      {/* Success header */}
+    <div className="mx-auto max-w-lg bg-[#fdf9f3] px-4 py-7 md:px-6">
+      {/* Confirmation header — kit: green disc + Poppins 800 + Caveat accent */}
       <div className="mb-6 flex flex-col items-center text-center">
-        <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-success-soft text-success">
+        <div className="mb-5 grid h-[84px] w-[84px] place-items-center rounded-full bg-[#d8efd9] text-[#008138] shadow-[0_0_0_8px_#d8efd966]">
           <Check className="h-10 w-10" strokeWidth={3} />
         </div>
-        <h2 className="text-2xl font-extrabold tracking-tight">
+        <h2 className="text-[26px] font-extrabold tracking-[-0.03em] text-[#1c1410]">
           {order.customer_info?.name
             ? `Merci ${order.customer_info.name} !`
             : "Commande reçue !"}
         </h2>
-        <p className="mt-1.5 text-[13px] text-muted-foreground">
+        <p className="mt-1.5 text-[13px] text-[#68625e]">
           {isOnSite
             ? "Votre commande est confirmée. Présentez votre numéro au comptoir."
             : "Votre commande est en cours de préparation."}
         </p>
       </div>
 
-      {/* Receipt — paper-style with mono font and dashed dividers */}
-      <div className="mb-4 rounded-2xl border-[1.5px] border-border bg-card p-5 font-mono text-[11px] text-muted-foreground shadow-sm">
-        <div className="mb-3 text-center font-mono text-[20px] font-bold tracking-[0.12em] text-foreground">
+      {/* Receipt — kit: ticket-paper style, Space Mono, dashed dividers, perforated feel */}
+      <div className="mb-4 border border-[#dbd7d2] bg-white p-5 font-mono text-[11px] text-[#68625e] shadow-[0_12px_28px_-14px_#1c141033]">
+        <div className="mb-3 text-center font-mono text-[20px] font-bold tracking-[0.14em] text-[#1c1410]">
           # {orderNumberClean}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {orderTypeLabel && (
-            <div className="flex justify-between">
+            <div className="flex justify-between py-0.5">
               <span>TYPE</span>
-              <span className="text-foreground">{orderTypeLabel.toUpperCase()}</span>
+              <span className="text-[#1c1410]">{orderTypeLabel.toUpperCase()}</span>
             </div>
           )}
-          <div className="flex justify-between">
+          <div className="flex justify-between py-0.5">
             <span>HEURE</span>
-            <span className="text-foreground">{orderTime}</span>
+            <span className="text-[#1c1410]">{orderTime}</span>
           </div>
           {order.payment_source === "wallet" ? (
-            <div className="flex justify-between">
+            <div className="flex justify-between py-0.5">
               <span>PAIEMENT</span>
-              <span className="text-foreground">SOLDE</span>
+              <span className="text-[#1c1410]">SOLDE</span>
             </div>
           ) : isOnSite ? (
-            <div className="flex justify-between">
+            <div className="flex justify-between py-0.5">
               <span>PAIEMENT</span>
-              <span className="text-foreground">SUR PLACE</span>
+              <span className="text-[#1c1410]">SUR PLACE</span>
             </div>
           ) : (
-            <div className="flex justify-between">
+            <div className="flex justify-between py-0.5">
               <span>PAIEMENT</span>
-              <span className="text-foreground">CARTE</span>
+              <span className="text-[#1c1410]">CARTE</span>
             </div>
           )}
         </div>
-        <hr className="my-3 border-t border-dashed border-border" />
-        <div className="space-y-1.5">
+        {/* Dashed divider — kit: repeating gradient */}
+        <div
+          className="my-2.5"
+          style={{
+            height: 1,
+            background: "repeating-linear-gradient(to right, #dbd7d2 0, #dbd7d2 4px, transparent 4px, transparent 8px)",
+          }}
+        />
+        <div className="space-y-1">
           {order.items.map((item, i) => (
-            <div key={i} className="flex justify-between gap-3">
-              <span className="truncate text-foreground">
+            <div key={i} className="flex justify-between gap-3 py-0.5">
+              <span className="truncate text-[#1c1410]">
                 {item.quantity}× {item.product_name.toUpperCase()}
-                {item.is_menu && <span className="ml-1 text-foreground">(MENU)</span>}
+                {item.is_menu && <span className="ml-1">(MENU)</span>}
               </span>
-              <span className="shrink-0 text-foreground">{formatPrice(item.line_total)}</span>
+              <span className="shrink-0 text-[#1c1410]">{formatPrice(item.line_total)}</span>
             </div>
           ))}
         </div>
-        <hr className="my-3 border-t border-dashed border-border" />
-        <div className="flex items-center justify-between text-[14px] font-bold text-foreground">
+        <div
+          className="my-2.5"
+          style={{
+            height: 1,
+            background: "repeating-linear-gradient(to right, #dbd7d2 0, #dbd7d2 4px, transparent 4px, transparent 8px)",
+          }}
+        />
+        <div className="flex items-center justify-between text-[14px] font-bold text-[#1c1410]">
           <span>TOTAL</span>
           <span>{formatPrice(order.total_price)}</span>
         </div>
@@ -155,20 +168,20 @@ export default async function OrderConfirmationPage({
 
       {/* Order notes */}
       {order.customer_info?.notes && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        <div className="mt-4 rounded-[14px] border border-[#dbd7d2] bg-white p-4">
+          <h3 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#68625e]">
             <MessageSquare className="h-3.5 w-3.5" />
             Note pour la cuisine
           </h3>
-          <p className="text-[13px]">{order.customer_info.notes}</p>
+          <p className="text-[13px] text-[#1c1410]">{order.customer_info.notes}</p>
         </div>
       )}
 
-      {/* New order button — outline pill */}
+      {/* New order button — kit: outline pill */}
       <div className="mt-5 text-center">
         <Link
           href={`/restaurant/${slug}/order`}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-border bg-background px-5 text-[13px] font-semibold transition-colors hover:bg-muted"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-[#1c1410] bg-transparent px-5 text-[13px] font-bold uppercase tracking-[0.06em] text-[#1c1410] transition-colors hover:bg-[#1c1410] hover:text-white"
         >
           <ShoppingBag className="h-4 w-4" />
           Nouvelle commande
@@ -177,26 +190,26 @@ export default async function OrderConfirmationPage({
 
       {/* Sign-up CTA for non-logged-in users */}
       {!user && (
-        <div className="mt-5 rounded-2xl border border-border bg-muted/40 p-5 text-center">
-          <div className="mx-auto mb-2.5 grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground">
+        <div className="mt-5 rounded-[14px] border border-[#dbd7d2] bg-white p-5 text-center">
+          <div className="mx-auto mb-2.5 grid h-10 w-10 place-items-center rounded-full bg-[#172846] text-white">
             <UserPlus className="h-5 w-5" />
           </div>
-          <p className="text-[14px] font-bold tracking-tight">
+          <p className="text-[14px] font-bold tracking-[-0.02em] text-[#1c1410]">
             Créez votre compte fidélité
           </p>
-          <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+          <p className="mt-1 text-[12px] leading-snug text-[#68625e]">
             Cumulez des points à chaque commande et débloquez des avantages.
           </p>
           <Link
             href={`/restaurant/${slug}/signup`}
-            className="mt-3.5 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="mt-3.5 inline-flex h-10 items-center justify-center rounded-full bg-[#d7352d] px-5 text-[13px] font-bold uppercase tracking-[0.06em] text-white shadow-[0_0_20px_#d7352d4d] transition-colors hover:bg-[#bf2c25]"
           >
             Créer mon compte
           </Link>
         </div>
       )}
 
-      <p className="mt-5 text-center text-[10px] text-muted-foreground/70">
+      <p className="mt-5 text-center text-[11px] text-[#a89e94]">
         Un reçu a été envoyé par email.
       </p>
     </div>

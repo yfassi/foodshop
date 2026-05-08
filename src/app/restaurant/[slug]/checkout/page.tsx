@@ -140,21 +140,22 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="px-4 py-4 md:px-6">
+    <div className="bg-[#fdf9f3] px-4 py-4 md:px-6">
       <div className="mx-auto max-w-lg">
+        {/* Back button — kit: pill outline */}
         <Link
           href={`/restaurant/${slug}/order`}
-          className="mb-4 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-[#dbd7d2] bg-white px-3 text-[12px] font-medium text-[#68625e] transition-colors hover:border-[#1c1410] hover:text-[#1c1410]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Retour au menu
         </Link>
 
         <div className="mb-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-            Étape finale
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#a89e94]">
+            Etape finale
           </p>
-          <h2 className="mt-1 text-2xl font-extrabold tracking-tight">Paiement</h2>
+          <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.025em] text-[#1c1410]">Paiement</h2>
         </div>
 
         {/* Last-chance suggestions */}

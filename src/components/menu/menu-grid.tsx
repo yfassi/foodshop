@@ -139,23 +139,23 @@ export function MenuGrid({
   return (
     <div>
       {/* Sticky category nav + search */}
-      <nav className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
-        {/* Search bar — pill, gris clair (matches mobile UI kit) */}
+      <nav className="sticky top-0 z-10 border-b border-[#dbd7d2] bg-white/95 backdrop-blur-sm">
+        {/* Search bar — pill, fond crème (kit mobile) */}
         <div className="px-4 pt-3">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
+            <Search className="absolute left-4 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-[#68625e]" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher un plat, une boisson…"
               aria-label="Rechercher un produit"
-              className="h-11 w-full rounded-full border border-transparent bg-muted pl-10 pr-9 text-sm outline-none transition-all placeholder:text-muted-foreground/70 focus:border-border focus:bg-background"
+              className="h-11 w-full rounded-full border-[1.5px] border-[#dbd7d2] bg-[#fdf9f3] pl-10 pr-9 text-[14px] font-medium text-[#1c1410] outline-none transition-all placeholder:text-[#a89e94] focus:border-[#1c1410] focus:bg-white focus:shadow-[0_0_0_3px_#1c14100f]"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
                 aria-label="Effacer la recherche"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#68625e] transition-colors hover:text-[#1c1410]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -163,10 +163,10 @@ export function MenuGrid({
           </div>
         </div>
 
-        {/* Category chips (hidden when searching) */}
+        {/* Category pills (hidden when searching) — kit: pill-shaped, #1c1410 active */}
         {!query && (
           <ScrollArea className="w-full">
-            <div className="flex gap-1.5 px-4 py-3">
+            <div className="flex gap-1.5 px-4 py-2.5">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -174,10 +174,10 @@ export function MenuGrid({
                     if (el) chipRefs.current.set(cat.id, el);
                   }}
                   onClick={() => scrollToCategory(cat.id)}
-                  className={`h-[34px] shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-medium transition-colors ${
+                  className={`h-[34px] shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-medium transition-all ${
                     activeCategoryId === cat.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-muted-foreground/40 active:text-foreground"
+                      ? "border-[#1c1410] bg-[#1c1410] font-semibold text-white"
+                      : "border-[#dbd7d2] bg-white text-[#68625e] hover:border-[#1c1410] hover:text-[#1c1410]"
                   }`}
                 >
                   {cat.name}
@@ -200,11 +200,22 @@ export function MenuGrid({
       {/* Categories + products */}
       <div className="px-4 py-4 md:px-6">
         {filteredCategories.length === 0 && query ? (
-          <div className="flex flex-col items-center py-12">
-            <Search className="mb-2 h-6 w-6 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              Aucun produit trouvé pour &quot;{searchQuery}&quot;
+          <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
+            <div className="grid h-[72px] w-[72px] place-items-center rounded-full border border-[#dbd7d2] bg-[#fdf9f3]">
+              <Search className="h-7 w-7 text-[#a89e94]" />
+            </div>
+            <p className="text-[17px] font-extrabold tracking-tight text-[#1c1410]">
+              Aucun résultat
             </p>
+            <p className="max-w-[24ch] text-[13px] leading-snug text-[#68625e]">
+              Essayez un autre terme de recherche.
+            </p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-1 inline-flex h-9 items-center justify-center rounded-full border-[1.5px] border-[#1c1410] bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#1c1410] transition-colors hover:bg-[#1c1410] hover:text-white"
+            >
+              Effacer
+            </button>
           </div>
         ) : (
           filteredCategories.map((category) => (

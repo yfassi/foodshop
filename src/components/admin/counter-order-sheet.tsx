@@ -39,12 +39,13 @@ export function CounterOrderSheet({
   onClose,
   slug,
 }: CounterOrderSheetProps) {
-  // Customer
+  // Customer — by default we treat walk-ins as anonymous "client comptoir"
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
   const [guestName, setGuestName] = useState("");
   const [labelDirty, setLabelDirty] = useState(false);
   const [orderLabel, setOrderLabel] = useState("");
+  const [nextCounterLabel, setNextCounterLabel] = useState("");
 
   // Cart
   const [items, setItems] = useState<CartItem[]>([]);
@@ -73,10 +74,11 @@ export function CounterOrderSheet({
   useEffect(() => {
     if (!open) {
       setCustomer(null);
-      setIsGuest(false);
+      setIsGuest(true);
       setGuestName("");
       setLabelDirty(false);
       setOrderLabel("");
+      setNextCounterLabel("");
       setItems([]);
       setOrderType("dine_in");
       setPagerNumber("");
@@ -102,23 +104,28 @@ export function CounterOrderSheet({
         if (!types.includes(orderType)) {
           setOrderType(types[0] || "dine_in");
         }
+        if (data.next_counter_label) {
+          setNextCounterLabel(data.next_counter_label as string);
+        }
       })
       .catch(() => toast.error("Impossible de charger le menu"))
       .finally(() => setMenuLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, slug]);
 
-  // Auto-fill order label when customer changes (unless user edited)
+  // Auto-fill order label (unless user edited it manually)
   useEffect(() => {
     if (labelDirty) return;
     if (customer) {
       setOrderLabel(`CPT_${firstName(customer.full_name)}`);
     } else if (isGuest && guestName.trim()) {
       setOrderLabel(`CPT_${firstName(guestName)}`);
+    } else if (isGuest && nextCounterLabel) {
+      setOrderLabel(nextCounterLabel);
     } else {
       setOrderLabel("");
     }
-  }, [customer, isGuest, guestName, labelDirty]);
+  }, [customer, isGuest, guestName, labelDirty, nextCounterLabel]);
 
   const totalPrice = useMemo(
     () => items.reduce((s, i) => s + i.line_total, 0),
@@ -143,8 +150,7 @@ export function CounterOrderSheet({
       ? totalPrice
       : 0;
 
-  const customerReady =
-    !!customer || (isGuest && guestName.trim().length > 0);
+  const customerReady = !!customer || isGuest;
   const labelReady = orderLabel.trim().length > 0;
   const canSubmit =
     customerReady && labelReady && items.length > 0 && !submitting;

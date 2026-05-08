@@ -181,9 +181,22 @@ export async function GET(request: Request) {
       }))
       .filter((cat) => cat.products.length > 0);
 
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: counterRow } = await adminSupabase
+      .from("daily_order_counters")
+      .select("current_count")
+      .eq("restaurant_id", restaurant.id)
+      .eq("order_date", today)
+      .eq("prefix", "CPT")
+      .maybeSingle();
+
+    const nextCount = (counterRow?.current_count ?? 0) + 1;
+    const nextCounterLabel = `CPT_${String(nextCount).padStart(3, "0")}`;
+
     return NextResponse.json({
       menu,
       order_types: (restaurant.order_types as string[]) || ["dine_in", "takeaway"],
+      next_counter_label: nextCounterLabel,
     });
   } catch (err) {
     console.error("Admin menu error:", err);
