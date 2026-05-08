@@ -104,27 +104,32 @@ export function CustomerPicker({
 
   if (isGuest) {
     return (
-      <div className="space-y-2 rounded-xl border border-border bg-card p-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Client non inscrit
-          </p>
-          <button
+      <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <UserX className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Client comptoir</p>
+            <p className="text-xs text-muted-foreground">Non inscrit</p>
+          </div>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => {
               onGuestModeChange(false);
               onGuestNameChange("");
             }}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-xs"
           >
-            Annuler
-          </button>
+            Choisir un client
+          </Button>
         </div>
         <Input
-          autoFocus
           value={guestName}
           onChange={(e) => onGuestNameChange(e.target.value)}
-          placeholder="Prénom du client"
+          placeholder="Prénom (optionnel)"
         />
       </div>
     );
@@ -193,7 +198,7 @@ export function CustomerPicker({
         className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
       >
         <UserX className="h-3.5 w-3.5" />
-        Client non inscrit
+        Client comptoir (non inscrit)
       </button>
     </div>
   );
