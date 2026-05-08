@@ -139,7 +139,7 @@ export function MenuGrid({
   return (
     <div>
       {/* Sticky category nav + search */}
-      <nav className="sticky top-0 z-10 border-b border-[#dbd7d2] bg-white/95 backdrop-blur-sm">
+      <nav className="sticky top-0 z-10 border-b border-[#E6D9C2] bg-[#F5EBDB]/95 backdrop-blur-sm">
         {/* Search bar — pill, fond crème (kit mobile) */}
         <div className="px-4 pt-3">
           <div className="relative">

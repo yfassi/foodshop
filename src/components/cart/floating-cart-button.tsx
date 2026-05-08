@@ -43,7 +43,7 @@ export function FloatingCartButton({
     <>
       <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6">
         {/* Fade gradient beneath the FAB */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white via-white/85 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#F5EBDB] via-[#F5EBDB]/85 to-transparent" />
         {/* Cart FAB — kit: dark pill (#1c1410) + red circle count badge + mono total */}
         <button
           onClick={() => setOpen(true)}
