@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useMemo, useState } from "react";
 import type {
   CategoryWithProducts,
   ProductWithModifiers,
   CartItem,
 } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
-import { ImageIcon } from "lucide-react";
 import { ModifierPicker } from "./modifier-picker";
 
 interface MenuPickerProps {
@@ -19,6 +17,15 @@ interface MenuPickerProps {
 export function MenuPicker({ categories, onAddItem }: MenuPickerProps) {
   const [selectedProduct, setSelectedProduct] =
     useState<ProductWithModifiers | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string>(
+    categories[0]?.id ?? ""
+  );
+
+  const activeCategory = useMemo(
+    () =>
+      categories.find((c) => c.id === activeCategoryId) ?? categories[0] ?? null,
+    [categories, activeCategoryId]
+  );
 
   if (categories.length === 0) {
     return (
@@ -30,64 +37,63 @@ export function MenuPicker({ categories, onAddItem }: MenuPickerProps) {
 
   return (
     <>
-      <div className="space-y-4">
-        {categories.map((cat) => (
-          <section key={cat.id}>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {/* Horizontal scrollable categories */}
+      <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
+        {categories.map((cat) => {
+          const isActive = activeCategory?.id === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setActiveCategoryId(cat.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                isActive
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
               {cat.name}
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {cat.products.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    if (p.modifier_groups.length === 0 && p.menu_supplement == null) {
-                      // No options to pick — add directly
-                      onAddItem({
-                        id: crypto.randomUUID(),
-                        product_id: p.id,
-                        product_name: p.name,
-                        base_price: p.price,
-                        quantity: 1,
-                        modifiers: [],
-                        line_total: p.price,
-                        is_menu: false,
-                        menu_supplement: 0,
-                      });
-                    } else {
-                      setSelectedProduct(p);
-                    }
-                  }}
-                  className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-foreground/40"
-                >
-                  <div className="relative h-24 w-full bg-muted">
-                    {p.image_url ? (
-                      <Image
-                        src={p.image_url}
-                        alt={p.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 50vw, 200px"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2">
-                    <p className="truncate text-xs font-semibold">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {formatPrice(p.price)}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Big article buttons — no images, name in large text */}
+      {activeCategory && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {activeCategory.products.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                if (p.modifier_groups.length === 0 && p.menu_supplement == null) {
+                  onAddItem({
+                    id: crypto.randomUUID(),
+                    product_id: p.id,
+                    product_name: p.name,
+                    base_price: p.price,
+                    quantity: 1,
+                    modifiers: [],
+                    line_total: p.price,
+                    is_menu: false,
+                    menu_supplement: 0,
+                  });
+                } else {
+                  setSelectedProduct(p);
+                }
+              }}
+              className="flex min-h-[88px] flex-col items-start justify-between gap-1 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-foreground/40 active:bg-muted"
+            >
+              <p className="line-clamp-2 text-base font-bold leading-tight">
+                {p.name}
+              </p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {formatPrice(p.price)}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
 
       {selectedProduct && (
         <ModifierPicker
