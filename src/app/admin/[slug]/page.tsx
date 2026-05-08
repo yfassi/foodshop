@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
+import { CounterOrderSheet } from "@/components/admin/counter-order-sheet";
 import {
   PartyPopper,
   ArrowRight,
@@ -17,6 +18,7 @@ import {
   BellOff,
   Inbox,
   ClipboardList,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
@@ -41,6 +43,7 @@ export default function AdminDashboard() {
   const { playAlert } = useNewOrderAlert();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
     usePushSubscription();
+  const [counterSheetOpen, setCounterSheetOpen] = useState(false);
 
   const handlePushToggle = async () => {
     if (!restaurantId) return;
@@ -226,24 +229,35 @@ export default function AdminDashboard() {
         }
         subtitle={subtitle}
         actions={
-          pushSupported ? (
-            <button
-              onClick={handlePushToggle}
-              disabled={pushSubscribed || pushLoading}
-              className={cn(
-                "flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
-                pushSubscribed
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              )}
-              title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
-            >
-              {pushSubscribed ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">
-                {pushSubscribed ? "Notifications actives" : "Activer push"}
-              </span>
-            </button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {view === "comptoir" && (
+              <button
+                onClick={() => setCounterSheetOpen(true)}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nouvelle commande
+              </button>
+            )}
+            {pushSupported && (
+              <button
+                onClick={handlePushToggle}
+                disabled={pushSubscribed || pushLoading}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  pushSubscribed
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                )}
+                title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
+              >
+                {pushSubscribed ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">
+                  {pushSubscribed ? "Notifications actives" : "Activer push"}
+                </span>
+              </button>
+            )}
+          </div>
         }
       >
         {/* Service-mode toggle — primary tool during service. */}
@@ -269,6 +283,12 @@ export default function AdminDashboard() {
           })}
         </div>
       </AdminPageHeader>
+
+      <CounterOrderSheet
+        open={counterSheetOpen}
+        onClose={() => setCounterSheetOpen(false)}
+        slug={slug}
+      />
 
       {activeOrders.length === 0 && !showWelcome ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">

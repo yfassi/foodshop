@@ -273,6 +273,7 @@ export interface Order {
   delivered_at: string | null;
   delivery_tip: number;
   delivery_distance_m: number | null;
+  pager_number: string | null;
   created_at: string;
   updated_at: string;
 }
