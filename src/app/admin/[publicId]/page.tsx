@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
+import { CounterOrderSheet } from "@/components/admin/counter-order-sheet";
 import {
   PartyPopper,
   ArrowRight,
@@ -21,6 +22,7 @@ import {
   VolumeX,
   Inbox,
   ClipboardList,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
@@ -55,6 +57,7 @@ export default function AdminDashboard() {
   const hasInitializedRef = useRef(false);
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
     usePushSubscription();
+  const [counterSheetOpen, setCounterSheetOpen] = useState(false);
 
   const handlePushToggle = async () => {
     if (!restaurantId) return;
@@ -298,6 +301,15 @@ export default function AdminDashboard() {
         subtitle={subtitle}
         actions={
           <div className="flex items-center gap-1">
+            {view === "comptoir" && (
+              <button
+                onClick={() => setCounterSheetOpen(true)}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Nouvelle commande</span>
+              </button>
+            )}
             <a
               href={`/kitchen/${publicId}`}
               target="_blank"
@@ -377,6 +389,12 @@ export default function AdminDashboard() {
           })}
         </div>
       </AdminPageHeader>
+
+      <CounterOrderSheet
+        open={counterSheetOpen}
+        onClose={() => setCounterSheetOpen(false)}
+        publicId={publicId}
+      />
 
       {activeOrders.length === 0 && !showWelcome ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
