@@ -15,6 +15,8 @@ CREATE TABLE public.restaurants (
   logo_url TEXT,
   address TEXT,
   phone TEXT,
+  email TEXT,
+  social_links JSONB NOT NULL DEFAULT '{}'::jsonb,
   opening_hours JSONB DEFAULT '{
     "monday": {"open": "11:00", "close": "22:00"},
     "tuesday": {"open": "11:00", "close": "22:00"},
