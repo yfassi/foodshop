@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
+import { useSoundEnabled } from "@/hooks/use-sound-enabled";
 import { ChefHat, Loader2, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,7 +17,7 @@ export default function KitchenDisplayPage() {
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
-  const [muted, setMuted] = useState(false);
+  const { enabled: soundEnabled, toggle: toggleSound } = useSoundEnabled();
   const { playAlert } = useNewOrderAlert();
   const seenOrderIds = useRef<Set<string>>(new Set());
 
@@ -79,7 +80,7 @@ export default function KitchenDisplayPage() {
           setOrders((prev) =>
             prev.some((o) => o.id === newOrder.id) ? prev : [...prev, newOrder],
           );
-          if (!seenOrderIds.current.has(newOrder.id) && !muted) {
+          if (!seenOrderIds.current.has(newOrder.id) && soundEnabled) {
             playAlert();
           }
           seenOrderIds.current.add(newOrder.id);
@@ -110,7 +111,7 @@ export default function KitchenDisplayPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, playAlert, muted]);
+  }, [restaurantId, playAlert, soundEnabled]);
 
   const updateStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const res = await fetch("/api/orders/update-status", {
@@ -154,11 +155,11 @@ export default function KitchenDisplayPage() {
             <p className="text-2xl font-bold text-amber-400">{preparingOrders.length}</p>
           </div>
           <button
-            onClick={() => setMuted((m) => !m)}
+            onClick={toggleSound}
             className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-100"
-            aria-label={muted ? "Activer le son" : "Couper le son"}
+            aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
           >
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
         </div>
       </header>

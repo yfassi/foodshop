@@ -8,9 +8,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
-import { PartyPopper, ArrowRight, Monitor, ChefHat, Bell, BellOff, ExternalLink, Tv } from "lucide-react";
+import { PartyPopper, ArrowRight, Monitor, ChefHat, Bell, BellOff, ExternalLink, Tv, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
+import { useSoundEnabled } from "@/hooks/use-sound-enabled";
 import { toast } from "sonner";
 import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
 
@@ -28,6 +29,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const { playAlert } = useNewOrderAlert();
+  const { enabled: soundEnabled, toggle: toggleSound } = useSoundEnabled();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
     usePushSubscription();
 
@@ -113,7 +115,7 @@ export default function AdminDashboard() {
         (payload) => {
           const newOrder = payload.new as Order;
           setOrders((prev) => [newOrder, ...prev]);
-          playAlert();
+          if (soundEnabled) playAlert();
         }
       )
       .on(
@@ -139,7 +141,7 @@ export default function AdminDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, playAlert]);
+  }, [restaurantId, playAlert, soundEnabled]);
 
   const paidOrders = orders.filter((o) => o.paid);
   const unpaidOrders = orders.filter((o) => !o.paid && o.payment_method === "on_site");
@@ -219,6 +221,23 @@ export default function AdminDashboard() {
             <span className="hidden sm:inline">Écran client</span>
             <ExternalLink className="h-3 w-3" />
           </a>
+
+          <button
+            onClick={toggleSound}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+              soundEnabled
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+            title={soundEnabled ? "Couper le son des nouvelles commandes" : "Activer le son des nouvelles commandes"}
+            aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
+          </button>
 
           {pushSupported && (
             <button

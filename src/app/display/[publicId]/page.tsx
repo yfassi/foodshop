@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Order } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
+import { speakFr } from "@/lib/speech";
 import { Loader2, Volume2, VolumeX, Maximize2 } from "lucide-react";
 
 export default function CustomerDisplayPage() {
@@ -102,13 +103,17 @@ export default function CustomerDisplayPage() {
             updated.paid &&
             (updated.status === "preparing" || updated.status === "ready");
 
-          // Play sound when an order moves to "ready" for the first time
+          // Play sound + announce order number when an order moves to "ready" for the first time
           if (
             updated.status === "ready" &&
             !knownReadyIds.current.has(updated.id) &&
             !muted
           ) {
             playAlert();
+            const number =
+              updated.display_order_number || String(updated.order_number);
+            // Small delay so the chime doesn't overlap with the voice
+            setTimeout(() => speakFr(`Commande ${number}, prête`), 600);
           }
           if (updated.status === "ready") {
             knownReadyIds.current.add(updated.id);
