@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripe } from "@/lib/stripe/client";
+import { getStripeForDemo } from "@/lib/stripe/demo";
 import type { Order, Driver } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
-import { Check, UserPlus, ShoppingBag, MessageSquare } from "lucide-react";
+import { Check, UserPlus, ShoppingBag, MessageSquare, FlaskConical } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
@@ -27,7 +27,8 @@ export default async function OrderConfirmationPage({
   // If order is not yet marked as paid but has a Stripe session, verify payment
   if (!order.paid && order.stripe_session_id) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+      const stripeClient = getStripeForDemo(order.is_demo);
+      const session = await stripeClient.checkout.sessions.retrieve(order.stripe_session_id);
       if (session.payment_status === "paid") {
         const adminSupabase = createAdminClient();
         await adminSupabase
@@ -75,6 +76,12 @@ export default async function OrderConfirmationPage({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-7 md:px-6">
+      {order.is_demo && (
+        <div className="mb-4 flex items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+          <FlaskConical className="h-3.5 w-3.5" />
+          Mode démo — paiement Stripe test
+        </div>
+      )}
       {/* Success header */}
       <div className="mb-6 flex flex-col items-center text-center">
         <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-success-soft text-success">

@@ -261,6 +261,7 @@ export interface Order {
   stripe_session_id: string | null;
   stripe_payment_intent_id: string | null;
   paid: boolean;
+  is_demo: boolean;
   delivery_status: DeliveryStatus | null;
   delivery_address: DeliveryAddress | null;
   delivery_fee: number | null;

@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/format";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, FlaskConical, type LucideIcon } from "lucide-react";
 import { DeliveryAddressPicker } from "./delivery-address-picker";
 
 const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
@@ -27,6 +27,7 @@ export function CheckoutForm({
   walletBalance,
   loyaltyEnabled,
   restaurantCoords,
+  isDemo = false,
 }: {
   publicId: string;
   stripeConnected: boolean;
@@ -36,6 +37,7 @@ export function CheckoutForm({
   walletBalance: number;
   loyaltyEnabled?: boolean;
   restaurantCoords?: { lat: number; lng: number } | null;
+  isDemo?: boolean;
 }) {
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -430,6 +432,12 @@ export function CheckoutForm({
       {isStripeFlow && (
         <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
           Paiement sécurisé · Stripe
+        </p>
+      )}
+      {isDemo && isStripeFlow && (
+        <p className="mt-1 inline-flex w-full items-center justify-center gap-1 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-amber-700">
+          <FlaskConical className="h-3 w-3" />
+          Mode démo · carte test 4242 4242 4242 4242
         </p>
       )}
     </form>
