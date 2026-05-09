@@ -47,15 +47,15 @@ export default function DriverLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Code invalide");
-      const drivers: { restaurants?: { slug: string } | null }[] =
+      const drivers: { restaurants?: { public_id: string } | null }[] =
         data.drivers || [];
       if (drivers.length === 0) {
         toast.error("Aucun restaurant trouvé pour ce numéro");
         return;
       }
-      const firstSlug = drivers[0]?.restaurants?.slug;
-      if (drivers.length === 1 && firstSlug) {
-        router.push(`/driver/${firstSlug}`);
+      const firstPublicId = drivers[0]?.restaurants?.public_id;
+      if (drivers.length === 1 && firstPublicId) {
+        router.push(`/driver/${firstPublicId}`);
       } else {
         router.push(`/driver`);
       }

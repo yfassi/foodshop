@@ -17,12 +17,12 @@ import type { WalletTopupTier } from "@/lib/types";
 const DEFAULT_AMOUNTS = [500, 1000, 2000, 5000]; // in cents
 
 export function TopupDrawer({
-  slug,
+  publicId,
   open,
   onClose,
   tiers,
 }: {
-  slug: string;
+  publicId: string;
   open: boolean;
   onClose: () => void;
   tiers?: WalletTopupTier[];
@@ -48,7 +48,7 @@ export function TopupDrawer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           amount: selectedAmount,
           ...(bonus > 0 && { bonus }),
         }),

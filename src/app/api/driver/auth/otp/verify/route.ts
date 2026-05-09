@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const { data: drivers } = await admin
       .from("drivers")
       .select(
-        "id, restaurant_id, is_active, restaurants:restaurant_id(slug, name)"
+        "id, restaurant_id, is_active, restaurants:restaurant_id(public_id, name)"
       )
       .eq("user_id", data.user.id)
       .eq("is_active", true);

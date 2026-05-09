@@ -31,6 +31,7 @@ interface Stats {
     id: string;
     name: string;
     slug: string;
+    public_id: string;
     created_at: string;
     is_active: boolean;
   }[];

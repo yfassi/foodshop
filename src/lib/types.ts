@@ -115,6 +115,7 @@ export interface RestaurantAdmin {
 
 export interface Restaurant {
   id: string;
+  public_id: string;
   name: string;
   slug: string;
   description: string | null;
@@ -223,6 +224,7 @@ export type OrderView = "comptoir" | "cuisine";
 export interface OrderCustomerInfo {
   name?: string;
   phone?: string;
+  email?: string;
   notes?: string;
 }
 
@@ -260,6 +262,7 @@ export interface Order {
   stripe_session_id: string | null;
   stripe_payment_intent_id: string | null;
   paid: boolean;
+  is_demo: boolean;
   delivery_status: DeliveryStatus | null;
   delivery_address: DeliveryAddress | null;
   delivery_fee: number | null;

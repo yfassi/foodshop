@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe/client";
+import { stripeLive, stripeTest } from "@/lib/stripe/client";
+import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
+import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
 import type {
@@ -22,12 +24,13 @@ interface CheckoutItem {
 }
 
 interface CheckoutBody {
-  restaurant_slug: string;
+  restaurant_public_id: string;
   items: CheckoutItem[];
   order_type?: "dine_in" | "takeaway" | "delivery";
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
   customer_name?: string;
+  customer_email?: string;
   order_notes?: string;
   queue_session_id?: string;
   delivery_address?: DeliveryAddress;
@@ -35,7 +38,7 @@ interface CheckoutBody {
 
 async function notifyAdmins(
   restaurantId: string,
-  restaurantSlug: string,
+  restaurantPublicId: string,
   displayOrderNumber: string,
   totalPrice: number
 ) {
@@ -57,7 +60,7 @@ async function notifyAdmins(
           {
             title: "Nouvelle commande",
             body: `Commande ${displayOrderNumber} — ${formatPrice(totalPrice)}`,
-            url: `/admin/${restaurantSlug}`,
+            url: `/admin/${restaurantPublicId}`,
             tag: "new-order",
           }
         );
@@ -77,19 +80,20 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CheckoutBody;
     const {
-      restaurant_slug,
+      restaurant_public_id,
       items,
       order_type,
       payment_method,
       payment_source = "direct",
       customer_name,
+      customer_email,
       order_notes,
       queue_session_id,
       delivery_address,
     } = body;
 
     // Validate input
-    if (!restaurant_slug || !items?.length) {
+    if (!restaurant_public_id || !items?.length) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
         { status: 400 }
@@ -111,7 +115,45 @@ export async function POST(request: Request) {
       );
     }
 
+    if (customer_email) {
+      const trimmed = customer_email.trim();
+      if (trimmed.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return NextResponse.json(
+          { error: "Email invalide" },
+          { status: 400 }
+        );
+      }
+    }
+
     const supabase = createAdminClient();
+
+    // Resolve authenticated user early so we know if it's a demo customer
+    // (impacts which Stripe instance + transfer_data and the is_demo flag)
+    let customerUserId: string | null = null;
+    let customerEmail: string | null = null;
+    try {
+      const serverSupabase = await createClient();
+      const { data: { user } } = await serverSupabase.auth.getUser();
+      if (user) {
+        customerUserId = user.id;
+        customerEmail = user.email ?? null;
+      }
+    } catch {
+      // Not logged in
+    }
+
+    if (payment_source === "wallet" && !customerUserId) {
+      return NextResponse.json(
+        { error: "Vous devez etre connecte pour payer avec le solde" },
+        { status: 401 }
+      );
+    }
+
+    const isDemo = await isDemoCustomerEmail(customerEmail);
+    if (isDemo && !stripeTest) {
+      return NextResponse.json({ error: MISSING_TEST_KEYS_ERROR }, { status: 500 });
+    }
+    const stripeClient = isDemo ? stripeTest! : stripeLive;
 
     // Fetch restaurant
     const { data: restaurant } = await supabase
@@ -119,7 +161,7 @@ export async function POST(request: Request) {
       .select(
         "id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
       )
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant) {
@@ -184,7 +226,12 @@ export async function POST(request: Request) {
       // Mark ticket as completed after successful order placement (done later)
     }
 
-    if (payment_method === "online" && payment_source === "direct" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
+    if (
+      payment_method === "online" &&
+      payment_source === "direct" &&
+      !isDemo &&
+      (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)
+    ) {
       return NextResponse.json(
         { error: "Le paiement en ligne n'est pas disponible pour ce restaurant" },
         { status: 400 }
@@ -245,29 +292,6 @@ export async function POST(request: Request) {
           ? String(delivery_address.floor_notes).slice(0, 300)
           : undefined,
       };
-    }
-
-    // Get authenticated user if any
-    let customerUserId: string | null = null;
-    if (payment_source === "wallet") {
-      const serverSupabase = await createClient();
-      const { data: { user } } = await serverSupabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json(
-          { error: "Vous devez etre connecte pour payer avec le solde" },
-          { status: 401 }
-        );
-      }
-      customerUserId = user.id;
-    } else {
-      // Check if user is logged in (optional for direct payments)
-      try {
-        const serverSupabase = await createClient();
-        const { data: { user } } = await serverSupabase.auth.getUser();
-        if (user) customerUserId = user.id;
-      } catch {
-        // Not logged in, that's fine
-      }
     }
 
     // Fetch and validate products + modifiers server-side
@@ -419,14 +443,23 @@ export async function POST(request: Request) {
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
     if (order_notes) customerInfo.notes = order_notes;
+    const resolvedEmail = (customer_email?.trim() || customerEmail || "").toLowerCase();
+    if (resolvedEmail) customerInfo.email = resolvedEmail;
 
     // Generate display order number
     const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
-    const { data: orderNumberResult } = await supabase.rpc(
+    const { data: orderNumberResult, error: orderNumberError } = await supabase.rpc(
       "next_daily_order_number",
       { p_restaurant_id: restaurant.id, p_prefix: orderPrefix }
     );
-    const displayOrderNumber = orderNumberResult || `${orderPrefix}-000`;
+    if (orderNumberError || !orderNumberResult) {
+      console.error("[checkout] order numbering failed:", orderNumberError);
+      return NextResponse.json(
+        { error: "Erreur de numérotation des commandes" },
+        { status: 500 }
+      );
+    }
+    const displayOrderNumber = orderNumberResult;
 
     // Handle wallet payment (full or partial)
     if (payment_source === "wallet" && customerUserId) {
@@ -465,6 +498,7 @@ export async function POST(request: Request) {
           display_order_number: displayOrderNumber,
           paid: isFullWallet,
           wallet_amount_used: walletAmount,
+          is_demo: isDemo,
           ...(resolvedOrderType === "delivery" && {
             delivery_status: "pending",
             delivery_address: sanitizedDeliveryAddress,
@@ -513,12 +547,14 @@ export async function POST(request: Request) {
             .eq("customer_session_id", queue_session_id)
             .eq("status", "active");
         }
-        notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+        notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
+        // Fire-and-forget customer confirmation email (idempotent)
+        void sendOrderConfirmationEmail({ orderId: order.id });
         return NextResponse.json({ order_id: order.id });
       }
 
       // Partial wallet -> Stripe for the remainder
-      if (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
+      if (!isDemo && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
         // Rollback if Stripe not available
         await supabase
           .from("orders")
@@ -532,7 +568,7 @@ export async function POST(request: Request) {
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await stripeClient.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         locale: "fr",
@@ -549,19 +585,24 @@ export async function POST(request: Request) {
             quantity: 1,
           },
         ],
-        payment_intent_data: {
-          transfer_data: {
-            destination: restaurant.stripe_account_id!,
-          },
-        },
+        ...(isDemo
+          ? {}
+          : {
+              payment_intent_data: {
+                transfer_data: {
+                  destination: restaurant.stripe_account_id!,
+                },
+              },
+            }),
         metadata: {
           order_id: order.id,
           restaurant_id: restaurant.id,
           type: "order",
+          ...(isDemo && { is_demo: "true" }),
           ...(queue_session_id && { queue_session_id }),
         },
-        success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-        cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+        success_url: `${appUrl}/restaurant/${restaurant_public_id}/order-confirmation/${order.id}`,
+        cancel_url: `${appUrl}/restaurant/${restaurant_public_id}/checkout`,
       });
 
       await supabase
@@ -587,6 +628,7 @@ export async function POST(request: Request) {
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),
         paid: false,
+        is_demo: isDemo,
         ...(resolvedOrderType === "delivery" && {
           delivery_status: "pending",
           delivery_address: sanitizedDeliveryAddress,
@@ -617,7 +659,7 @@ export async function POST(request: Request) {
           .eq("customer_session_id", queue_session_id)
           .eq("status", "active");
       }
-      notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+      notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
       return NextResponse.json({ order_id: order.id });
     }
 
@@ -652,24 +694,29 @@ export async function POST(request: Request) {
       });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
       line_items: stripeLineItems,
-      payment_intent_data: {
-        transfer_data: {
-          destination: restaurant.stripe_account_id!,
-        },
-      },
+      ...(isDemo
+        ? {}
+        : {
+            payment_intent_data: {
+              transfer_data: {
+                destination: restaurant.stripe_account_id!,
+              },
+            },
+          }),
       metadata: {
         order_id: order.id,
         restaurant_id: restaurant.id,
         type: "order",
+        ...(isDemo && { is_demo: "true" }),
         ...(queue_session_id && { queue_session_id }),
       },
-      success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-      cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+      success_url: `${appUrl}/restaurant/${restaurant_public_id}/order-confirmation/${order.id}`,
+      cancel_url: `${appUrl}/restaurant/${restaurant_public_id}/checkout`,
     });
 
     // Update order with stripe session id

@@ -21,7 +21,7 @@ function computeLineTotal(
 
 interface CartState {
   items: CartItem[];
-  restaurantSlug: string | null;
+  restaurantPublicId: string | null;
   lastAddedAt: number;
 
   addItem: (item: {
@@ -51,7 +51,7 @@ interface CartState {
   }) => void;
   clearDelivery: () => void;
   clearCart: () => void;
-  setRestaurantSlug: (slug: string) => void;
+  setRestaurantPublicId: (publicId: string) => void;
   totalPrice: () => number;
   totalItems: () => number;
 }
@@ -60,7 +60,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      restaurantSlug: null,
+      restaurantPublicId: null,
       lastAddedAt: 0,
       orderType: null,
       deliveryAddress: null,
@@ -154,13 +154,13 @@ export const useCartStore = create<CartState>()(
           deliveryDistanceM: null,
         }),
 
-      setRestaurantSlug: (slug) => {
-        const current = get().restaurantSlug;
-        if (current && current !== slug) {
+      setRestaurantPublicId: (publicId) => {
+        const current = get().restaurantPublicId;
+        if (current && current !== publicId) {
           // Different restaurant, clear cart and order type
           set({
             items: [],
-            restaurantSlug: slug,
+            restaurantPublicId: publicId,
             orderType: null,
             deliveryAddress: null,
             deliveryFee: 0,
@@ -169,7 +169,7 @@ export const useCartStore = create<CartState>()(
             deliveryDistanceM: null,
           });
         } else {
-          set({ restaurantSlug: slug });
+          set({ restaurantPublicId: publicId });
         }
       },
 

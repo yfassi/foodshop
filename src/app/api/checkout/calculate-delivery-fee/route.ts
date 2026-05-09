@@ -5,8 +5,8 @@ import type { DeliveryConfig } from "@/lib/types";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, lat, lng } = await request.json();
-    if (!restaurant_slug || typeof lat !== "number" || typeof lng !== "number") {
+    const { restaurant_public_id, lat, lng } = await request.json();
+    if (!restaurant_public_id || typeof lat !== "number" || typeof lng !== "number") {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       .select(
         "id, delivery_addon_active, delivery_enabled, delivery_config, order_types"
       )
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant) {

@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const restaurantSlug = searchParams.get("restaurant_slug");
+    const restaurantPublicId = searchParams.get("restaurant_public_id");
 
-    if (!restaurantSlug) {
+    if (!restaurantPublicId) {
       return NextResponse.json(
-        { error: "restaurant_slug requis" },
+        { error: "restaurant_public_id requis" },
         { status: 400 }
       );
     }
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id")
-      .eq("slug", restaurantSlug)
+      .eq("public_id", restaurantPublicId)
       .single();
 
     if (!restaurant) {

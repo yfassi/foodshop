@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export function CompleteProfileForm({ slug }: { slug: string }) {
+export function CompleteProfileForm({ publicId }: { publicId: string }) {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,7 +50,7 @@ export function CompleteProfileForm({ slug }: { slug: string }) {
   return (
     <div className="px-4 py-8">
       <Link
-        href={`/restaurant/${slug}/order`}
+        href={`/restaurant/${publicId}/order`}
         className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

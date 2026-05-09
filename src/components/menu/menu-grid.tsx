@@ -17,7 +17,7 @@ export function MenuGrid({
   categories,
   isAcceptingOrders,
   openingHours,
-  slug,
+  publicId,
   restaurantName,
   logoUrl,
   orderTypes,
@@ -27,14 +27,14 @@ export function MenuGrid({
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
   openingHours: Record<string, unknown> | null;
-  slug: string;
+  publicId: string;
   restaurantName: string;
   logoUrl: string | null;
   orderTypes: OrderType[];
   loyaltyEnabled: boolean;
   queueEnabled: boolean;
 }) {
-  const setRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
+  const setRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
   const orderType = useCartStore((s) => s.orderType);
   const [hydrated, setHydrated] = useState(false);
   const [isOpen, setIsOpen] = useState(() => isCurrentlyOpen(openingHours));
@@ -55,9 +55,9 @@ export function MenuGrid({
   const isScrollingTo = useRef(false);
 
   useEffect(() => {
-    setRestaurantSlug(slug);
+    setRestaurantPublicId(publicId);
     setHydrated(true);
-  }, [slug, setRestaurantSlug]);
+  }, [publicId, setRestaurantPublicId]);
 
   // IntersectionObserver to track which category section is in view
   useEffect(() => {
@@ -220,7 +220,7 @@ export function MenuGrid({
       </div>
 
       {/* Floating cart button */}
-      <FloatingCartButton slug={slug} disabled={!isAcceptingOrders || !isOpen} categories={categories} queueEnabled={queueEnabled} />
+      <FloatingCartButton publicId={publicId} disabled={!isAcceptingOrders || !isOpen} categories={categories} queueEnabled={queueEnabled} />
 
       {/* Featured product modal */}
       {selectedProduct && (
@@ -238,7 +238,7 @@ export function MenuGrid({
         logoUrl={logoUrl}
         orderTypes={orderTypes}
         loyaltyEnabled={loyaltyEnabled}
-        slug={slug}
+        publicId={publicId}
       />
     </div>
   );

@@ -50,7 +50,7 @@ interface WelcomeModalProps {
   logoUrl: string | null;
   orderTypes: OrderType[];
   loyaltyEnabled: boolean;
-  slug: string;
+  publicId: string;
 }
 
 export function WelcomeModal({
@@ -59,7 +59,7 @@ export function WelcomeModal({
   logoUrl,
   orderTypes,
   loyaltyEnabled,
-  slug,
+  publicId,
 }: WelcomeModalProps) {
   const setOrderType = useCartStore((s) => s.setOrderType);
   const showSelector = orderTypes.length > 1;
@@ -161,7 +161,7 @@ export function WelcomeModal({
               </div>
 
               <div className="flex gap-2.5">
-                <Link href={`/restaurant/${slug}/login`} className="flex-1">
+                <Link href={`/restaurant/${publicId}/login`} className="flex-1">
                   <Button
                     className="h-12 w-full gap-2 rounded-xl font-semibold"
                     size="lg"
@@ -170,7 +170,7 @@ export function WelcomeModal({
                     Se connecter
                   </Button>
                 </Link>
-                <Link href={`/restaurant/${slug}/signup`} className="flex-1">
+                <Link href={`/restaurant/${publicId}/signup`} className="flex-1">
                   <Button
                     variant="outline"
                     className="h-12 w-full gap-2 rounded-xl font-semibold"

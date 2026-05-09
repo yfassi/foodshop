@@ -15,17 +15,27 @@ export default async function DriverHomePage() {
   const admin = createAdminClient();
   const { data: drivers } = await admin
     .from("drivers")
-    .select("id, is_active, restaurants:restaurant_id(slug, name)")
+    .select("id, is_active, restaurants:restaurant_id(public_id, name)")
     .eq("user_id", user.id)
     .eq("is_active", true);
 
-  type DriverRow = { id: string; restaurants: { slug: string; name: string } | { slug: string; name: string }[] | null };
-  const list: { id: string; slug: string; name: string }[] = ((drivers || []) as unknown as DriverRow[])
+  type DriverRow = {
+    id: string;
+    restaurants:
+      | { public_id: string; name: string }
+      | { public_id: string; name: string }[]
+      | null;
+  };
+  const list: { id: string; public_id: string; name: string }[] = (
+    (drivers || []) as unknown as DriverRow[]
+  )
     .map((d) => {
       const r = Array.isArray(d.restaurants) ? d.restaurants[0] : d.restaurants;
-      return r ? { id: d.id, slug: r.slug, name: r.name } : null;
+      return r ? { id: d.id, public_id: r.public_id, name: r.name } : null;
     })
-    .filter((x): x is { id: string; slug: string; name: string } => x !== null);
+    .filter(
+      (x): x is { id: string; public_id: string; name: string } => x !== null,
+    );
 
   if (list.length === 0) {
     return (
@@ -46,7 +56,7 @@ export default async function DriverHomePage() {
   }
 
   if (list.length === 1) {
-    redirect(`/driver/${list[0].slug}`);
+    redirect(`/driver/${list[0].public_id}`);
   }
 
   return (
@@ -67,7 +77,7 @@ export default async function DriverHomePage() {
         {list.map((d) => (
           <Link
             key={d.id}
-            href={`/driver/${d.slug}`}
+            href={`/driver/${d.public_id}`}
             className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
           >
             <span className="text-sm font-semibold">{d.name}</span>

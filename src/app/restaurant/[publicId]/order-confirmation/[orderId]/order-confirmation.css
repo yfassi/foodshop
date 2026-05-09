@@ -1,0 +1,572 @@
+/* ════════════════════════════════════════════════════════════════════
+   TAAPR · Order confirmation — Service compris
+   Identité landing v4 : paprika + crème + bleu nuit.
+   ════════════════════════════════════════════════════════════════════ */
+
+.oc-root {
+  --cream:        #F4ECDB;
+  --cream-deep:   #EBDFC4;
+  --paprika:      #E64A19;
+  --paprika-2:    #FF6A2C;
+  --ink:          #1A1410;
+  --ink-soft:     #1A141099;
+  --ink-mute:     #1A141066;
+  --navy:         #1E2A4A;
+  --mustard:      #F2B33D;
+  --white:        #FFFFFF;
+
+  --serif:  var(--font-fraunces), "Times New Roman", serif;
+  --sans:   var(--font-familjen), system-ui, sans-serif;
+  --script: var(--font-caveat), cursive;
+  --mono:   var(--font-dm-mono), ui-monospace, monospace;
+
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+  padding: 32px 20px 56px;
+}
+
+.oc-wrap {
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ──── Header / wordmark ──── */
+.oc-header { text-align: center; padding-top: 8px; }
+.oc-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px; height: 76px;
+  border-radius: 50%;
+  background: var(--paprika);
+  color: var(--cream);
+  margin-bottom: 18px;
+  box-shadow: 0 12px 30px -10px rgba(230, 74, 25, 0.55);
+}
+.oc-script {
+  font-family: var(--script);
+  font-size: 28px;
+  color: var(--paprika);
+  transform: rotate(-2deg);
+  display: inline-block;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.oc-title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(36px, 8vw, 48px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  margin: 0 0 10px;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.oc-title em { font-style: italic; color: var(--paprika); }
+.oc-sub {
+  font-family: var(--sans);
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ──── Receipt — paper-style ──── */
+.oc-receipt {
+  position: relative;
+  background: var(--white);
+  padding: 28px 24px 24px;
+  font-family: var(--mono);
+  color: var(--ink-soft);
+  box-shadow: 0 18px 48px -22px rgba(26, 20, 16, 0.22),
+              0 1px 0 rgba(26, 20, 16, 0.04);
+  border-radius: 4px;
+  /* zigzag top + bottom edges */
+  --zig: 10px;
+  -webkit-mask:
+    radial-gradient(circle at top, transparent var(--zig), #000 calc(var(--zig) + 0.5px)) 50% 0   / calc(var(--zig) * 2) calc(var(--zig)) repeat-x,
+    radial-gradient(circle at bottom, transparent var(--zig), #000 calc(var(--zig) + 0.5px)) 50% 100% / calc(var(--zig) * 2) calc(var(--zig)) repeat-x,
+    linear-gradient(#000, #000) 50% 50% / 100% calc(100% - var(--zig) * 2) no-repeat;
+          mask:
+    radial-gradient(circle at top, transparent var(--zig), #000 calc(var(--zig) + 0.5px)) 50% 0   / calc(var(--zig) * 2) calc(var(--zig)) repeat-x,
+    radial-gradient(circle at bottom, transparent var(--zig), #000 calc(var(--zig) + 0.5px)) 50% 100% / calc(var(--zig) * 2) calc(var(--zig)) repeat-x,
+    linear-gradient(#000, #000) 50% 50% / 100% calc(100% - var(--zig) * 2) no-repeat;
+}
+.oc-receipt-brand {
+  font-family: var(--serif); font-style: italic; font-weight: 700;
+  font-size: 22px; color: var(--paprika);
+  letter-spacing: -0.04em; line-height: 0.85;
+  text-align: center;
+  display: flex; align-items: baseline; justify-content: center;
+  margin-top: 4px;
+}
+.oc-receipt-brand .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink); margin-left: 3px;
+  align-self: flex-end; margin-bottom: 2px;
+}
+.oc-receipt-tag {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.22em; color: var(--ink-mute);
+  text-align: center; margin-top: 6px; text-transform: uppercase;
+}
+.oc-receipt-num {
+  text-align: center;
+  font-family: var(--serif);
+  font-weight: 800;
+  color: var(--ink);
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 16px 0 4px;
+}
+.oc-receipt-num small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--ink-mute);
+  font-weight: 500;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.oc-divider {
+  border: 0;
+  border-top: 1.5px dashed rgba(26, 20, 16, 0.22);
+  margin: 16px 0;
+}
+.oc-meta { display: flex; flex-direction: column; gap: 6px; }
+.oc-meta-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.oc-meta-row .l { color: var(--ink-mute); }
+.oc-meta-row .v { color: var(--ink); font-weight: 500; }
+.oc-items { display: flex; flex-direction: column; gap: 8px; }
+.oc-item-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  font-size: 12px;
+}
+.oc-item-name {
+  color: var(--ink); font-weight: 500; flex: 1; min-width: 0;
+}
+.oc-item-name .qty { color: var(--paprika); font-weight: 700; margin-right: 4px; }
+.oc-item-name .menu { color: var(--ink-mute); font-size: 10px; margin-left: 4px; }
+.oc-item-mods {
+  font-size: 10px; color: var(--ink-mute); margin-top: 2px;
+  font-style: italic; font-family: var(--serif);
+}
+.oc-item-price {
+  font-family: var(--mono); color: var(--ink); font-weight: 500;
+  white-space: nowrap;
+}
+.oc-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--serif); font-weight: 800;
+  font-size: 22px; color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.oc-total .l { font-style: italic; }
+.oc-total .v { color: var(--paprika); }
+
+.oc-thanks {
+  font-family: var(--script);
+  font-size: 22px;
+  color: var(--paprika);
+  text-align: center;
+  margin: 14px 0 0;
+  transform: rotate(-1.5deg);
+}
+
+/* ──── Status banner — dark ink ──── */
+.oc-status {
+  position: relative; overflow: hidden;
+  border-radius: 18px;
+  background: var(--ink); color: var(--cream);
+  padding: 18px 18px 16px;
+}
+.oc-status::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 90% 50%, rgba(255, 106, 44, 0.18), transparent 60%);
+  pointer-events: none;
+}
+.oc-status-top {
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.oc-status-kicker {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(244, 236, 219, 0.55);
+}
+.oc-status-bell {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(244, 236, 219, 0.12);
+  color: var(--cream);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.oc-status-bell:hover:not(:disabled) { background: rgba(244, 236, 219, 0.22); }
+.oc-status-bell:disabled { opacity: 0.85; cursor: default; }
+.oc-status-bell.on {
+  background: var(--paprika); color: var(--cream);
+}
+.oc-status-headline {
+  position: relative; z-index: 1;
+  display: flex; align-items: baseline; gap: 8px;
+  margin-top: 8px;
+}
+.oc-status-emoji { font-size: 22px; line-height: 1; }
+.oc-status-h {
+  font-family: var(--serif); font-weight: 700;
+  font-size: 22px; line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.oc-status-h em { font-style: italic; color: var(--paprika-2); }
+.oc-status-eta {
+  position: relative; z-index: 1;
+  margin-top: 4px; font-size: 12px;
+  color: rgba(244, 236, 219, 0.7);
+}
+.oc-status-eta b { color: var(--paprika-2); font-weight: 700; }
+.oc-status-bar {
+  position: relative; z-index: 1;
+  margin-top: 14px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(244, 236, 219, 0.12);
+  overflow: hidden;
+}
+.oc-status-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--paprika), var(--paprika-2));
+  border-radius: 999px;
+  transition: width 0.7s ease;
+}
+
+/* ──── Timeline ──── */
+.oc-timeline {
+  background: var(--white);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid rgba(26, 20, 16, 0.08);
+}
+.oc-timeline-h {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--ink-mute);
+  margin: 0 0 14px;
+}
+.oc-step { display: flex; gap: 14px; }
+.oc-step-rail {
+  display: flex; flex-direction: column; align-items: center;
+}
+.oc-step-bullet {
+  display: grid; place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--cream-deep);
+  color: var(--ink-mute);
+  font-size: 12px; flex-shrink: 0;
+}
+.oc-step-bullet.done {
+  background: rgba(230, 74, 25, 0.12);
+  color: var(--paprika);
+}
+.oc-step-bullet.active {
+  background: var(--ink); color: var(--cream);
+  box-shadow: 0 0 0 4px rgba(26, 20, 16, 0.08);
+}
+.oc-step-line {
+  flex: 1; width: 2px;
+  background: rgba(26, 20, 16, 0.12);
+  min-height: 18px; margin-top: 2px;
+}
+.oc-step-line.done { background: var(--paprika); }
+.oc-step-body { flex: 1; padding-bottom: 14px; }
+.oc-step:last-child .oc-step-body { padding-bottom: 0; }
+.oc-step-label {
+  font-family: var(--sans);
+  font-size: 14px; font-weight: 600;
+  color: var(--ink-mute);
+}
+.oc-step-label.on { color: var(--ink); }
+.oc-step-meta {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-top: 2px;
+}
+.oc-step-meta.active { color: var(--paprika); }
+
+/* ──── Driver card ──── */
+.oc-driver {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--cream-deep);
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid rgba(26, 20, 16, 0.08);
+}
+.oc-driver-ava {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--navy); color: var(--cream);
+}
+.oc-driver-info { flex: 1; min-width: 0; }
+.oc-driver-tag {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--navy); font-weight: 600;
+}
+.oc-driver-name {
+  font-family: var(--serif); font-weight: 700;
+  font-size: 15px; color: var(--ink);
+  letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.oc-driver-call {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--paprika); color: var(--cream);
+  padding: 9px 14px; border-radius: 999px;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  text-decoration: none;
+}
+
+/* ──── Note ──── */
+.oc-note {
+  background: var(--white);
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(26, 20, 16, 0.18);
+}
+.oc-note-h {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--paprika); font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 6px;
+}
+.oc-note-body {
+  font-family: var(--serif); font-style: italic;
+  font-size: 14px; color: var(--ink); line-height: 1.4;
+  margin: 0;
+}
+
+/* ──── Buttons ──── */
+.oc-actions {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 4px;
+}
+.oc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-family: var(--sans); font-weight: 600; font-size: 14px;
+  border: none; cursor: pointer; text-decoration: none;
+  transition: transform 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.oc-btn-primary { background: var(--paprika); color: var(--cream); }
+.oc-btn-primary:hover {
+  background: var(--ink); transform: translateY(-1px);
+  box-shadow: 0 10px 22px -8px rgba(230, 74, 25, 0.4);
+}
+.oc-btn-ghost {
+  background: transparent; color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+.oc-btn-ghost:hover { background: var(--ink); color: var(--cream); }
+
+/* ──── Mail receipt card ──── */
+.oc-mailcard {
+  background: var(--white);
+  border: 1px dashed rgba(26, 20, 16, 0.18);
+  border-radius: 18px;
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.oc-mailcard-head {
+  display: flex; align-items: center; gap: 12px;
+}
+.oc-mailcard-icon {
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--paprika);
+  color: var(--cream);
+  flex-shrink: 0;
+}
+.oc-mailcard-text { flex: 1; min-width: 0; }
+.oc-mailcard-h {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.oc-mailcard-sub {
+  margin: 2px 0 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.oc-mailcard-row {
+  display: flex; gap: 8px;
+}
+.oc-mailcard-input {
+  flex: 1; min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(26, 20, 16, 0.14);
+  background: var(--cream);
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.oc-mailcard-input:focus {
+  border-color: var(--ink);
+  background: var(--white);
+}
+.oc-mailcard-input[aria-invalid="true"] {
+  border-color: var(--paprika);
+}
+.oc-mailcard-input::placeholder {
+  color: var(--ink-mute);
+}
+.oc-mailcard-btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  border: none;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+}
+.oc-mailcard-btn:hover:not(:disabled) {
+  background: var(--paprika);
+}
+.oc-mailcard-btn:disabled { opacity: 0.7; cursor: default; }
+.oc-mailcard-err {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--paprika);
+}
+.oc-mailcard-done {
+  align-items: center;
+  flex-direction: row;
+  border-style: solid;
+  border-color: rgba(230, 74, 25, 0.2);
+  background: rgba(230, 74, 25, 0.05);
+}
+.oc-mailcard-done .oc-mailcard-icon {
+  background: var(--paprika);
+}
+
+/* ──── Sign-up CTA ──── */
+.oc-signup {
+  background: var(--ink); color: var(--cream);
+  border-radius: 22px;
+  padding: 22px 22px 20px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.oc-signup::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(230, 74, 25, 0.18), transparent 50%);
+  pointer-events: none;
+}
+.oc-signup-icon {
+  display: inline-grid; place-items: center;
+  width: 44px; height: 44px;
+  background: var(--paprika); color: var(--cream);
+  border-radius: 50%; margin-bottom: 10px;
+  position: relative; z-index: 1;
+}
+.oc-signup-h {
+  font-family: var(--serif); font-weight: 700;
+  font-size: 22px; line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px; position: relative; z-index: 1;
+}
+.oc-signup-h em { font-style: italic; color: var(--paprika-2); }
+.oc-signup-sub {
+  font-family: var(--sans); font-size: 13px;
+  color: rgba(244, 236, 219, 0.7);
+  margin: 0 0 14px; position: relative; z-index: 1;
+}
+.oc-signup-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--cream); color: var(--ink);
+  padding: 11px 22px;
+  border-radius: 999px;
+  font-family: var(--sans); font-weight: 600; font-size: 13px;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+  position: relative; z-index: 1;
+}
+.oc-signup-cta:hover { background: var(--paprika); color: var(--cream); }
+
+/* ──── Powered by TaapR — discreet footer ──── */
+.oc-poweredby {
+  text-align: center;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(26, 20, 16, 0.14);
+}
+.oc-poweredby a {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--ink-mute);
+  transition: color 0.2s;
+}
+.oc-poweredby a:hover { color: var(--paprika); }
+.oc-poweredby-line {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.oc-poweredby-line strong {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.oc-poweredby-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}

@@ -10,12 +10,12 @@ function normalizePhone(raw: string): string | null {
   return null;
 }
 
-async function resolveOwnedRestaurant(slug: string, userId: string) {
+async function resolveOwnedRestaurant(publicId: string, userId: string) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("restaurants")
     .select("id, owner_id, delivery_addon_active")
-    .eq("slug", slug)
+    .eq("public_id", publicId)
     .single();
   if (!data || data.owner_id !== userId) return null;
   return data;
@@ -24,8 +24,8 @@ async function resolveOwnedRestaurant(slug: string, userId: string) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("restaurant_slug");
-    if (!slug) {
+    const publicId = searchParams.get("restaurant_public_id");
+    if (!publicId) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
-    const restaurant = await resolveOwnedRestaurant(slug, user.id);
+    const restaurant = await resolveOwnedRestaurant(publicId, user.id);
     if (!restaurant) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
@@ -58,8 +58,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, full_name, phone, vehicle } = await request.json();
-    if (!restaurant_slug || !full_name || !phone) {
+    const { restaurant_public_id, full_name, phone, vehicle } = await request.json();
+    if (!restaurant_public_id || !full_name || !phone) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
-    const restaurant = await resolveOwnedRestaurant(restaurant_slug, user.id);
+    const restaurant = await resolveOwnedRestaurant(restaurant_public_id, user.id);
     if (!restaurant) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }

@@ -36,9 +36,9 @@ function sanitizeConfig(raw: unknown): DeliveryConfig {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { restaurant_slug, delivery_enabled, delivery_config } = body;
+    const { restaurant_public_id, delivery_enabled, delivery_config } = body;
 
-    if (!restaurant_slug) {
+    if (!restaurant_public_id) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
@@ -55,7 +55,7 @@ export async function PATCH(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, owner_id, order_types, delivery_addon_active")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {

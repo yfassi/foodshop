@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe/client";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug } = await request.json();
+    const { restaurant_public_id } = await request.json();
 
     // Authenticate
     const supabaseAuth = await createClient();
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, stripe_account_id, stripe_onboarding_complete")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .eq("owner_id", user.id)
       .single();
 

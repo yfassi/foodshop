@@ -37,10 +37,10 @@ interface CalcResponse {
 }
 
 export function DeliveryAddressPicker({
-  slug,
+  publicId,
   restaurantCoords,
 }: {
-  slug: string;
+  publicId: string;
   restaurantCoords?: { lat: number; lng: number } | null;
 }) {
   const deliveryAddress = useCartStore((s) => s.deliveryAddress);
@@ -200,7 +200,7 @@ export function DeliveryAddressPicker({
       const res = await fetch("/api/checkout/calculate-delivery-fee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ restaurant_slug: slug, lat, lng }),
+        body: JSON.stringify({ restaurant_public_id: publicId, lat, lng }),
       });
       return await res.json();
     } catch {

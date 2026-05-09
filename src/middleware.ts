@@ -29,10 +29,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect super-admin routes (except login)
+  // Protect super-admin routes (except login & reset-password)
   if (
     request.nextUrl.pathname.startsWith("/super-admin") &&
-    !request.nextUrl.pathname.startsWith("/super-admin/login")
+    !request.nextUrl.pathname.startsWith("/super-admin/login") &&
+    !request.nextUrl.pathname.startsWith("/super-admin/reset-password")
   ) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -68,6 +69,18 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/driver/login";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Protect kitchen + customer-display screens (admin auth)
+  if (
+    request.nextUrl.pathname.startsWith("/kitchen") ||
+    request.nextUrl.pathname.startsWith("/display")
+  ) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
   }

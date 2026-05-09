@@ -7,8 +7,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 -- RESTAURANTS
 -- ============================================
+-- 22-char base64url identifier (~128 bits) used in public URLs.
+CREATE OR REPLACE FUNCTION public.generate_public_id() RETURNS TEXT AS $$
+  SELECT translate(rtrim(encode(gen_random_bytes(16), 'base64'), '='), '+/', '-_');
+$$ LANGUAGE SQL VOLATILE;
+
 CREATE TABLE public.restaurants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  public_id TEXT NOT NULL UNIQUE DEFAULT public.generate_public_id(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
@@ -35,6 +41,7 @@ CREATE TABLE public.restaurants (
 );
 
 CREATE INDEX idx_restaurants_slug ON public.restaurants(slug);
+CREATE INDEX idx_restaurants_public_id ON public.restaurants(public_id);
 CREATE INDEX idx_restaurants_owner ON public.restaurants(owner_id);
 
 -- ============================================
@@ -120,6 +127,7 @@ CREATE TABLE public.orders (
   stripe_session_id TEXT,
   stripe_payment_intent_id TEXT,
   paid BOOLEAN NOT NULL DEFAULT false,
+  is_demo BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -128,6 +136,7 @@ CREATE INDEX idx_orders_restaurant ON public.orders(restaurant_id);
 CREATE INDEX idx_orders_status ON public.orders(status);
 CREATE INDEX idx_orders_created ON public.orders(created_at DESC);
 CREATE INDEX idx_orders_stripe_session ON public.orders(stripe_session_id);
+CREATE INDEX idx_orders_is_demo ON public.orders(is_demo) WHERE is_demo = true;
 
 -- ============================================
 -- UPDATED_AT TRIGGER
@@ -340,11 +349,17 @@ ALTER TABLE public.daily_order_counters ENABLE ROW LEVEL SECURITY;
 -- POSTGRES FUNCTIONS
 -- ============================================
 
--- Atomic daily order number generation
+-- Atomic daily order number generation.
+-- SECURITY DEFINER so the function can write to daily_order_counters even
+-- though the table has RLS enabled (no direct policies — RPC is the only path).
 CREATE OR REPLACE FUNCTION next_daily_order_number(
   p_restaurant_id UUID,
   p_prefix TEXT
-) RETURNS TEXT AS $$
+) RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
@@ -356,7 +371,10 @@ BEGIN
 
   RETURN p_prefix || '-' || LPAD(v_count::TEXT, 3, '0');
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+REVOKE ALL ON FUNCTION public.next_daily_order_number(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.next_daily_order_number(UUID, TEXT) TO anon, authenticated, service_role;
 
 -- Atomic wallet balance deduction
 CREATE OR REPLACE FUNCTION deduct_wallet_balance(
@@ -416,6 +434,14 @@ ALTER TABLE public.categories ADD COLUMN category_type TEXT NOT NULL DEFAULT 'ot
 
 -- Products: featured flag for "Nos incontournables" section
 ALTER TABLE public.products ADD COLUMN is_featured BOOLEAN NOT NULL DEFAULT false;
+
+-- Demo customers (Stripe TEST keys instead of LIVE for these emails)
+CREATE TABLE IF NOT EXISTS public.platform_demo_customers (
+  email TEXT PRIMARY KEY,
+  added_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note TEXT
+);
 
 
 -- ============================================

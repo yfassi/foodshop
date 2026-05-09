@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/format";
 import { Label } from "@/components/ui/label";
 import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, FlaskConical, type LucideIcon } from "lucide-react";
 import { DeliveryAddressPicker } from "./delivery-address-picker";
 
 const ORDER_TYPE_CONFIG: Record<OrderType, { label: string; icon: LucideIcon }> = {
@@ -19,7 +19,7 @@ type PaymentMethod = "online" | "on_site";
 type PaymentSource = "direct" | "wallet";
 
 export function CheckoutForm({
-  slug,
+  publicId,
   stripeConnected,
   acceptedPaymentMethods,
   orderTypes,
@@ -27,8 +27,10 @@ export function CheckoutForm({
   walletBalance,
   loyaltyEnabled,
   restaurantCoords,
+  isDemo = false,
+  defaultEmail,
 }: {
-  slug: string;
+  publicId: string;
   stripeConnected: boolean;
   acceptedPaymentMethods: AcceptedPaymentMethod[];
   orderTypes: OrderType[];
@@ -36,6 +38,8 @@ export function CheckoutForm({
   walletBalance: number;
   loyaltyEnabled?: boolean;
   restaurantCoords?: { lat: number; lng: number } | null;
+  isDemo?: boolean;
+  defaultEmail?: string;
 }) {
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -55,6 +59,15 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState<string>(defaultEmail ?? "");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const validateEmail = (raw: string) => {
+    const v = raw.trim();
+    if (!v) return null; // optionnel
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Email invalide";
+    return null;
+  };
 
   const showOrderTypeSelector = orderTypes.length > 1;
 
@@ -85,6 +98,14 @@ export function CheckoutForm({
       }
     }
 
+    const emailValidation = validateEmail(customerEmail);
+    if (emailValidation) {
+      setEmailError(emailValidation);
+      toast.error(emailValidation);
+      return;
+    }
+    setEmailError(null);
+
     setLoading(true);
 
     try {
@@ -92,7 +113,7 @@ export function CheckoutForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           items: items.map((item) => ({
             product_id: item.product_id,
             product_name: item.product_name,
@@ -106,6 +127,7 @@ export function CheckoutForm({
           order_type: orderType,
           payment_method: paymentMethod,
           payment_source: paymentSource,
+          customer_email: customerEmail.trim() || undefined,
           queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
           ...(orderType === "delivery" && deliveryAddress
             ? { delivery_address: deliveryAddress }
@@ -123,7 +145,7 @@ export function CheckoutForm({
         window.location.href = data.url;
       } else if (data.order_id) {
         clearCart();
-        window.location.href = `/restaurant/${slug}/order-confirmation/${data.order_id}`;
+        window.location.href = `/restaurant/${publicId}/order-confirmation/${data.order_id}`;
       }
     } catch (err) {
       toast.error(
@@ -243,7 +265,7 @@ export function CheckoutForm({
 
       {orderType === "delivery" && (
         <DeliveryAddressPicker
-          slug={slug}
+          publicId={publicId}
           restaurantCoords={restaurantCoords}
         />
       )}
@@ -282,6 +304,35 @@ export function CheckoutForm({
           </p>
         </div>
       )}
+
+      {/* Email — optional, for the order confirmation receipt */}
+      <div>
+        <Label
+          htmlFor="customer_email"
+          className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+        >
+          Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
+        </Label>
+        <input
+          id="customer_email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="vous@exemple.fr"
+          value={customerEmail}
+          onChange={(e) => {
+            setCustomerEmail(e.target.value);
+            if (emailError) setEmailError(null);
+          }}
+          onBlur={() => setEmailError(validateEmail(customerEmail))}
+          className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
+            emailError ? "border-destructive" : "border-border"
+          }`}
+        />
+        {emailError && (
+          <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
+        )}
+      </div>
 
       {/* Payment method */}
       <div>
@@ -430,6 +481,12 @@ export function CheckoutForm({
       {isStripeFlow && (
         <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
           Paiement sécurisé · Stripe
+        </p>
+      )}
+      {isDemo && isStripeFlow && (
+        <p className="mt-1 inline-flex w-full items-center justify-center gap-1 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-amber-700">
+          <FlaskConical className="h-3 w-3" />
+          Mode démo · carte test 4242 4242 4242 4242
         </p>
       )}
     </form>

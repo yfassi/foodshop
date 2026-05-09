@@ -4,13 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
 
 interface ConnectBody {
-  restaurant_slug: string;
+  restaurant_public_id: string;
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ConnectBody;
-    const { restaurant_slug } = body;
+    const { restaurant_public_id } = body;
 
     // Authenticate the owner
     const supabaseAuth = await createClient();
@@ -26,8 +26,8 @@ export async function POST(request: Request) {
     const supabase = createAdminClient();
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, slug, name, stripe_account_id")
-      .eq("slug", restaurant_slug)
+      .select("id, public_id, name, stripe_account_id")
+      .eq("public_id", restaurant_public_id)
       .eq("owner_id", user.id)
       .single();
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         },
         metadata: {
           restaurant_id: restaurant.id,
-          restaurant_slug: restaurant.slug,
+          restaurant_public_id: restaurant.public_id,
         },
       });
 
@@ -67,8 +67,8 @@ export async function POST(request: Request) {
     // Generate onboarding link
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${appUrl}/admin/${restaurant_slug}/settings?stripe_refresh=true`,
-      return_url: `${appUrl}/admin/${restaurant_slug}/settings?stripe_return=true`,
+      refresh_url: `${appUrl}/admin/${restaurant_public_id}/settings?stripe_refresh=true`,
+      return_url: `${appUrl}/admin/${restaurant_public_id}/settings?stripe_return=true`,
       type: "account_onboarding",
     });
 

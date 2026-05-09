@@ -24,9 +24,9 @@ function periodStart(p: Period): Date {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("restaurant_slug");
+    const publicId = searchParams.get("restaurant_public_id");
     const period = (searchParams.get("period") || "day") as Period;
-    if (!slug) {
+    if (!publicId) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id")
-      .eq("slug", slug)
+      .eq("public_id", publicId)
       .single();
 
     if (!restaurant) {
