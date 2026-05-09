@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe/client";
+import { stripeLive, stripeTest } from "@/lib/stripe/client";
+import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
 import { formatPrice } from "@/lib/format";
@@ -113,6 +114,34 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
+    // Resolve authenticated user early so we know if it's a demo customer
+    // (impacts which Stripe instance + transfer_data and the is_demo flag)
+    let customerUserId: string | null = null;
+    let customerEmail: string | null = null;
+    try {
+      const serverSupabase = await createClient();
+      const { data: { user } } = await serverSupabase.auth.getUser();
+      if (user) {
+        customerUserId = user.id;
+        customerEmail = user.email ?? null;
+      }
+    } catch {
+      // Not logged in
+    }
+
+    if (payment_source === "wallet" && !customerUserId) {
+      return NextResponse.json(
+        { error: "Vous devez etre connecte pour payer avec le solde" },
+        { status: 401 }
+      );
+    }
+
+    const isDemo = await isDemoCustomerEmail(customerEmail);
+    if (isDemo && !stripeTest) {
+      return NextResponse.json({ error: MISSING_TEST_KEYS_ERROR }, { status: 500 });
+    }
+    const stripeClient = isDemo ? stripeTest! : stripeLive;
+
     // Fetch restaurant
     const { data: restaurant } = await supabase
       .from("restaurants")
@@ -184,7 +213,12 @@ export async function POST(request: Request) {
       // Mark ticket as completed after successful order placement (done later)
     }
 
-    if (payment_method === "online" && payment_source === "direct" && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
+    if (
+      payment_method === "online" &&
+      payment_source === "direct" &&
+      !isDemo &&
+      (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)
+    ) {
       return NextResponse.json(
         { error: "Le paiement en ligne n'est pas disponible pour ce restaurant" },
         { status: 400 }
@@ -245,29 +279,6 @@ export async function POST(request: Request) {
           ? String(delivery_address.floor_notes).slice(0, 300)
           : undefined,
       };
-    }
-
-    // Get authenticated user if any
-    let customerUserId: string | null = null;
-    if (payment_source === "wallet") {
-      const serverSupabase = await createClient();
-      const { data: { user } } = await serverSupabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json(
-          { error: "Vous devez etre connecte pour payer avec le solde" },
-          { status: 401 }
-        );
-      }
-      customerUserId = user.id;
-    } else {
-      // Check if user is logged in (optional for direct payments)
-      try {
-        const serverSupabase = await createClient();
-        const { data: { user } } = await serverSupabase.auth.getUser();
-        if (user) customerUserId = user.id;
-      } catch {
-        // Not logged in, that's fine
-      }
     }
 
     // Fetch and validate products + modifiers server-side
@@ -465,6 +476,7 @@ export async function POST(request: Request) {
           display_order_number: displayOrderNumber,
           paid: isFullWallet,
           wallet_amount_used: walletAmount,
+          is_demo: isDemo,
           ...(resolvedOrderType === "delivery" && {
             delivery_status: "pending",
             delivery_address: sanitizedDeliveryAddress,
@@ -518,7 +530,7 @@ export async function POST(request: Request) {
       }
 
       // Partial wallet -> Stripe for the remainder
-      if (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
+      if (!isDemo && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete)) {
         // Rollback if Stripe not available
         await supabase
           .from("orders")
@@ -532,7 +544,7 @@ export async function POST(request: Request) {
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await stripeClient.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         locale: "fr",
@@ -549,15 +561,20 @@ export async function POST(request: Request) {
             quantity: 1,
           },
         ],
-        payment_intent_data: {
-          transfer_data: {
-            destination: restaurant.stripe_account_id!,
-          },
-        },
+        ...(isDemo
+          ? {}
+          : {
+              payment_intent_data: {
+                transfer_data: {
+                  destination: restaurant.stripe_account_id!,
+                },
+              },
+            }),
         metadata: {
           order_id: order.id,
           restaurant_id: restaurant.id,
           type: "order",
+          ...(isDemo && { is_demo: "true" }),
           ...(queue_session_id && { queue_session_id }),
         },
         success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,
@@ -587,6 +604,7 @@ export async function POST(request: Request) {
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),
         paid: false,
+        is_demo: isDemo,
         ...(resolvedOrderType === "delivery" && {
           delivery_status: "pending",
           delivery_address: sanitizedDeliveryAddress,
@@ -652,20 +670,25 @@ export async function POST(request: Request) {
       });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
       line_items: stripeLineItems,
-      payment_intent_data: {
-        transfer_data: {
-          destination: restaurant.stripe_account_id!,
-        },
-      },
+      ...(isDemo
+        ? {}
+        : {
+            payment_intent_data: {
+              transfer_data: {
+                destination: restaurant.stripe_account_id!,
+              },
+            },
+          }),
       metadata: {
         order_id: order.id,
         restaurant_id: restaurant.id,
         type: "order",
+        ...(isDemo && { is_demo: "true" }),
         ...(queue_session_id && { queue_session_id }),
       },
       success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,

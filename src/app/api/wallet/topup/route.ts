@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripe } from "@/lib/stripe/client";
+import { stripeLive, stripeTest } from "@/lib/stripe/client";
+import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import type { WalletTopupTier } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -30,6 +31,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const isDemo = await isDemoCustomerEmail(user.email);
+    if (isDemo && !stripeTest) {
+      return NextResponse.json({ error: MISSING_TEST_KEYS_ERROR }, { status: 500 });
+    }
+    const stripeClient = isDemo ? stripeTest! : stripeLive;
+
     const adminSupabase = createAdminClient();
 
     // Fetch restaurant
@@ -39,7 +46,7 @@ export async function POST(request: Request) {
       .eq("public_id", restaurant_public_id)
       .single();
 
-    if (!restaurant || !restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
+    if (!restaurant || (!isDemo && (!restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete))) {
       return NextResponse.json(
         { error: "La recharge en ligne n'est pas disponible" },
         { status: 400 }
@@ -68,7 +75,7 @@ export async function POST(request: Request) {
       ? `Recharge ${(amount / 100).toFixed(2)} € + ${(validatedBonus / 100).toFixed(2)} € offerts`
       : "Recharge de solde";
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
@@ -82,17 +89,22 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        transfer_data: {
-          destination: restaurant.stripe_account_id,
-        },
-      },
+      ...(isDemo
+        ? {}
+        : {
+            payment_intent_data: {
+              transfer_data: {
+                destination: restaurant.stripe_account_id!,
+              },
+            },
+          }),
       metadata: {
         type: "wallet_topup",
         user_id: user.id,
         restaurant_id: restaurant.id,
         amount: amount.toString(),
         ...(validatedBonus > 0 && { bonus: validatedBonus.toString() }),
+        ...(isDemo && { is_demo: "true" }),
       },
       success_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=success`,
       cancel_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=cancelled`,

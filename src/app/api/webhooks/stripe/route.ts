@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe/client";
+import { stripeLive, stripeTest } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
 import { formatPrice } from "@/lib/format";
@@ -16,16 +16,33 @@ export async function POST(request: Request) {
     );
   }
 
-  let event: Stripe.Event;
+  // Try the LIVE secret first; if it fails, fall back to TEST. Demo orders
+  // are paid with Stripe test keys so their webhooks are signed with the
+  // test secret. Both endpoints (live + test) point to this URL.
+  const liveSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const testSecret = process.env.STRIPE_TEST_WEBHOOK_SECRET;
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+  let event: Stripe.Event | null = null;
+  const errors: string[] = [];
+
+  if (liveSecret) {
+    try {
+      event = stripeLive.webhooks.constructEvent(body, signature, liveSecret);
+    } catch (err) {
+      errors.push(`live: ${(err as Error).message}`);
+    }
+  }
+
+  if (!event && testSecret && stripeTest) {
+    try {
+      event = stripeTest.webhooks.constructEvent(body, signature, testSecret);
+    } catch (err) {
+      errors.push(`test: ${(err as Error).message}`);
+    }
+  }
+
+  if (!event) {
+    console.error("Webhook signature verification failed:", errors.join(" | "));
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
       { status: 400 }

@@ -25,6 +25,14 @@ export default function CheckoutPage() {
   const [restaurantCoords, setRestaurantCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/demo-status")
+      .then((r) => (r.ok ? r.json() : { isDemo: false }))
+      .then((d) => setIsDemo(!!d.isDemo))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -173,6 +181,7 @@ export default function CheckoutPage() {
           walletBalance={walletBalance}
           loyaltyEnabled={loyaltyEnabled}
           restaurantCoords={restaurantCoords}
+          isDemo={isDemo}
         />
       </div>
     </div>

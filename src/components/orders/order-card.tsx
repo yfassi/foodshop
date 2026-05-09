@@ -8,7 +8,21 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Wallet } from "lucide-react";
+import { CreditCard, Banknote, Wallet, FlaskConical } from "lucide-react";
+
+function DemoBadge({ size = "sm" }: { size?: "sm" | "lg" }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 font-bold uppercase tracking-wider text-amber-800 ${
+        size === "lg" ? "px-2 py-0.5 text-xs" : "px-1.5 py-0.5 text-[10px]"
+      }`}
+      title="Commande de démonstration — paiement Stripe en mode test"
+    >
+      <FlaskConical className={size === "lg" ? "h-3 w-3" : "h-2.5 w-2.5"} />
+      Démo
+    </span>
+  );
+}
 
 const EDITABLE_STATUSES: OrderStatus[] = ["new", "preparing", "ready", "done", "cancelled"];
 
@@ -77,9 +91,12 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         {/* Header */}
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <p className="text-3xl font-black leading-tight">
-              {displayNumber}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-3xl font-black leading-tight">
+                {displayNumber}
+              </p>
+              {order.is_demo && <DemoBadge size="lg" />}
+            </div>
             {orderTypeLabel && (
               <span className="mt-1 inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {orderTypeLabel}
@@ -172,8 +189,9 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
     <div className={`rounded-xl p-4 ${config.bgClass}`}>
       {/* Header */}
       <div className="mb-2 flex items-start justify-between">
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-2xl font-bold">{displayNumber}</p>
+          {order.is_demo && <DemoBadge />}
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="relative" ref={pickerRef}>

@@ -127,6 +127,7 @@ CREATE TABLE public.orders (
   stripe_session_id TEXT,
   stripe_payment_intent_id TEXT,
   paid BOOLEAN NOT NULL DEFAULT false,
+  is_demo BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -135,6 +136,7 @@ CREATE INDEX idx_orders_restaurant ON public.orders(restaurant_id);
 CREATE INDEX idx_orders_status ON public.orders(status);
 CREATE INDEX idx_orders_created ON public.orders(created_at DESC);
 CREATE INDEX idx_orders_stripe_session ON public.orders(stripe_session_id);
+CREATE INDEX idx_orders_is_demo ON public.orders(is_demo) WHERE is_demo = true;
 
 -- ============================================
 -- UPDATED_AT TRIGGER
@@ -423,6 +425,14 @@ ALTER TABLE public.categories ADD COLUMN category_type TEXT NOT NULL DEFAULT 'ot
 
 -- Products: featured flag for "Nos incontournables" section
 ALTER TABLE public.products ADD COLUMN is_featured BOOLEAN NOT NULL DEFAULT false;
+
+-- Demo customers (Stripe TEST keys instead of LIVE for these emails)
+CREATE TABLE IF NOT EXISTS public.platform_demo_customers (
+  email TEXT PRIMARY KEY,
+  added_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note TEXT
+);
 
 
 -- ============================================

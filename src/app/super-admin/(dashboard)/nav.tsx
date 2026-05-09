@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { BarChart3, Store, LogOut, Shield } from "lucide-react";
+import { BarChart3, Store, LogOut, Shield, FlaskConical } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/super-admin", label: "Tableau de bord", icon: BarChart3 },
   { href: "/super-admin/restaurants", label: "Restaurants", icon: Store },
+  { href: "/super-admin/demo-customers", label: "Démo", icon: FlaskConical },
 ];
 
 export function SuperAdminNav({ email }: { email: string }) {
