@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Store } from "lucide-react";
 import { AnimatedBackground } from "@/components/animated-background";
 
 export default function AdminLoginPage() {
@@ -35,7 +35,6 @@ export default function AdminLoginPage() {
       return;
     }
 
-    // Find restaurants owned by this user (a user may own several)
     const { data: restaurants } = await supabase
       .from("restaurants")
       .select("public_id")
@@ -71,17 +70,21 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-10">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
-            T
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm sm:p-8">
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Store className="h-6 w-6" strokeWidth={2} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">
-            Espace Restaurateur
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Connectez-vous à votre compte</p>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">
+              Espace restaurateur
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Connectez-vous à votre back-office
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,6 +98,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="contact@restaurant.fr"
+              autoComplete="email"
               required
               className="mt-1.5 h-12"
             />
@@ -118,7 +122,7 @@ export default function AdminLoginPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
+                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:text-foreground"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -127,7 +131,7 @@ export default function AdminLoginPage() {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email || !password}
             className="h-12 w-full rounded-xl font-semibold"
           >
             {loading ? (
@@ -147,24 +151,18 @@ export default function AdminLoginPage() {
           {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
         </button>
 
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Pas encore de compte ?{" "}
-          <Link
-            href="/admin/signup"
-            className="font-medium text-primary hover:underline"
-          >
-            Créer mon restaurant
-          </Link>
-        </p>
-
-        <div className="mt-4 border-t border-border pt-4">
-          <Link
-            href="/admin/chez-momo?demo=true"
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-accent text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/80"
-          >
-            Entrer en mode démo
-          </Link>
+        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground/70">
+          <span className="h-px flex-1 bg-border" />
+          <span>ou</span>
+          <span className="h-px flex-1 bg-border" />
         </div>
+
+        <Link
+          href="/admin/onboarding"
+          className="flex h-12 w-full items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold text-foreground transition-colors hover:bg-accent/50"
+        >
+          Créer mon restaurant
+        </Link>
       </div>
     </div>
   );

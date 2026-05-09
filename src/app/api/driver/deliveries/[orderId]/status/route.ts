@@ -59,7 +59,8 @@ export async function POST(
 
     const { error } = await supabase.from("orders").update(update).eq("id", orderId);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Driver delivery status error:", error);
+      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bike, MapPin, Phone, Loader2 } from "lucide-react";
 import type { Order, Driver } from "@/lib/types";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 type OrderWithDriver = Order & { driver?: Driver | null };
 
@@ -100,10 +101,12 @@ export default function DeliveryBoardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Bike className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-bold">Livraison — aujourd&apos;hui</h1>
-      </div>
+      <AdminPageHeader
+        kicker="Service du jour"
+        icon={Bike}
+        title="Livraison"
+        subtitle={`${toAssign.length} à assigner · ${inProgress.length} en cours · ${delivered.length} livrée${delivered.length > 1 ? "s" : ""}`}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Column title="À assigner" count={toAssign.length}>

@@ -8,12 +8,29 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
-import { PartyPopper, ArrowRight, Monitor, ChefHat, Bell, BellOff, ExternalLink, Tv, Volume2, VolumeX } from "lucide-react";
+import { CounterOrderSheet } from "@/components/admin/counter-order-sheet";
+import {
+  PartyPopper,
+  ArrowRight,
+  Monitor,
+  ChefHat,
+  Bell,
+  BellOff,
+  ExternalLink,
+  Tv,
+  Volume2,
+  VolumeX,
+  Inbox,
+  ClipboardList,
+  Plus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
 import { useSoundEnabled } from "@/hooks/use-sound-enabled";
 import { toast } from "sonner";
 import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { cn } from "@/lib/utils";
 
 const VIEW_TABS: { key: OrderView; label: string; icon: React.ReactNode }[] = [
   { key: "comptoir", label: "Comptoir", icon: <Monitor className="h-4 w-4" /> },
@@ -40,6 +57,7 @@ export default function AdminDashboard() {
   const hasInitializedRef = useRef(false);
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
     usePushSubscription();
+  const [counterSheetOpen, setCounterSheetOpen] = useState(false);
 
   const handlePushToggle = async () => {
     if (!restaurantId) return;
@@ -228,8 +246,29 @@ export default function AdminDashboard() {
     );
   }
 
+  const counts = {
+    new: newOrders.length,
+    preparing: preparingOrders.length,
+    ready: readyOrders.length,
+    unpaid: unpaidOrders.length,
+  };
+  const totalActive =
+    view === "cuisine"
+      ? counts.new + counts.preparing
+      : counts.new + counts.preparing + counts.ready + counts.unpaid;
+
+  const subtitle = (() => {
+    if (totalActive === 0) return "Tout est calme — les nouvelles commandes apparaissent ici en temps réel.";
+    const parts: string[] = [];
+    if (view === "comptoir" && counts.unpaid > 0) parts.push(`${counts.unpaid} à encaisser`);
+    if (counts.new > 0) parts.push(`${counts.new} nouvelle${counts.new > 1 ? "s" : ""}`);
+    if (counts.preparing > 0) parts.push(`${counts.preparing} en préparation`);
+    if (view === "comptoir" && counts.ready > 0) parts.push(`${counts.ready} prête${counts.ready > 1 ? "s" : ""}`);
+    return parts.join(" · ");
+  })();
+
   return (
-    <div className="px-4 py-4 md:px-6">
+    <div className="px-4 py-6 md:px-6">
       {showWelcome && (
         <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
           <PartyPopper className="mx-auto mb-3 h-10 w-10 text-primary" />
@@ -246,92 +285,130 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* View toggle + notifications + fullscreen launchers */}
-      <div className="no-scrollbar mb-4 flex items-center gap-1">
-        {VIEW_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => handleViewChange(tab.key)}
-            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              view === tab.key
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-
-        <div className="ml-auto flex items-center gap-1">
-          <a
-            href={`/kitchen/${publicId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title="Ouvrir l'écran cuisine plein écran"
-          >
-            <ChefHat className="h-4 w-4" />
-            <span className="hidden sm:inline">Cuisine</span>
-            <ExternalLink className="h-3 w-3" />
-          </a>
-          <a
-            href={`/display/${publicId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title="Ouvrir l'écran client plein écran"
-          >
-            <Tv className="h-4 w-4" />
-            <span className="hidden sm:inline">Écran client</span>
-            <ExternalLink className="h-3 w-3" />
-          </a>
-
-          <button
-            onClick={toggleSound}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-              soundEnabled
-                ? "bg-primary/10 text-primary"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-            title={soundEnabled ? "Couper le son des nouvelles commandes" : "Activer le son des nouvelles commandes"}
-            aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
-          >
-            {soundEnabled ? (
-              <Volume2 className="h-4 w-4" />
-            ) : (
-              <VolumeX className="h-4 w-4" />
+      <AdminPageHeader
+        kicker="Service en cours"
+        icon={ClipboardList}
+        title={
+          <span className="inline-flex items-baseline gap-2">
+            Commandes
+            {totalActive > 0 && (
+              <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
+                {totalActive}
+              </span>
             )}
-          </button>
-
-          {pushSupported && (
-            <button
-              onClick={handlePushToggle}
-              disabled={pushSubscribed || pushLoading}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                pushSubscribed
-                  ? "bg-primary/10 text-primary"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-              title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
+          </span>
+        }
+        subtitle={subtitle}
+        actions={
+          <div className="flex items-center gap-1">
+            {view === "comptoir" && (
+              <button
+                onClick={() => setCounterSheetOpen(true)}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Nouvelle commande</span>
+              </button>
+            )}
+            <a
+              href={`/kitchen/${publicId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+              title="Ouvrir l'écran cuisine plein écran"
             >
-              {pushSubscribed ? (
-                <Bell className="h-4 w-4" />
-              ) : (
-                <BellOff className="h-4 w-4" />
+              <ChefHat className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Cuisine</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <a
+              href={`/display/${publicId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+              title="Ouvrir l'écran client plein écran"
+            >
+              <Tv className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Écran client</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <button
+              onClick={toggleSound}
+              className={cn(
+                "flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                soundEnabled
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
               )}
+              title={soundEnabled ? "Couper le son des nouvelles commandes" : "Activer le son des nouvelles commandes"}
+              aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
+            >
+              {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
             </button>
-          )}
+            {pushSupported && (
+              <button
+                onClick={handlePushToggle}
+                disabled={pushSubscribed || pushLoading}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  pushSubscribed
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                )}
+                title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
+              >
+                {pushSubscribed ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">
+                  {pushSubscribed ? "Notifications actives" : "Activer push"}
+                </span>
+              </button>
+            )}
+          </div>
+        }
+      >
+        {/* Service-mode toggle — primary tool during service. */}
+        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-0.5 shadow-sm">
+          {VIEW_TABS.map((tab) => {
+            const isActive = view === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => handleViewChange(tab.key)}
+                className={cn(
+                  "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </AdminPageHeader>
+
+      <CounterOrderSheet
+        open={counterSheetOpen}
+        onClose={() => setCounterSheetOpen(false)}
+        publicId={publicId}
+      />
 
       {activeOrders.length === 0 && !showWelcome ? (
-        <div className="flex h-64 items-center justify-center">
-          <TypographyMuted>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Inbox className="h-5 w-5" />
+          </div>
+          <p className="mb-1 text-sm font-medium text-foreground">
+            {view === "cuisine" ? "Cuisine au calme" : "Aucune commande en cours"}
+          </p>
+          <p className="max-w-xs text-xs text-muted-foreground">
             {view === "cuisine"
-              ? "Aucune commande à préparer. Les nouvelles commandes apparaîtront ici."
-              : "Aucune commande en cours. Les nouvelles commandes apparaîtront ici en temps réel."}
-          </TypographyMuted>
+              ? "Les bons à préparer apparaîtront ici dès qu'une commande arrive."
+              : "Les nouvelles commandes apparaissent ici en temps réel, avec une alerte sonore."}
+          </p>
         </div>
       ) : activeOrders.length > 0 ? (
         view === "comptoir" ? (

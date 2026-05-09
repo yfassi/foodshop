@@ -99,11 +99,23 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
               </p>
               {order.is_demo && <DemoBadge size="lg" />}
             </div>
-            {orderTypeLabel && (
-              <span className="mt-1 inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {orderTypeLabel}
-              </span>
+            {order.customer_info?.name && (
+              <p className="mt-1 text-sm font-semibold text-foreground/80">
+                {order.customer_info.name}
+              </p>
             )}
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {orderTypeLabel && (
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {orderTypeLabel}
+                </span>
+              )}
+              {order.pager_number && (
+                <span className="rounded-md bg-foreground px-2 py-0.5 text-xs font-bold text-background">
+                  Bipper N°{order.pager_number}
+                </span>
+              )}
+            </div>
           </div>
           <div className="relative" ref={pickerRef}>
             <button onClick={() => setShowStatusPicker((v) => !v)} aria-label="Changer le statut">
@@ -191,9 +203,21 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
     <div className={`rounded-xl p-4 ${config.bgClass}`}>
       {/* Header */}
       <div className="mb-2 flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-2xl font-bold">{displayNumber}</p>
-          {order.is_demo && <DemoBadge />}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-2xl font-bold">{displayNumber}</p>
+            {order.is_demo && <DemoBadge />}
+          </div>
+          {order.customer_info?.name && (
+            <p className="mt-0.5 truncate text-sm font-medium text-foreground/80">
+              {order.customer_info.name}
+            </p>
+          )}
+          {order.pager_number && (
+            <span className="mt-1 inline-block rounded-md bg-foreground px-2 py-0.5 text-xs font-bold text-background">
+              Bipper N°{order.pager_number}
+            </span>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="relative" ref={pickerRef}>

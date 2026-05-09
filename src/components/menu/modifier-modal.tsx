@@ -21,11 +21,15 @@ interface ModifierModalProps {
   onClose: () => void;
 }
 
+const SNAP_POINTS = [0.7, 1] as const;
+
 export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [isMenu, setIsMenu] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
+  const [snap, setSnap] = useState<number | string | null>(SNAP_POINTS[0]);
+  const isFullscreen = snap === 1;
   const [selections, setSelections] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     for (const group of product.modifier_groups) {
@@ -148,14 +152,32 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
   };
 
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[92vh]">
+    <Drawer
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setSnap(SNAP_POINTS[0]);
+          onClose();
+        }
+      }}
+      snapPoints={[...SNAP_POINTS]}
+      activeSnapPoint={snap}
+      setActiveSnapPoint={setSnap}
+    >
+      <DrawerContent
+        className={`h-[100dvh] max-h-[100dvh] data-[vaul-drawer-direction=bottom]:max-h-[100dvh] transition-[border-radius] duration-200 ease-out ${
+          isFullscreen
+            ? "data-[vaul-drawer-direction=bottom]:rounded-t-none"
+            : ""
+        }`}
+      >
         <DrawerHeader className="px-4 pb-3 pt-3">
+          {/* Product image — kit: 180px height, warm gradient fallback, radius 16px */}
           {product.image_url ? (
             <button
               type="button"
               onClick={() => setShowLightbox(true)}
-              className="relative mb-3 h-[180px] w-full cursor-zoom-in overflow-hidden rounded-2xl bg-muted"
+              className="relative mb-3 h-[180px] w-full cursor-zoom-in overflow-hidden rounded-2xl bg-[#fdf9f3]"
             >
               <Image
                 src={product.image_url}
@@ -166,20 +188,21 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
               />
             </button>
           ) : (
-            <div className="mb-3 grid h-[180px] w-full place-items-center rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100 text-6xl">
-              🍽
+            <div className="mb-3 grid h-[180px] w-full place-items-center rounded-2xl bg-gradient-to-br from-[#fdf2e8] to-[#f8e6d3]">
+              <Plus className="h-10 w-10 text-[#d7352d]/20" />
             </div>
           )}
-          <DrawerTitle className="text-[22px] font-extrabold tracking-tight">
+          {/* Product name — kit: Poppins 800, -0.03em tracking */}
+          <DrawerTitle className="text-[22px] font-extrabold tracking-[-0.03em] text-[#1c1410]">
             {product.name}
           </DrawerTitle>
           {product.description && (
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 text-[14px] leading-relaxed text-[#68625e]">
               {product.description}
             </p>
           )}
           <div className="mt-2.5 flex items-center gap-2">
-            <p className="font-mono text-[15px] font-bold">{formatPrice(product.price)}</p>
+            <p className="font-mono text-[15px] font-bold text-[#1c1410]">{formatPrice(product.price)}</p>
           </div>
         </DrawerHeader>
 
@@ -228,17 +251,18 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
 
             return (
               <div key={group.id} data-group-index={groupIndex} className="mb-5">
-                <div className="mb-2.5 flex items-baseline justify-between">
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                {/* Group heading — kit: Space Grotesk, tomato red, uppercase */}
+                <div className="mb-2 flex items-baseline justify-between">
+                  <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d7352d]">
                     {group.name}
                     {isRequired && (
-                      <span className="ml-2 text-[10px] font-bold text-destructive">
+                      <span className="ml-2 text-[10px] font-bold text-[#bf000f]">
                         · obligatoire
                       </span>
                     )}
                   </h4>
                   {group.max_select > 1 && (
-                    <span className="font-mono text-[11px] text-muted-foreground">
+                    <span className="font-mono text-[11px] text-[#a89e94]">
                       {selected.length}/{group.max_select}
                     </span>
                   )}
@@ -252,26 +276,27 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
                         !isSelected && selected.length >= group.max_select;
 
                       return (
+                        /* Option row — kit: dashed border, 22×22 checkbox radius 7px */
                         <button
                           key={modifier.id}
                           onClick={() => toggleModifier(group, modifier.id, groupIndex)}
                           disabled={isDisabled}
-                          className={`flex items-center gap-3 border-b border-border/60 py-3 text-left transition-colors last:border-b-0 ${
-                            isDisabled ? "cursor-not-allowed opacity-40" : "active:bg-accent/30"
+                          className={`flex items-center gap-2.5 border-b border-dashed border-[#dbd7d2] py-2.5 text-left transition-colors last:border-b-0 ${
+                            isDisabled ? "cursor-not-allowed opacity-40" : "active:bg-[#fdf9f3]"
                           }`}
                         >
                           <span
-                            className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border-[2px] transition-colors ${
+                            className={`grid h-[22px] w-[22px] shrink-0 place-items-center rounded-[7px] border-[2px] transition-colors ${
                               isSelected
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-border"
+                                ? "border-[#d7352d] bg-[#d7352d] text-white"
+                                : "border-[#dbd7d2]"
                             }`}
                           >
                             {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
                           </span>
-                          <span className="flex-1 text-[14px]">{modifier.name}</span>
+                          <span className="flex-1 text-[14px] text-[#1c1410]">{modifier.name}</span>
                           {modifier.price_extra > 0 && (
-                            <span className="font-mono text-[13px] text-muted-foreground">
+                            <span className="font-mono text-[13px] text-[#68625e]">
                               +{formatPrice(modifier.price_extra)}
                             </span>
                           )}
@@ -284,33 +309,34 @@ export function ModifierModal({ product, open, onClose }: ModifierModalProps) {
           })}
         </div>
 
-        <DrawerFooter className="border-t border-border px-4 pt-3">
+        <DrawerFooter className="border-t border-[#dbd7d2] px-4 pt-3">
           <div className="flex items-center gap-3">
-            {/* Stepper matching design */}
-            <div className="inline-flex items-center overflow-hidden rounded-xl bg-muted">
+            {/* Stepper — kit: pill-shaped, fdf9f3 bg, dbd7d2 border */}
+            <div className="inline-flex items-center overflow-hidden rounded-full border-[1.5px] border-[#dbd7d2] bg-[#fdf9f3]">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 aria-label="Diminuer la quantité"
-                className="grid h-12 w-10 place-items-center transition-colors active:bg-border"
+                className="grid h-12 w-10 place-items-center text-[#1c1410] transition-colors active:bg-[#f0ebe1]"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-8 text-center font-mono text-[14px] font-bold">
+              <span className="w-8 text-center font-mono text-[14px] font-bold text-[#1c1410]">
                 {quantity}
               </span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
                 aria-label="Augmenter la quantité"
-                className="grid h-12 w-10 place-items-center transition-colors active:bg-border"
+                className="grid h-12 w-10 place-items-center text-[#1c1410] transition-colors active:bg-[#f0ebe1]"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
 
+            {/* Add button — kit: tomato red primary, pill, uppercase */}
             <button
               onClick={handleAdd}
               disabled={!isValid}
-              className="flex h-12 flex-1 items-center justify-center rounded-xl bg-primary px-4 text-[14px] font-semibold text-primary-foreground transition-colors active:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-12 flex-1 items-center justify-center rounded-full bg-[#d7352d] px-4 text-[13px] font-bold uppercase tracking-[0.06em] text-white shadow-[0_0_20px_#d7352d4d] transition-colors active:bg-[#bf2c25] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Ajouter · {formatPrice(lineTotal)}
             </button>

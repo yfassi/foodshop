@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, User } from "lucide-react";
 import Link from "next/link";
 import { AnimatedBackground } from "@/components/animated-background";
 
@@ -65,18 +65,28 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-10">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm sm:p-8">
         <Link
           href={`/restaurant/${publicId}/order`}
-          className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="-ml-1 inline-flex h-9 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour
         </Link>
 
-        <h2 className="mb-6 text-xl font-bold">Connexion</h2>
+        <div className="mb-7 mt-4 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <User className="h-6 w-6" strokeWidth={2} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Connexion</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Retrouvez vos commandes et vos points fidélité
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

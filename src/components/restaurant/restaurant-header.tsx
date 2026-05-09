@@ -2,109 +2,84 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Clock, ChevronDown } from "lucide-react";
+import { Info } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
-import { DAYS_FR, getRestaurantStatusLabel, normalizeHoursEntry } from "@/lib/constants";
+import { getRestaurantStatusLabel } from "@/lib/constants";
 import { CustomerAuthButton } from "./customer-auth-button";
-
-function getTodayKey() {
-  const days = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  return days[new Date().getDay()];
-}
-
-function getTodayHours(restaurant: Restaurant) {
-  const today = getTodayKey();
-  const ranges = normalizeHoursEntry(restaurant.opening_hours?.[today]);
-  if (!ranges || ranges.length === 0) return null;
-  return ranges.map((r) => `${r.open} - ${r.close}`).join(" / ");
-}
+import { RestaurantInfoDrawer } from "./restaurant-info-drawer";
 
 export function RestaurantHeader({
   restaurant,
 }: {
   restaurant: Restaurant;
 }) {
-  const [showHours, setShowHours] = useState(false);
-  const todayHours = getTodayHours(restaurant);
-  const todayName = DAYS_FR[getTodayKey()];
+  const [infoOpen, setInfoOpen] = useState(false);
   const status = getRestaurantStatusLabel(restaurant.opening_hours);
   const isOpen = status.isOpen && restaurant.is_accepting_orders;
   const statusLabel = restaurant.is_accepting_orders ? status.label : "Fermé";
 
   return (
-    <header className="border-b border-border bg-card px-4 py-3.5">
-      <div className="flex items-center gap-3">
-        {restaurant.logo_url ? (
-          <div className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[13px]">
-            <Image
-              src={restaurant.logo_url}
-              alt={`${restaurant.name} logo`}
-              fill
-              className="object-cover"
-              sizes="46px"
+    <>
+      <header className="border-b border-[#E6D9C2] bg-[#F5EBDB] px-4 py-3">
+        {/* Row 1: logo + name (opens info drawer) + login button */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setInfoOpen(true)}
+            aria-label={`Voir la fiche de ${restaurant.name}`}
+            className="-mx-1 -my-0.5 flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left transition-colors active:bg-[#E6D9C2]/60"
+          >
+            {restaurant.logo_url ? (
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[13px] border border-[#E6D9C2] bg-[#fdf9f3]">
+                <Image
+                  src={restaurant.logo_url}
+                  alt={`${restaurant.name} logo`}
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                />
+              </div>
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-[#E6D9C2] bg-[#fdf9f3] text-base font-bold text-[#1c1410]">
+                {restaurant.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <h1 className="flex min-w-0 flex-1 items-center gap-1.5 text-[17px] font-extrabold leading-tight tracking-[-0.025em] text-[#1c1410]">
+              <span className="truncate">{restaurant.name}</span>
+              <Info className="h-3.5 w-3.5 shrink-0 text-[#68625e]" />
+            </h1>
+          </button>
+          <CustomerAuthButton publicId={restaurant.public_id} />
+        </div>
+
+        {/* Row 2: status + description */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${
+              isOpen
+                ? "bg-[#d8efd9] text-[#00873a]"
+                : "bg-[#fbdadd] text-[#bf000f]"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isOpen ? "bg-[#00873a]" : "bg-[#bf000f]"
+              }`}
             />
-          </div>
-        ) : (
-          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
-            {restaurant.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[17px] font-extrabold tracking-tight">
-            {restaurant.name}
-          </h1>
+            {statusLabel}
+          </span>
           {restaurant.description && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
-              {restaurant.description}
+            <p className="min-w-0 flex-1 truncate text-[11px] tracking-[0.03em] text-[#68625e]">
+              · {restaurant.description}
             </p>
           )}
         </div>
-        <span
-          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-            isOpen
-              ? "bg-success-soft text-success"
-              : "bg-destructive/10 text-destructive"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isOpen ? "bg-success" : "bg-destructive"
-            }`}
-          />
-          {statusLabel}
-        </span>
-        <div className="ml-1">
-          <CustomerAuthButton publicId={restaurant.public_id} />
-        </div>
-      </div>
-      {todayHours && (
-        <div className="mt-2">
-          <button
-            onClick={() => setShowHours(!showHours)}
-            aria-expanded={showHours}
-            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Clock className="h-3 w-3" />
-            <span>Horaires du jour</span>
-            <ChevronDown
-              className={`h-3 w-3 transition-transform ${showHours ? "rotate-180" : ""}`}
-            />
-          </button>
-          {showHours && (
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {todayName} : <span className="font-mono font-semibold text-foreground">{todayHours}</span>
-            </div>
-          )}
-        </div>
-      )}
-    </header>
+      </header>
+      <RestaurantInfoDrawer
+        restaurant={restaurant}
+        open={infoOpen}
+        onOpenChange={setInfoOpen}
+      />
+    </>
   );
 }

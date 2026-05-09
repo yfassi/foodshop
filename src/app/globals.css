@@ -174,9 +174,73 @@ html {
   .bg-success-soft { background-color: #dcfce7; }
   .text-success-strong { color: #008138; }
   .text-info { color: #1447e6; }
+  .bg-info { background-color: #3080ff; }
   .bg-info-soft { background-color: #dbeafe; }
   .text-warning { color: #b75000; }
   .bg-warning-soft { background-color: #fef3c6; }
+
+  /* TaapR client mobile UI kit tokens — warm bistro palette */
+  .client-bg { background-color: #fdf9f3; }
+  .client-card { background-color: #fff; }
+  .client-fg { color: #1c1410; }
+  .client-muted { color: #68625e; }
+  .client-border { border-color: #dbd7d2; }
+  .bg-client-muted { background-color: #fdf9f3; }
+
+  /* Category pill active state — uses foreground (#1c1410) per kit */
+  .cat-pill-active {
+    background-color: #1c1410;
+    color: #fff;
+    border-color: #1c1410;
+  }
+
+  /* Add-to-cart button — tomato red circle per kit */
+  .add-btn-kit {
+    background-color: #d7352d;
+    box-shadow: 0 0 12px #d7352d4d;
+  }
+  .add-btn-kit:hover { transform: scale(1.08); }
+
+  /* Cart FAB — dark pill with red badge per kit */
+  .cart-fab-kit {
+    background-color: #1c1410;
+    box-shadow: 0 16px 32px -10px #1c141066, inset 0 0 0 1px #ffffff14;
+  }
+
+  /* Loyalty card gradient */
+  .loyalty-card-bg {
+    background: #172846;
+    background-image: radial-gradient(ellipse at 90% 10%, #d7352d33 0%, transparent 55%),
+                      radial-gradient(ellipse at 10% 90%, #f8f1e70a 0%, transparent 55%);
+  }
+
+  /* Dashed divider per kit */
+  .dashed-divider {
+    border: none;
+    height: 1px;
+    background: repeating-linear-gradient(
+      to right,
+      #dbd7d2 0,
+      #dbd7d2 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  /* Toast border-left variants */
+  .toast-success-kit { border-left: 4px solid #00873a; }
+  .toast-warn-kit { border-left: 4px solid #b75000; }
+  .toast-err-kit { border-left: 4px solid #d7352d; }
+  .toast-info-kit { border-left: 4px solid #172846; }
+
+  /* Timeline icon states */
+  .tl-done { background-color: #d8efd9; color: #00873a; }
+  .tl-active {
+    background-color: #d7352d;
+    color: #fff;
+    box-shadow: 0 0 0 5px #d7352d2e;
+  }
+  .tl-pending { background-color: #f0ebe1; color: #68625e; }
 
   .step-enter-from-right {
     animation: stepSlideInRight 300ms ease-out forwards;
@@ -417,4 +481,205 @@ html {
   .animate-ping-once {
     animation: ping-once 400ms ease-out forwards;
   }
+}
+
+/* ═══════════════════════════════════════
+   MAP — Leaflet styling aligned to landing-v4
+   Used by .taapr-map wrappers (admin + checkout)
+   ═══════════════════════════════════════ */
+
+.taapr-map {
+  --map-paprika: #E64A19;
+  --map-cream:   #F4ECDB;
+  --map-ink:     #1A1410;
+
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--map-cream);
+  box-shadow:
+    0 1px 0 rgba(26, 20, 16, 0.04),
+    0 18px 40px -22px rgba(26, 20, 16, 0.18);
+  isolation: isolate;
+}
+
+.taapr-map .leaflet-container {
+  background: #f1ead6;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Subtle warm overlay so CARTO tiles tint toward the cream palette */
+.taapr-map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(244, 236, 219, 0.18), transparent 55%),
+    radial-gradient(120% 80% at 100% 100%, rgba(230, 74, 25, 0.06), transparent 60%);
+  z-index: 400; /* above tiles, below controls (which are z-1000+) */
+  mix-blend-mode: multiply;
+}
+
+/* Inner ring for crisp edge */
+.taapr-map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(26, 20, 16, 0.08);
+  border-radius: inherit;
+  z-index: 1001;
+}
+
+/* Zoom buttons — pill-shaped, paprika hover */
+.taapr-map .leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 6px 20px -8px rgba(26, 20, 16, 0.22) !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  margin: 12px !important;
+}
+.taapr-map .leaflet-control-zoom a {
+  background: #ffffff !important;
+  color: var(--map-ink) !important;
+  border: none !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.taapr-map .leaflet-control-zoom a:first-child { border-bottom: 1px solid rgba(26, 20, 16, 0.08) !important; }
+.taapr-map .leaflet-control-zoom a:hover {
+  background: var(--map-paprika) !important;
+  color: var(--map-cream) !important;
+}
+
+/* Attribution — discrete cream pill bottom-right */
+.taapr-map .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 10px 0 0 0 !important;
+  padding: 3px 8px !important;
+  font-size: 10px !important;
+  color: rgba(26, 20, 16, 0.55) !important;
+}
+.taapr-map .leaflet-control-attribution a {
+  color: var(--map-paprika) !important;
+}
+
+/* Custom branded pin */
+.taapr-map .taapr-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 46px;
+  filter: drop-shadow(0 6px 10px rgba(230, 74, 25, 0.35));
+  transform-origin: 50% 100%;
+  animation: taapr-pin-drop 360ms cubic-bezier(0.22, 1.6, 0.36, 1) both;
+}
+.taapr-map .taapr-pin svg { width: 100%; height: 100%; }
+.taapr-map .taapr-pin-pulse {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(230, 74, 25, 0.22);
+  filter: blur(4px);
+  animation: taapr-pin-pulse 1.6s ease-in-out infinite;
+}
+@keyframes taapr-pin-drop {
+  0%   { opacity: 0; transform: translateY(-22px) scale(0.85); }
+  60%  { opacity: 1; transform: translateY(2px)   scale(1.02); }
+  100% { opacity: 1; transform: translateY(0)     scale(1); }
+}
+@keyframes taapr-pin-pulse {
+  0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 0.85; transform: translateX(-50%) scale(1.25); }
+}
+
+/* Search & info card framing — outside leaflet container */
+.taapr-map-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.taapr-map-search {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid rgba(26, 20, 16, 0.10);
+  border-radius: 999px;
+  box-shadow: 0 1px 0 rgba(26, 20, 16, 0.03), 0 8px 24px -18px rgba(26, 20, 16, 0.18);
+}
+.taapr-map-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  padding: 8px 14px;
+  flex: 1;
+  min-width: 0;
+  color: var(--map-ink);
+}
+.taapr-map-search input::placeholder { color: rgba(26, 20, 16, 0.45); }
+.taapr-map-search button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--map-paprika);
+  color: var(--map-cream);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+.taapr-map-search button:hover { background: var(--map-ink); transform: translateY(-1px); }
+.taapr-map-search button:disabled { opacity: 0.7; cursor: progress; transform: none; }
+
+.taapr-map-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--map-cream);
+  border: 1px solid rgba(26, 20, 16, 0.08);
+  font-size: 13px;
+  color: var(--map-ink);
+  line-height: 1.45;
+}
+.taapr-map-info .pin-dot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--map-paprika);
+  color: var(--map-cream);
+}
+.taapr-map-info--alert {
+  background: rgba(230, 74, 25, 0.08);
+  border-color: rgba(230, 74, 25, 0.25);
+  color: #8a2a0d;
+}
+.taapr-map-info--alert .pin-dot { background: #c0341a; }
+.taapr-map-info-strong { font-weight: 600; }
+.taapr-map-info small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(26, 20, 16, 0.6);
+  font-size: 12px;
 }

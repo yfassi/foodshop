@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Shield } from "lucide-react";
+import { Loader2, Shield, Eye, EyeOff } from "lucide-react";
 import { AnimatedBackground } from "@/components/animated-background";
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -33,11 +34,10 @@ export default function SuperAdminLoginPage() {
       return;
     }
 
-    // Verify super admin access via API
     const res = await fetch("/api/super-admin/stats?period=today");
     if (!res.ok) {
       await supabase.auth.signOut();
-      toast.error("Acces non autorise");
+      toast.error("Accès non autorisé");
       setLoading(false);
       return;
     }
@@ -67,14 +67,19 @@ export default function SuperAdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-10">
       <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <Shield className="h-6 w-6 text-primary" />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm sm:p-8">
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Shield className="h-6 w-6" strokeWidth={2} />
           </div>
-          <h1 className="text-xl font-bold">Super Admin</h1>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Super Admin</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Console interne TaapR
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,6 +93,7 @@ export default function SuperAdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@taapr.fr"
+              autoComplete="email"
               required
               className="mt-1.5 h-12"
             />
@@ -97,19 +103,30 @@ export default function SuperAdminLoginPage() {
             <Label htmlFor="password" className="text-sm font-medium">
               Mot de passe
             </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1.5 h-12"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="h-12 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email || !password}
             className="h-12 w-full rounded-xl font-semibold"
           >
             {loading ? (

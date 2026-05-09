@@ -41,7 +41,8 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   return NextResponse.json({ keys: data ?? [] });
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "carte")) {
-    return NextResponse.json({ error: "Plan Carte Blanche requis" }, { status: 403 });
+    return NextResponse.json({ error: "Plan Business requis" }, { status: 403 });
   }
 
   // Generate a 32-byte token. Prefix is the first 12 chars of the visible part.
@@ -90,7 +91,8 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   // Return the full key once; never again.
@@ -118,7 +120,8 @@ export async function DELETE(req: Request) {
     .eq("restaurant_id", restaurantId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API keys error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

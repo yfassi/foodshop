@@ -1,5 +1,19 @@
 import type { SubscriptionTier } from "./types";
 
+// Legacy tier names that may still exist in the DB (pre-migration 016).
+// Mapped to the current tier model on read.
+const LEGACY_TIER_MAP: Record<string, SubscriptionTier> = {
+  essentiel: "plat",
+  pro: "menu",
+  business: "carte",
+};
+
+export function normalizeTier(value: string | null | undefined): SubscriptionTier {
+  if (!value) return "plat";
+  if (value === "plat" || value === "menu" || value === "carte") return value;
+  return LEGACY_TIER_MAP[value] ?? "plat";
+}
+
 const TIER_RANK: Record<SubscriptionTier, number> = {
   plat: 1,
   menu: 2,
@@ -7,10 +21,12 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
 };
 
 const TIER_LABEL: Record<SubscriptionTier, string> = {
-  plat: "Le Plat",
-  menu: "Le Menu",
-  carte: "Carte Blanche",
+  plat: "Starter",
+  menu: "Pro",
+  carte: "Business",
 };
+
+export const EXTRA_RESTAURANT_PRICE = 39;
 
 const TIER_PRICE: Record<SubscriptionTier, number> = {
   plat: 29,
@@ -63,10 +79,6 @@ export function canUseFloorPlan(tier: SubscriptionTier): boolean {
 }
 
 export function canUseExportCsv(tier: SubscriptionTier): boolean {
-  return tierAtLeast(tier, "menu");
-}
-
-export function canUseSplitPayment(tier: SubscriptionTier): boolean {
   return tierAtLeast(tier, "menu");
 }
 
