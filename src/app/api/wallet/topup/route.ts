@@ -106,8 +106,8 @@ export async function POST(request: Request) {
         ...(validatedBonus > 0 && { bonus: validatedBonus.toString() }),
         ...(isDemo && { is_demo: "true" }),
       },
-      success_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=success`,
-      cancel_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=cancelled`,
+      success_url: `${appUrl}/restaurant/${restaurant_public_id}/account?wallet_topup=success`,
+      cancel_url: `${appUrl}/restaurant/${restaurant_public_id}/account?wallet_topup=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });
