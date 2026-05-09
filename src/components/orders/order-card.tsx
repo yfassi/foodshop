@@ -6,7 +6,6 @@ import { formatPrice, formatTime } from "@/lib/format";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { CreditCard, Banknote, Wallet, FlaskConical } from "lucide-react";
 
@@ -63,13 +62,16 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   };
 
   const markAsPaid = async () => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("orders")
-      .update({ paid: true })
-      .eq("id", order.id);
-
-    if (error) {
+    try {
+      const res = await fetch("/api/orders/mark-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id }),
+      });
+      if (!res.ok) {
+        toast.error("Erreur lors de l'encaissement");
+      }
+    } catch {
       toast.error("Erreur lors de l'encaissement");
     }
   };

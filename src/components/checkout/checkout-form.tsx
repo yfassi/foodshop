@@ -28,6 +28,7 @@ export function CheckoutForm({
   loyaltyEnabled,
   restaurantCoords,
   isDemo = false,
+  defaultEmail,
 }: {
   publicId: string;
   stripeConnected: boolean;
@@ -38,6 +39,7 @@ export function CheckoutForm({
   loyaltyEnabled?: boolean;
   restaurantCoords?: { lat: number; lng: number } | null;
   isDemo?: boolean;
+  defaultEmail?: string;
 }) {
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -57,6 +59,15 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("direct");
   const [loading, setLoading] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState<string>(defaultEmail ?? "");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const validateEmail = (raw: string) => {
+    const v = raw.trim();
+    if (!v) return null; // optionnel
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Email invalide";
+    return null;
+  };
 
   const showOrderTypeSelector = orderTypes.length > 1;
 
@@ -87,6 +98,14 @@ export function CheckoutForm({
       }
     }
 
+    const emailValidation = validateEmail(customerEmail);
+    if (emailValidation) {
+      setEmailError(emailValidation);
+      toast.error(emailValidation);
+      return;
+    }
+    setEmailError(null);
+
     setLoading(true);
 
     try {
@@ -108,6 +127,7 @@ export function CheckoutForm({
           order_type: orderType,
           payment_method: paymentMethod,
           payment_source: paymentSource,
+          customer_email: customerEmail.trim() || undefined,
           queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
           ...(orderType === "delivery" && deliveryAddress
             ? { delivery_address: deliveryAddress }
@@ -284,6 +304,35 @@ export function CheckoutForm({
           </p>
         </div>
       )}
+
+      {/* Email — optional, for the order confirmation receipt */}
+      <div>
+        <Label
+          htmlFor="customer_email"
+          className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+        >
+          Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
+        </Label>
+        <input
+          id="customer_email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="vous@exemple.fr"
+          value={customerEmail}
+          onChange={(e) => {
+            setCustomerEmail(e.target.value);
+            if (emailError) setEmailError(null);
+          }}
+          onBlur={() => setEmailError(validateEmail(customerEmail))}
+          className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
+            emailError ? "border-destructive" : "border-border"
+          }`}
+        />
+        {emailError && (
+          <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
+        )}
+      </div>
 
       {/* Payment method */}
       <div>

@@ -224,6 +224,7 @@ export type OrderView = "comptoir" | "cuisine";
 export interface OrderCustomerInfo {
   name?: string;
   phone?: string;
+  email?: string;
   notes?: string;
 }
 

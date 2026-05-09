@@ -6,7 +6,9 @@ import { getStripeForDemo } from "@/lib/stripe/demo";
 import type { Order, Driver } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
+import { EmailReceiptForm } from "./email-receipt-form";
 import { Check, UserPlus, ShoppingBag, MessageSquare, FlaskConical } from "lucide-react";
+import "./order-confirmation.css";
 
 export default async function OrderConfirmationPage({
   params,
@@ -24,7 +26,6 @@ export default async function OrderConfirmationPage({
 
   if (!order) notFound();
 
-  // If order is not yet marked as paid but has a Stripe session, verify payment
   if (!order.paid && order.stripe_session_id) {
     try {
       const stripeClient = getStripeForDemo(order.is_demo);
@@ -41,7 +42,7 @@ export default async function OrderConfirmationPage({
         order.paid = true;
       }
     } catch {
-      // Stripe verification failed, webhook will handle it as fallback
+      // webhook fallback
     }
   }
 
@@ -73,139 +74,166 @@ export default async function OrderConfirmationPage({
     hour: "2-digit",
     minute: "2-digit",
   });
+  const orderDate = new Date(order.created_at).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  const paymentLabel =
+    order.payment_source === "wallet" ? "Solde"
+    : isOnSite ? "Sur place"
+    : "Carte";
+
+  const customerName = order.customer_info?.name?.split(" ")[0];
+
+  // Show the "send receipt by email" form when no email is on file and we
+  // haven't already sent a confirmation. Cast to read the column added in
+  // migration 019 without expanding the global Order type.
+  const emailSentAt = (order as Order & {
+    confirmation_email_sent_at?: string | null;
+  }).confirmation_email_sent_at;
+  const showEmailReceiptForm =
+    !order.customer_info?.email && !emailSentAt;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-7 md:px-6">
-      {order.is_demo && (
-        <div className="mb-4 flex items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-800">
-          <FlaskConical className="h-3.5 w-3.5" />
-          Mode démo — paiement Stripe test
-        </div>
-      )}
-      {/* Success header */}
-      <div className="mb-6 flex flex-col items-center text-center">
-        <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-success-soft text-success">
-          <Check className="h-10 w-10" strokeWidth={3} />
-        </div>
-        <h2 className="text-2xl font-extrabold tracking-tight">
-          {order.customer_info?.name
-            ? `Merci ${order.customer_info.name} !`
-            : "Commande reçue !"}
-        </h2>
-        <p className="mt-1.5 text-[13px] text-muted-foreground">
-          {isOnSite
-            ? "Votre commande est confirmée. Présentez votre numéro au comptoir."
-            : "Votre commande est en cours de préparation."}
-        </p>
-      </div>
-
-      {/* Receipt — paper-style with mono font and dashed dividers */}
-      <div className="mb-4 rounded-2xl border-[1.5px] border-border bg-card p-5 font-mono text-[11px] text-muted-foreground shadow-sm">
-        <div className="mb-3 text-center font-mono text-[20px] font-bold tracking-[0.12em] text-foreground">
-          # {orderNumberClean}
-        </div>
-        <div className="space-y-1">
-          {orderTypeLabel && (
-            <div className="flex justify-between">
-              <span>TYPE</span>
-              <span className="text-foreground">{orderTypeLabel.toUpperCase()}</span>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span>HEURE</span>
-            <span className="text-foreground">{orderTime}</span>
+    <div className="oc-root">
+      <div className="oc-wrap">
+        {order.is_demo && (
+          <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+            <FlaskConical className="h-3.5 w-3.5" />
+            Mode démo — paiement Stripe test
           </div>
-          {order.payment_source === "wallet" ? (
-            <div className="flex justify-between">
-              <span>PAIEMENT</span>
-              <span className="text-foreground">SOLDE</span>
-            </div>
-          ) : isOnSite ? (
-            <div className="flex justify-between">
-              <span>PAIEMENT</span>
-              <span className="text-foreground">SUR PLACE</span>
-            </div>
-          ) : (
-            <div className="flex justify-between">
-              <span>PAIEMENT</span>
-              <span className="text-foreground">CARTE</span>
-            </div>
-          )}
-        </div>
-        <hr className="my-3 border-t border-dashed border-border" />
-        <div className="space-y-1.5">
-          {order.items.map((item, i) => (
-            <div key={i} className="flex justify-between gap-3">
-              <span className="truncate text-foreground">
-                {item.quantity}× {item.product_name.toUpperCase()}
-                {item.is_menu && <span className="ml-1 text-foreground">(MENU)</span>}
-              </span>
-              <span className="shrink-0 text-foreground">{formatPrice(item.line_total)}</span>
-            </div>
-          ))}
-        </div>
-        <hr className="my-3 border-t border-dashed border-border" />
-        <div className="flex items-center justify-between text-[14px] font-bold text-foreground">
-          <span>TOTAL</span>
-          <span>{formatPrice(order.total_price)}</span>
-        </div>
-      </div>
-
-      {/* Realtime status tracker */}
-      <OrderStatusTracker
-        orderId={order.id}
-        initialStatus={order.status}
-        orderType={order.order_type ?? undefined}
-        initialDeliveryStatus={order.delivery_status ?? null}
-        initialDriver={driver}
-      />
-
-      {/* Order notes */}
-      {order.customer_info?.notes && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-            <MessageSquare className="h-3.5 w-3.5" />
-            Note pour la cuisine
-          </h3>
-          <p className="text-[13px]">{order.customer_info.notes}</p>
-        </div>
-      )}
-
-      {/* New order button — outline pill */}
-      <div className="mt-5 text-center">
-        <Link
-          href={`/restaurant/${publicId}/order`}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-border bg-background px-5 text-[13px] font-semibold transition-colors hover:bg-muted"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          Nouvelle commande
-        </Link>
-      </div>
-
-      {/* Sign-up CTA for non-logged-in users */}
-      {!user && (
-        <div className="mt-5 rounded-2xl border border-border bg-muted/40 p-5 text-center">
-          <div className="mx-auto mb-2.5 grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground">
-            <UserPlus className="h-5 w-5" />
+        )}
+        {/* ──── Header ──── */}
+        <header className="oc-header">
+          <div className="oc-stamp" aria-hidden>
+            <Check className="h-9 w-9" strokeWidth={3} />
           </div>
-          <p className="text-[14px] font-bold tracking-tight">
-            Créez votre compte fidélité
+          <p className="oc-script">Service compris.</p>
+          <h1 className="oc-title">
+            {customerName ? <>Merci <em>{customerName}</em>&nbsp;!</> : <>Commande <em>reçue</em>&nbsp;!</>}
+          </h1>
+          <p className="oc-sub">
+            {isOnSite
+              ? "Présentez votre numéro au comptoir, on s'occupe du reste."
+              : "On s'occupe de tout. Vous serez notifié dès que votre commande est prête."}
           </p>
-          <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
-            Cumulez des points à chaque commande et débloquez des avantages.
-          </p>
-          <Link
-            href={`/restaurant/${publicId}/signup`}
-            className="mt-3.5 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Créer mon compte
+        </header>
+
+        {/* ──── Receipt ──── */}
+        <section className="oc-receipt" aria-label="Ticket de caisse">
+          <div className="oc-receipt-brand">
+            <span>taapr</span>
+            <span className="dot" />
+          </div>
+          <p className="oc-receipt-tag">Ticket de caisse · {orderDate}</p>
+
+          <div className="oc-receipt-num">
+            <small>Numéro de commande</small>
+            #{orderNumberClean}
+          </div>
+
+          <hr className="oc-divider" />
+
+          <div className="oc-meta">
+            {orderTypeLabel && (
+              <div className="oc-meta-row">
+                <span className="l">Type</span>
+                <span className="v">{orderTypeLabel}</span>
+              </div>
+            )}
+            <div className="oc-meta-row">
+              <span className="l">Heure</span>
+              <span className="v">{orderTime}</span>
+            </div>
+            <div className="oc-meta-row">
+              <span className="l">Paiement</span>
+              <span className="v">{paymentLabel}</span>
+            </div>
+          </div>
+
+          <hr className="oc-divider" />
+
+          <div className="oc-items">
+            {order.items.map((item, i) => (
+              <div key={i}>
+                <div className="oc-item-row">
+                  <span className="oc-item-name">
+                    <span className="qty">{item.quantity}×</span>
+                    {item.product_name}
+                    {item.is_menu && <span className="menu">(menu)</span>}
+                  </span>
+                  <span className="oc-item-price">{formatPrice(item.line_total)}</span>
+                </div>
+                {item.modifiers.length > 0 && (
+                  <p className="oc-item-mods">
+                    {item.modifiers.map((m) => m.modifier_name).join(" · ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <hr className="oc-divider" />
+
+          <div className="oc-total">
+            <span className="l">Total</span>
+            <span className="v">{formatPrice(order.total_price)}</span>
+          </div>
+
+          <p className="oc-thanks">À très vite !</p>
+        </section>
+
+        {/* ──── Realtime status ──── */}
+        <OrderStatusTracker
+          orderId={order.id}
+          initialStatus={order.status}
+          orderType={order.order_type ?? undefined}
+          initialDeliveryStatus={order.delivery_status ?? null}
+          initialDriver={driver}
+        />
+
+        {/* ──── Email receipt fallback ──── */}
+        {showEmailReceiptForm && <EmailReceiptForm orderId={order.id} />}
+
+        {/* ──── Note ──── */}
+        {order.customer_info?.notes && (
+          <div className="oc-note">
+            <h3 className="oc-note-h">
+              <MessageSquare className="h-3 w-3" />
+              Note pour la cuisine
+            </h3>
+            <p className="oc-note-body">{order.customer_info.notes}</p>
+          </div>
+        )}
+
+        {/* ──── Actions ──── */}
+        <div className="oc-actions">
+          <Link href={`/restaurant/${publicId}/order`} className="oc-btn oc-btn-ghost">
+            <ShoppingBag className="h-4 w-4" />
+            Nouvelle commande
           </Link>
         </div>
-      )}
 
-      <p className="mt-5 text-center text-[10px] text-muted-foreground/70">
-        Un reçu a été envoyé par email.
-      </p>
+        {/* ──── Sign-up CTA ──── */}
+        {!user && (
+          <div className="oc-signup">
+            <div className="oc-signup-icon">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <p className="oc-signup-h">
+              Créez votre compte <em>fidélité</em>
+            </p>
+            <p className="oc-signup-sub">
+              Cumulez des points à chaque commande, débloquez des avantages.
+            </p>
+            <Link href={`/restaurant/${publicId}/signup`} className="oc-signup-cta">
+              Créer mon compte
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
