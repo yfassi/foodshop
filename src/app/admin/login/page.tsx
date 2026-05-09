@@ -38,12 +38,12 @@ export default function AdminLoginPage() {
     // Find restaurants owned by this user (a user may own several)
     const { data: restaurants } = await supabase
       .from("restaurants")
-      .select("slug")
+      .select("public_id")
       .eq("owner_id", data.user.id)
       .order("created_at", { ascending: true });
 
     if (restaurants && restaurants.length > 0) {
-      router.push(`/admin/${restaurants[0].slug}`);
+      router.push(`/admin/${restaurants[0].public_id}`);
     } else {
       router.push("/admin/onboarding");
     }

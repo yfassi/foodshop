@@ -15,11 +15,11 @@ import {
 import type { QueueTicket } from "@/lib/types";
 
 interface QueueManagerProps {
-  slug: string;
+  publicId: string;
   restaurantId: string;
 }
 
-export function QueueManager({ slug, restaurantId }: QueueManagerProps) {
+export function QueueManager({ publicId, restaurantId }: QueueManagerProps) {
   const [tickets, setTickets] = useState<QueueTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function QueueManager({ slug, restaurantId }: QueueManagerProps) {
   const fetchTickets = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/admin/queue?restaurant_slug=${slug}`
+        `/api/admin/queue?restaurant_public_id=${publicId}`
       );
       const data = await res.json();
       setTickets(data.tickets || []);
@@ -35,7 +35,7 @@ export function QueueManager({ slug, restaurantId }: QueueManagerProps) {
       // Silent fail
     }
     setLoading(false);
-  }, [slug]);
+  }, [publicId]);
 
   useEffect(() => {
     fetchTickets();
@@ -72,7 +72,7 @@ export function QueueManager({ slug, restaurantId }: QueueManagerProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           action,
           ticket_id: ticketId,
         }),

@@ -4,15 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, customer_email, amount, description } =
+    const { restaurant_public_id, customer_email, amount, description } =
       (await request.json()) as {
-        restaurant_slug: string;
+        restaurant_public_id: string;
         customer_email: string;
         amount: number; // in cents
         description?: string;
       };
 
-    if (!restaurant_slug || !customer_email || !amount || amount <= 0) {
+    if (!restaurant_public_id || !customer_email || !amount || amount <= 0) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
         { status: 400 }
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
       .select("id, owner_id")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {

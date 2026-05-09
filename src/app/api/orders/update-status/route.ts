@@ -70,10 +70,10 @@ export async function POST(request: Request) {
       const orderNumber =
         order.display_order_number || `#${order.order_number}`;
 
-      // Get restaurant slug for the URL
+      // Get restaurant public_id for the URL
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("slug")
+        .select("public_id")
         .eq("id", order.restaurant_id)
         .single();
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
                 title: messageTemplate.title,
                 body: messageTemplate.body.replace("{order}", orderNumber),
                 url: restaurant
-                  ? `/restaurant/${restaurant.slug}/order-confirmation/${order_id}`
+                  ? `/restaurant/${restaurant.public_id}/order-confirmation/${order_id}`
                   : undefined,
                 tag: `order-${order_id}`,
               }

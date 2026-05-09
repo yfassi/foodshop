@@ -72,6 +72,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Protect kitchen + customer-display screens (admin auth)
+  if (
+    request.nextUrl.pathname.startsWith("/kitchen") ||
+    request.nextUrl.pathname.startsWith("/display")
+  ) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Forward the full URL so server components can read query params
   supabaseResponse.headers.set("x-url", request.url);
 

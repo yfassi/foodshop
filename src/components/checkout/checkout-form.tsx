@@ -19,7 +19,7 @@ type PaymentMethod = "online" | "on_site";
 type PaymentSource = "direct" | "wallet";
 
 export function CheckoutForm({
-  slug,
+  publicId,
   stripeConnected,
   acceptedPaymentMethods,
   orderTypes,
@@ -28,7 +28,7 @@ export function CheckoutForm({
   loyaltyEnabled,
   restaurantCoords,
 }: {
-  slug: string;
+  publicId: string;
   stripeConnected: boolean;
   acceptedPaymentMethods: AcceptedPaymentMethod[];
   orderTypes: OrderType[];
@@ -92,7 +92,7 @@ export function CheckoutForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           items: items.map((item) => ({
             product_id: item.product_id,
             product_name: item.product_name,
@@ -123,7 +123,7 @@ export function CheckoutForm({
         window.location.href = data.url;
       } else if (data.order_id) {
         clearCart();
-        window.location.href = `/restaurant/${slug}/order-confirmation/${data.order_id}`;
+        window.location.href = `/restaurant/${publicId}/order-confirmation/${data.order_id}`;
       }
     } catch (err) {
       toast.error(
@@ -243,7 +243,7 @@ export function CheckoutForm({
 
       {orderType === "delivery" && (
         <DeliveryAddressPicker
-          slug={slug}
+          publicId={publicId}
           restaurantCoords={restaurantCoords}
         />
       )}

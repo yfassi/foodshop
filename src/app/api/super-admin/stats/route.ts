@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   // Fetch restaurants
   const { data: restaurants } = await admin
     .from("restaurants")
-    .select("id, name, slug, is_active, created_at")
+    .select("id, name, slug, public_id, is_active, created_at")
     .order("created_at", { ascending: false });
 
   // Fetch orders in period

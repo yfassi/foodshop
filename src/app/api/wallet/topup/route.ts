@@ -6,13 +6,13 @@ import type { WalletTopupTier } from "@/lib/types";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, amount, bonus } = (await request.json()) as {
-      restaurant_slug: string;
+    const { restaurant_public_id, amount, bonus } = (await request.json()) as {
+      restaurant_public_id: string;
       amount: number; // in cents
       bonus?: number; // in cents
     };
 
-    if (!restaurant_slug || !amount || amount < 100) {
+    if (!restaurant_public_id || !amount || amount < 100) {
       return NextResponse.json(
         { error: "Montant minimum : 1,00 EUR" },
         { status: 400 }
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
       .select("id, stripe_account_id, stripe_onboarding_complete, wallet_topup_enabled, wallet_topup_tiers")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || !restaurant.stripe_account_id || !restaurant.stripe_onboarding_complete) {
@@ -94,8 +94,8 @@ export async function POST(request: Request) {
         amount: amount.toString(),
         ...(validatedBonus > 0 && { bonus: validatedBonus.toString() }),
       },
-      success_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=success`,
-      cancel_url: `${appUrl}/${restaurant_slug}/account?wallet_topup=cancelled`,
+      success_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=success`,
+      cancel_url: `${appUrl}/${restaurant_public_id}/account?wallet_topup=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });

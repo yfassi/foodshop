@@ -21,6 +21,7 @@ interface RestaurantItem {
   id: string;
   name: string;
   slug: string;
+  public_id: string;
   logo_url: string | null;
   is_active: boolean;
   is_accepting_orders: boolean;
@@ -165,7 +166,7 @@ export default function SuperAdminRestaurantsPage() {
                     </div>
 
                     <a
-                      href={`/restaurant/${r.slug}/order`}
+                      href={`/restaurant/${r.public_id}/order`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"

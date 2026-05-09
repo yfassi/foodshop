@@ -22,7 +22,7 @@ interface CheckoutItem {
 }
 
 interface CheckoutBody {
-  restaurant_slug: string;
+  restaurant_public_id: string;
   items: CheckoutItem[];
   order_type?: "dine_in" | "takeaway" | "delivery";
   payment_method: "online" | "on_site";
@@ -35,7 +35,7 @@ interface CheckoutBody {
 
 async function notifyAdmins(
   restaurantId: string,
-  restaurantSlug: string,
+  restaurantPublicId: string,
   displayOrderNumber: string,
   totalPrice: number
 ) {
@@ -57,7 +57,7 @@ async function notifyAdmins(
           {
             title: "Nouvelle commande",
             body: `Commande ${displayOrderNumber} — ${formatPrice(totalPrice)}`,
-            url: `/admin/${restaurantSlug}`,
+            url: `/admin/${restaurantPublicId}`,
             tag: "new-order",
           }
         );
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CheckoutBody;
     const {
-      restaurant_slug,
+      restaurant_public_id,
       items,
       order_type,
       payment_method,
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     } = body;
 
     // Validate input
-    if (!restaurant_slug || !items?.length) {
+    if (!restaurant_public_id || !items?.length) {
       return NextResponse.json(
         { error: "Donnees manquantes" },
         { status: 400 }
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       .select(
         "id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
       )
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant) {
@@ -513,7 +513,7 @@ export async function POST(request: Request) {
             .eq("customer_session_id", queue_session_id)
             .eq("status", "active");
         }
-        notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+        notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -560,8 +560,8 @@ export async function POST(request: Request) {
           type: "order",
           ...(queue_session_id && { queue_session_id }),
         },
-        success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-        cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+        success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,
+        cancel_url: `${appUrl}/${restaurant_public_id}/checkout`,
       });
 
       await supabase
@@ -617,7 +617,7 @@ export async function POST(request: Request) {
           .eq("customer_session_id", queue_session_id)
           .eq("status", "active");
       }
-      notifyAdmins(restaurant.id, restaurant_slug, displayOrderNumber, totalPrice);
+      notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
       return NextResponse.json({ order_id: order.id });
     }
 
@@ -668,8 +668,8 @@ export async function POST(request: Request) {
         type: "order",
         ...(queue_session_id && { queue_session_id }),
       },
-      success_url: `${appUrl}/${restaurant_slug}/order-confirmation/${order.id}`,
-      cancel_url: `${appUrl}/${restaurant_slug}/checkout`,
+      success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,
+      cancel_url: `${appUrl}/${restaurant_public_id}/checkout`,
     });
 
     // Update order with stripe session id

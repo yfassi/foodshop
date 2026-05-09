@@ -120,7 +120,7 @@ export default function OnboardingPage() {
 
   // Success
   const [showSuccess, setShowSuccess] = useState(false);
-  const [successSlug, setSuccessSlug] = useState("");
+  const [successPublicId, setSuccessPublicId] = useState("");
 
   // Step 1 — Restaurant
   const [name, setName] = useState("");
@@ -270,7 +270,7 @@ export default function OnboardingPage() {
         }
       }
 
-      setSuccessSlug(data.slug);
+      setSuccessPublicId(data.public_id);
       setShowSuccess(true);
       setSubmitting(false);
 
@@ -414,7 +414,7 @@ export default function OnboardingPage() {
           <button
             type="button"
             onClick={() => {
-              window.location.href = `/admin/${successSlug}?welcome=true`;
+              window.location.href = `/admin/${successPublicId}?welcome=true`;
             }}
             className="lv4-ob-success-cta"
           >

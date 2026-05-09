@@ -47,13 +47,13 @@ const TX_CONFIG: Record<
 };
 
 export function WalletLive({
-  slug,
+  publicId,
   walletId,
   initialBalance,
   initialTransactions,
   topupTiers,
 }: {
-  slug: string;
+  publicId: string;
   walletId: string | null;
   initialBalance: number;
   initialTransactions: WalletTransaction[];
@@ -66,19 +66,19 @@ export function WalletLive({
 
   const fetchTransactions = useCallback(async () => {
     const res = await fetch(
-      `/api/wallet/transactions?restaurant_slug=${slug}`
+      `/api/wallet/transactions?restaurant_public_id=${publicId}`
     );
     const data = await res.json();
     if (data.transactions) {
       setTransactions(data.transactions);
     }
-  }, [slug]);
+  }, [publicId]);
 
   const fetchBalance = useCallback(async () => {
-    const res = await fetch(`/api/wallet/balance?restaurant_slug=${slug}`);
+    const res = await fetch(`/api/wallet/balance?restaurant_public_id=${publicId}`);
     const data = await res.json();
     setBalance(data.balance ?? 0);
-  }, [slug]);
+  }, [publicId]);
 
   // Realtime subscription on wallet changes
   useEffect(() => {
@@ -231,7 +231,7 @@ export function WalletLive({
       {/* Back link */}
       <div className="text-center">
         <Link
-          href={`/restaurant/${slug}/order`}
+          href={`/restaurant/${publicId}/order`}
           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
           Retour au menu
@@ -239,7 +239,7 @@ export function WalletLive({
       </div>
 
       <TopupDrawer
-        slug={slug}
+        publicId={publicId}
         open={topupOpen}
         onClose={() => setTopupOpen(false)}
         tiers={topupTiers}

@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/format";
 import { User } from "lucide-react";
 import Link from "next/link";
 
-export function CustomerAuthButton({ slug }: { slug: string }) {
+export function CustomerAuthButton({ publicId }: { publicId: string }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
@@ -23,11 +23,11 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
       if (user) {
         setIsAuthenticated(true);
 
-        // Fetch restaurant by slug
+        // Fetch restaurant by public_id
         const { data: restaurant } = await supabase
           .from("restaurants")
           .select("id, owner_id, loyalty_enabled")
-          .eq("slug", slug)
+          .eq("public_id", publicId)
           .single();
 
         if (!restaurant) {
@@ -88,7 +88,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
     };
 
     load();
-  }, [slug]);
+  }, [publicId]);
 
   if (loading) return null;
 
@@ -99,7 +99,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   if (!isAuthenticated) {
     return (
       <Link
-        href={`/restaurant/${slug}/login`}
+        href={`/restaurant/${publicId}/login`}
         className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
       >
         <User className="h-3.5 w-3.5" />
@@ -112,7 +112,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
   if (!profile) {
     return (
       <Link
-        href={`/restaurant/${slug}/account`}
+        href={`/restaurant/${publicId}/account`}
         className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted/70"
       >
         <User className="h-3.5 w-3.5" />
@@ -128,7 +128,7 @@ export function CustomerAuthButton({ slug }: { slug: string }) {
 
   return (
     <Link
-      href={`/restaurant/${slug}/account`}
+      href={`/restaurant/${publicId}/account`}
       className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium transition-colors active:bg-muted/70"
     >
       <User className="h-3.5 w-3.5" />

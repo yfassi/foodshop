@@ -50,7 +50,7 @@ const DELIVERY_NAV_ITEM = {
 };
 
 export function AdminShell({
-  slug,
+  publicId,
   restaurantName,
   verificationStatus,
   isDemo,
@@ -61,7 +61,7 @@ export function AdminShell({
   restaurants,
   children,
 }: {
-  slug: string;
+  publicId: string;
   restaurantName: string;
   verificationStatus: string;
   isDemo: boolean;
@@ -69,7 +69,7 @@ export function AdminShell({
   openingHours: Record<string, unknown> | null;
   isAcceptingOrders: boolean;
   deliveryEnabled?: boolean;
-  restaurants: { name: string; slug: string }[];
+  restaurants: { name: string; public_id: string }[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -84,11 +84,11 @@ export function AdminShell({
   const hasMultipleRestaurants = !isDemo && restaurants.length > 1;
   const canAddRestaurant = !isDemo;
 
-  const switchRestaurant = (targetSlug: string) => {
+  const switchRestaurant = (targetPublicId: string) => {
     setSwitcherOpen(false);
     setAccountOpen(false);
-    if (targetSlug === slug) return;
-    router.push(`/admin/${targetSlug}${qs}`);
+    if (targetPublicId === publicId) return;
+    router.push(`/admin/${targetPublicId}${qs}`);
   };
 
   const goToAddRestaurant = () => {
@@ -117,8 +117,8 @@ export function AdminShell({
   }, [getStatus]);
 
   function isActive(href: string) {
-    const full = `/admin/${slug}${href}`;
-    if (href === "") return pathname === `/admin/${slug}`;
+    const full = `/admin/${publicId}${href}`;
+    if (href === "") return pathname === `/admin/${publicId}`;
     return pathname.startsWith(full);
   }
 
@@ -199,12 +199,12 @@ export function AdminShell({
                     </p>
                     <div className="max-h-64 space-y-0.5 overflow-y-auto">
                       {restaurants.map((r) => {
-                        const active = r.slug === slug;
+                        const active = r.public_id === publicId;
                         return (
                           <button
-                            key={r.slug}
+                            key={r.public_id}
                             type="button"
-                            onClick={() => switchRestaurant(r.slug)}
+                            onClick={() => switchRestaurant(r.public_id)}
                             className={cn(
                               "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors",
                               active
@@ -256,7 +256,7 @@ export function AdminShell({
               return (
                 <Link
                   key={item.href}
-                  href={`/admin/${slug}${item.href}${qs}`}
+                  href={`/admin/${publicId}${item.href}${qs}`}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     active
@@ -356,7 +356,7 @@ export function AdminShell({
           return (
             <Link
               key={item.href}
-              href={`/admin/${slug}${item.href}${qs}`}
+              href={`/admin/${publicId}${item.href}${qs}`}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
                 active
@@ -417,12 +417,12 @@ export function AdminShell({
                 </p>
                 <div className="max-h-48 space-y-0.5 overflow-y-auto">
                   {restaurants.map((r) => {
-                    const active = r.slug === slug;
+                    const active = r.public_id === publicId;
                     return (
                       <button
-                        key={r.slug}
+                        key={r.public_id}
                         type="button"
-                        onClick={() => switchRestaurant(r.slug)}
+                        onClick={() => switchRestaurant(r.public_id)}
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors",
                           active
@@ -465,7 +465,7 @@ export function AdminShell({
               className="w-full"
               onClick={() => {
                 setAccountOpen(false);
-                router.push(`/admin/${slug}/settings${qs}`);
+                router.push(`/admin/${publicId}/settings${qs}`);
               }}
             >
               <Settings className="mr-2 h-4 w-4" />

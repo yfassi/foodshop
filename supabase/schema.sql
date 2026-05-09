@@ -7,8 +7,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 -- RESTAURANTS
 -- ============================================
+-- 22-char base64url identifier (~128 bits) used in public URLs.
+CREATE OR REPLACE FUNCTION public.generate_public_id() RETURNS TEXT AS $$
+  SELECT translate(rtrim(encode(gen_random_bytes(16), 'base64'), '='), '+/', '-_');
+$$ LANGUAGE SQL VOLATILE;
+
 CREATE TABLE public.restaurants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  public_id TEXT NOT NULL UNIQUE DEFAULT public.generate_public_id(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
@@ -35,6 +41,7 @@ CREATE TABLE public.restaurants (
 );
 
 CREATE INDEX idx_restaurants_slug ON public.restaurants(slug);
+CREATE INDEX idx_restaurants_public_id ON public.restaurants(public_id);
 CREATE INDEX idx_restaurants_owner ON public.restaurants(owner_id);
 
 -- ============================================

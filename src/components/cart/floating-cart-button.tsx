@@ -7,12 +7,12 @@ import { CartDrawer } from "./cart-drawer";
 import type { CategoryWithProducts } from "@/lib/types";
 
 export function FloatingCartButton({
-  slug,
+  publicId,
   disabled,
   categories,
   queueEnabled,
 }: {
-  slug: string;
+  publicId: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
   queueEnabled?: boolean;
@@ -64,7 +64,7 @@ export function FloatingCartButton({
       <CartDrawer
         open={open}
         onClose={() => setOpen(false)}
-        slug={slug}
+        publicId={publicId}
         disabled={disabled}
         categories={categories}
         queueEnabled={queueEnabled}

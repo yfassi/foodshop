@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const restaurant_slug = searchParams.get("restaurant_slug");
+    const restaurant_public_id = searchParams.get("restaurant_public_id");
 
-    if (!restaurant_slug) {
+    if (!restaurant_public_id) {
       return NextResponse.json(
         { error: "Données manquantes" },
         { status: 400 }
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, owner_id")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {
@@ -53,9 +53,9 @@ export async function GET(request: Request) {
 // POST: Admin actions (call_next, complete, expire)
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, action, ticket_id } = await request.json();
+    const { restaurant_public_id, action, ticket_id } = await request.json();
 
-    if (!restaurant_slug || !action) {
+    if (!restaurant_public_id || !action) {
       return NextResponse.json(
         { error: "Données manquantes" },
         { status: 400 }
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, owner_id, queue_max_concurrent")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {

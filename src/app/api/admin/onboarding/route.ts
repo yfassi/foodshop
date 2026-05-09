@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { generatePublicId } from "@/lib/public-id";
 
 interface OnboardingBody {
   name: string;
@@ -154,9 +155,11 @@ export async function POST(request: Request) {
     }
 
     // Create restaurant (verification_status defaults to 'pending')
+    const public_id = generatePublicId();
     const { error } = await supabase.from("restaurants").insert({
       name,
       slug,
+      public_id,
       description: description || null,
       restaurant_type: restaurant_type || null,
       address: address || null,
@@ -181,7 +184,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ slug });
+    return NextResponse.json({ slug, public_id });
   } catch (err) {
     console.error("Onboarding error:", err);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

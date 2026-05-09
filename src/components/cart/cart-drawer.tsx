@@ -21,7 +21,7 @@ import { QueueWaiting } from "@/components/queue/queue-waiting";
 interface CartDrawerProps {
   open: boolean;
   onClose: () => void;
-  slug: string;
+  publicId: string;
   disabled?: boolean;
   categories?: CategoryWithProducts[];
   queueEnabled?: boolean;
@@ -37,7 +37,7 @@ function getSessionId(): string {
   return id;
 }
 
-export function CartDrawer({ open, onClose, slug, disabled, categories, queueEnabled }: CartDrawerProps) {
+export function CartDrawer({ open, onClose, publicId, disabled, categories, queueEnabled }: CartDrawerProps) {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
@@ -51,7 +51,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
   useEffect(() => {
     if (open && queueEnabled) {
       setQueueState("checking");
-      fetch(`/api/queue?restaurant_slug=${slug}&session_id=${sessionId}`)
+      fetch(`/api/queue?restaurant_public_id=${publicId}&session_id=${sessionId}`)
         .then((res) => res.json())
         .then((data) => {
           if (!data.queue_active) {
@@ -70,11 +70,11 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
     } else if (!queueEnabled) {
       setQueueState("not_required");
     }
-  }, [open, queueEnabled, slug, sessionId]);
+  }, [open, queueEnabled, publicId, sessionId]);
 
   const handleCheckout = () => {
     onClose();
-    router.push(`/restaurant/${slug}/checkout`);
+    router.push(`/restaurant/${publicId}/checkout`);
   };
 
   const handleQueueReady = useCallback(() => {
@@ -158,7 +158,7 @@ export function CartDrawer({ open, onClose, slug, disabled, categories, queueEna
           <DrawerFooter className="border-t border-border pt-3">
             {queueEnabled && queueState === "waiting" && (
               <QueueWaiting
-                slug={slug}
+                publicId={publicId}
                 sessionId={sessionId}
                 onReady={handleQueueReady}
                 onNotRequired={handleQueueNotRequired}

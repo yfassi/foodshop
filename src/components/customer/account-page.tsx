@@ -120,7 +120,7 @@ function SectionToggle({
 }
 
 export function AccountPage({
-  slug,
+  publicId,
   profile,
   loyaltyEnabled,
   loyaltyTiers,
@@ -131,7 +131,7 @@ export function AccountPage({
   orders,
   topupTiers,
 }: {
-  slug: string;
+  publicId: string;
   profile: {
     fullName: string;
     phone: string | null;
@@ -165,16 +165,16 @@ export function AccountPage({
   };
 
   const fetchBalance = useCallback(async () => {
-    const res = await fetch(`/api/wallet/balance?restaurant_slug=${slug}`);
+    const res = await fetch(`/api/wallet/balance?restaurant_public_id=${publicId}`);
     const data = await res.json();
     setBalance(data.balance ?? 0);
-  }, [slug]);
+  }, [publicId]);
 
   const fetchTransactions = useCallback(async () => {
-    const res = await fetch(`/api/wallet/transactions?restaurant_slug=${slug}`);
+    const res = await fetch(`/api/wallet/transactions?restaurant_public_id=${publicId}`);
     const data = await res.json();
     if (data.transactions) setTransactions(data.transactions);
-  }, [slug]);
+  }, [publicId]);
 
   // Realtime wallet updates
   useEffect(() => {
@@ -215,7 +215,7 @@ export function AccountPage({
   const cartItems = useCartStore((s) => s.items);
   const addCartItem = useCartStore((s) => s.addItem);
   const removeCartItem = useCartStore((s) => s.removeItem);
-  const setCartRestaurantSlug = useCartStore((s) => s.setRestaurantSlug);
+  const setCartRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
 
   const findRewardLine = (tier: LoyaltyTier) =>
     tier.product_id
@@ -233,7 +233,7 @@ export function AccountPage({
       toast(`${productName} retiré de votre panier`);
       return;
     }
-    setCartRestaurantSlug(slug);
+    setCartRestaurantPublicId(publicId);
     addCartItem({
       product_id: tier.product_id,
       product_name: `🎁 ${productName} (offert)`,
@@ -251,7 +251,7 @@ export function AccountPage({
       {/* Header */}
       <div className="mb-2 flex items-center gap-3">
         <Link
-          href={`/restaurant/${slug}/order`}
+          href={`/restaurant/${publicId}/order`}
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors active:bg-muted/70"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -667,7 +667,7 @@ export function AccountPage({
         onClick={async () => {
           const supabase = createClient();
           await supabase.auth.signOut();
-          window.location.href = `/restaurant/${slug}/order`;
+          window.location.href = `/restaurant/${publicId}/order`;
         }}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-muted py-3 text-sm text-muted-foreground transition-colors active:bg-muted/70 active:text-foreground"
       >
@@ -678,14 +678,14 @@ export function AccountPage({
       {/* Back link */}
       <div className="pt-1 text-center">
         <Link
-          href={`/restaurant/${slug}/order`}
+          href={`/restaurant/${publicId}/order`}
           className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
           Retour au menu
         </Link>
       </div>
 
-      <TopupDrawer slug={slug} open={topupOpen} onClose={() => setTopupOpen(false)} tiers={topupTiers} />
+      <TopupDrawer publicId={publicId} open={topupOpen} onClose={() => setTopupOpen(false)} tiers={topupTiers} />
     </div>
   );
 }

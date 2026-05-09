@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, User, Phone } from "lucide-react";
 import type { Driver } from "@/lib/types";
 
-export function DriverManager({ slug }: { slug: string }) {
+export function DriverManager({ publicId }: { publicId: string }) {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -29,7 +29,7 @@ export function DriverManager({ slug }: { slug: string }) {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/drivers?restaurant_slug=${encodeURIComponent(slug)}`
+        `/api/admin/drivers?restaurant_public_id=${encodeURIComponent(publicId)}`
       );
       const data = await res.json();
       if (res.ok) setDrivers(data.drivers || []);
@@ -37,7 +37,7 @@ export function DriverManager({ slug }: { slug: string }) {
       // ignore
     }
     setLoading(false);
-  }, [slug]);
+  }, [publicId]);
 
   useEffect(() => {
     loadDrivers();
@@ -54,7 +54,7 @@ export function DriverManager({ slug }: { slug: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           full_name: fullName.trim(),
           phone: phone.trim(),
           vehicle: vehicle.trim() || null,
@@ -80,7 +80,7 @@ export function DriverManager({ slug }: { slug: string }) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           is_active: !driver.is_active,
         }),
       });
@@ -101,7 +101,7 @@ export function DriverManager({ slug }: { slug: string }) {
       const res = await fetch(`/api/admin/drivers/${driver.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ restaurant_slug: slug }),
+        body: JSON.stringify({ restaurant_public_id: publicId }),
       });
       if (!res.ok) throw new Error();
       setDrivers((prev) => prev.filter((d) => d.id !== driver.id));

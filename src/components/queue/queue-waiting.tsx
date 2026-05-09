@@ -7,14 +7,14 @@ import type { QueueTicket } from "@/lib/types";
 import { Clock, ChefHat, Users, Loader2 } from "lucide-react";
 
 interface QueueWaitingProps {
-  slug: string;
+  publicId: string;
   sessionId: string;
   onReady: () => void;
   onNotRequired: () => void;
 }
 
 export function QueueWaiting({
-  slug,
+  publicId,
   sessionId,
   onReady,
   onNotRequired,
@@ -37,7 +37,7 @@ export function QueueWaiting({
   const checkStatus = useCallback(async () => {
     try {
       const params = new URLSearchParams({
-        restaurant_slug: slug,
+        restaurant_public_id: publicId,
         session_id: sessionId,
       });
       if (ticket?.id) {
@@ -66,14 +66,14 @@ export function QueueWaiting({
     } catch {
       // Silent fail
     }
-  }, [slug, sessionId, ticket?.id, onReady, onNotRequired]);
+  }, [publicId, sessionId, ticket?.id, onReady, onNotRequired]);
 
   // Initial check: see if we already have a ticket
   useEffect(() => {
     const initialCheck = async () => {
       try {
         const params = new URLSearchParams({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           session_id: sessionId,
         });
         const res = await fetch(`/api/queue?${params}`);
@@ -106,7 +106,7 @@ export function QueueWaiting({
 
     initialCheck();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, sessionId]);
+  }, [publicId, sessionId]);
 
   // Join queue (explicit user action)
   const joinQueue = async () => {
@@ -116,7 +116,7 @@ export function QueueWaiting({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: slug,
+          restaurant_public_id: publicId,
           session_id: sessionId,
         }),
       });

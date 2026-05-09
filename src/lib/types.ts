@@ -115,6 +115,7 @@ export interface RestaurantAdmin {
 
 export interface Restaurant {
   id: string;
+  public_id: string;
   name: string;
   slug: string;
   description: string | null;

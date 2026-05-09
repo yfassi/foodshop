@@ -1,0 +1,151 @@
+"use client";
+
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { AnimatedBackground } from "@/components/animated-background";
+
+export default function CustomerLoginPage() {
+  const params = useParams<{ publicId: string }>();
+  const publicId = params.publicId;
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setLoading(true);
+    const supabase = createClient();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      toast.error("Email ou mot de passe incorrect");
+      setLoading(false);
+      return;
+    }
+
+    // Full reload to ensure auth state propagates to all components
+    window.location.href = `/restaurant/${publicId}/order`;
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      toast.error("Entrez votre email d'abord");
+      return;
+    }
+
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/restaurant/${publicId}/reset-password`,
+    });
+
+    if (error) {
+      toast.error("Erreur lors de l'envoi du lien");
+    } else {
+      setResetSent(true);
+      toast.success("Lien de réinitialisation envoyé par email");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
+      <AnimatedBackground />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
+        <Link
+          href={`/restaurant/${publicId}/order`}
+          className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </Link>
+
+        <h2 className="mb-6 text-xl font-bold">Connexion</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="votre@email.com"
+              autoComplete="email"
+              required
+              className="mt-1.5 h-12"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mot de passe"
+                autoComplete="current-password"
+                required
+                className="h-12 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading || !email || !password}
+            className="h-12 w-full rounded-xl font-semibold"
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Connexion
+          </Button>
+        </form>
+
+        <button
+          type="button"
+          onClick={handleResetPassword}
+          disabled={loading || resetSent}
+          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+        >
+          {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+        </button>
+
+        <p className="mt-3 text-center text-sm text-muted-foreground">
+          Pas encore de compte ?{" "}
+          <Link
+            href={`/restaurant/${publicId}/signup`}
+            className="font-medium text-primary hover:underline"
+          >
+            Créer un compte
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}

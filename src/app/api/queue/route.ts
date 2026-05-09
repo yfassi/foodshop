@@ -4,9 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // POST: Join the queue
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, session_id } = await request.json();
+    const { restaurant_public_id, session_id } = await request.json();
 
-    if (!restaurant_slug || !session_id) {
+    if (!restaurant_public_id || !session_id) {
       return NextResponse.json(
         { error: "Données manquantes" },
         { status: 400 }
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, queue_enabled, queue_max_concurrent")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant) {
@@ -128,11 +128,11 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const restaurant_slug = searchParams.get("restaurant_slug");
+    const restaurant_public_id = searchParams.get("restaurant_public_id");
     const session_id = searchParams.get("session_id");
     const ticket_id = searchParams.get("ticket_id");
 
-    if (!restaurant_slug || !session_id) {
+    if (!restaurant_public_id || !session_id) {
       return NextResponse.json(
         { error: "Données manquantes" },
         { status: 400 }
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, queue_enabled, queue_max_concurrent")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant) {

@@ -82,7 +82,7 @@ export function RestaurantHeader({
           {statusLabel}
         </span>
         <div className="ml-1">
-          <CustomerAuthButton slug={restaurant.slug} />
+          <CustomerAuthButton publicId={restaurant.public_id} />
         </div>
       </div>
       {todayHours && (

@@ -122,7 +122,7 @@ export async function POST(request: Request) {
         if (order) {
           const { data: restaurant } = await supabase
             .from("restaurants")
-            .select("slug")
+            .select("public_id")
             .eq("id", order.restaurant_id)
             .single();
 
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
                   {
                     title: "Nouvelle commande",
                     body: `Commande ${orderNum} — ${formatPrice(order.total_price)}`,
-                    url: `/admin/${restaurant.slug}`,
+                    url: `/admin/${restaurant.public_id}`,
                     tag: "new-order",
                   }
                 );
