@@ -19,6 +19,7 @@ export default function CheckoutPage() {
   const [stripeConnected, setStripeConnected] = useState(false);
   const [acceptedMethods, setAcceptedMethods] = useState<AcceptedPaymentMethod[]>(["on_site"]);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [authEmail, setAuthEmail] = useState<string>("");
   const [orderTypes, setOrderTypes] = useState<OrderType[]>(["dine_in", "takeaway"]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
@@ -109,6 +110,7 @@ export default function CheckoutPage() {
         // Fetch customer profile if logged in
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          if (user.email) setAuthEmail(user.email);
           const { data: profile } = await supabase
             .from("customer_profiles")
             .select("*")
@@ -182,6 +184,7 @@ export default function CheckoutPage() {
           loyaltyEnabled={loyaltyEnabled}
           restaurantCoords={restaurantCoords}
           isDemo={isDemo}
+          defaultEmail={authEmail}
         />
       </div>
     </div>

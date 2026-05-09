@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripeLive, stripeTest } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
+import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
 import { formatPrice } from "@/lib/format";
 import Stripe from "stripe";
 
@@ -134,6 +135,9 @@ export async function POST(request: Request) {
             stripe_payment_intent_id: session.payment_intent as string,
           })
           .eq("id", orderId);
+
+        // Send customer confirmation email (idempotent — safe on webhook retry)
+        void sendOrderConfirmationEmail({ orderId });
 
         // Send push notification to admin
         if (order) {

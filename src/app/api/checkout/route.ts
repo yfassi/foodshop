@@ -5,6 +5,7 @@ import { stripeLive, stripeTest } from "@/lib/stripe/client";
 import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
+import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
 import type {
@@ -29,6 +30,7 @@ interface CheckoutBody {
   payment_method: "online" | "on_site";
   payment_source?: "direct" | "wallet";
   customer_name?: string;
+  customer_email?: string;
   order_notes?: string;
   queue_session_id?: string;
   delivery_address?: DeliveryAddress;
@@ -84,6 +86,7 @@ export async function POST(request: Request) {
       payment_method,
       payment_source = "direct",
       customer_name,
+      customer_email,
       order_notes,
       queue_session_id,
       delivery_address,
@@ -110,6 +113,16 @@ export async function POST(request: Request) {
         { error: "Notes trop longues (500 caractères max)" },
         { status: 400 }
       );
+    }
+
+    if (customer_email) {
+      const trimmed = customer_email.trim();
+      if (trimmed.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return NextResponse.json(
+          { error: "Email invalide" },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = createAdminClient();
@@ -430,14 +443,23 @@ export async function POST(request: Request) {
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
     if (order_notes) customerInfo.notes = order_notes;
+    const resolvedEmail = (customer_email?.trim() || customerEmail || "").toLowerCase();
+    if (resolvedEmail) customerInfo.email = resolvedEmail;
 
     // Generate display order number
     const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
-    const { data: orderNumberResult } = await supabase.rpc(
+    const { data: orderNumberResult, error: orderNumberError } = await supabase.rpc(
       "next_daily_order_number",
       { p_restaurant_id: restaurant.id, p_prefix: orderPrefix }
     );
-    const displayOrderNumber = orderNumberResult || `${orderPrefix}-000`;
+    if (orderNumberError || !orderNumberResult) {
+      console.error("[checkout] order numbering failed:", orderNumberError);
+      return NextResponse.json(
+        { error: "Erreur de numérotation des commandes" },
+        { status: 500 }
+      );
+    }
+    const displayOrderNumber = orderNumberResult;
 
     // Handle wallet payment (full or partial)
     if (payment_source === "wallet" && customerUserId) {
@@ -526,6 +548,8 @@ export async function POST(request: Request) {
             .eq("status", "active");
         }
         notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
+        // Fire-and-forget customer confirmation email (idempotent)
+        void sendOrderConfirmationEmail({ orderId: order.id });
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -577,8 +601,8 @@ export async function POST(request: Request) {
           ...(isDemo && { is_demo: "true" }),
           ...(queue_session_id && { queue_session_id }),
         },
-        success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,
-        cancel_url: `${appUrl}/${restaurant_public_id}/checkout`,
+        success_url: `${appUrl}/restaurant/${restaurant_public_id}/order-confirmation/${order.id}`,
+        cancel_url: `${appUrl}/restaurant/${restaurant_public_id}/checkout`,
       });
 
       await supabase
@@ -691,8 +715,8 @@ export async function POST(request: Request) {
         ...(isDemo && { is_demo: "true" }),
         ...(queue_session_id && { queue_session_id }),
       },
-      success_url: `${appUrl}/${restaurant_public_id}/order-confirmation/${order.id}`,
-      cancel_url: `${appUrl}/${restaurant_public_id}/checkout`,
+      success_url: `${appUrl}/restaurant/${restaurant_public_id}/order-confirmation/${order.id}`,
+      cancel_url: `${appUrl}/restaurant/${restaurant_public_id}/checkout`,
     });
 
     // Update order with stripe session id

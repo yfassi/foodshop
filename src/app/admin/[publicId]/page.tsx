@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
@@ -28,8 +28,16 @@ export default function AdminDashboard() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const { playAlert } = useNewOrderAlert();
+  const { playAlert, announceReady } = useNewOrderAlert();
   const { enabled: soundEnabled, toggle: toggleSound } = useSoundEnabled();
+  // Track which orders we've already announced as ready to avoid duplicate TTS
+  const announcedReadyRef = useRef<Set<string>>(new Set());
+  // Track which order IDs we've already seen to detect new ones via polling
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
+  // Track the last known status per order to detect status transitions via polling
+  const orderStatusRef = useRef<Map<string, string>>(new Map());
+  // Skip announcement on the very first fetch (page load with existing ready orders)
+  const hasInitializedRef = useRef(false);
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } =
     usePushSubscription();
 
@@ -85,16 +93,56 @@ export default function AdminDashboard() {
         .select("*")
         .eq("restaurant_id", restaurant.id)
         .gte("created_at", today.toISOString())
-        .in("status", ["new", "preparing", "ready"])
+        .in("status", ["new", "preparing", "ready", "done"])
         .order("created_at", { ascending: false })
         .returns<Order[]>();
 
-      setOrders(todayOrders || []);
+      const list = todayOrders || [];
+      const wasInitialized = hasInitializedRef.current;
+
+      // Detect new INSERTs we missed (paid orders that appeared since last fetch)
+      // and status transitions to "ready" we missed.
+      if (wasInitialized) {
+        let sawNewOrder = false;
+        for (const o of list) {
+          if (!seenOrderIdsRef.current.has(o.id) && o.paid) {
+            sawNewOrder = true;
+          }
+          const prevStatus = orderStatusRef.current.get(o.id);
+          if (
+            prevStatus &&
+            prevStatus !== "ready" &&
+            o.status === "ready" &&
+            !announcedReadyRef.current.has(o.id)
+          ) {
+            announcedReadyRef.current.add(o.id);
+            announceReady(o.display_order_number || `#${o.order_number}`);
+          }
+        }
+        if (sawNewOrder) playAlert();
+      }
+
+      // Update tracking refs
+      for (const o of list) {
+        seenOrderIdsRef.current.add(o.id);
+        orderStatusRef.current.set(o.id, o.status);
+        // Pre-mark currently-ready orders on first load so we don't announce them
+        if (!wasInitialized && o.status === "ready") {
+          announcedReadyRef.current.add(o.id);
+        }
+      }
+      hasInitializedRef.current = true;
+
+      setOrders(list);
       setLoading(false);
     };
 
     init();
-  }, [publicId]);
+
+    // Polling fallback every 5s as a safety net for missed realtime events
+    const poll = setInterval(init, 5000);
+    return () => clearInterval(poll);
+  }, [publicId, announceReady, playAlert]);
 
   // Realtime subscription
   useEffect(() => {
@@ -114,8 +162,11 @@ export default function AdminDashboard() {
         },
         (payload) => {
           const newOrder = payload.new as Order;
+          if (seenOrderIdsRef.current.has(newOrder.id)) return; // already counted via polling
+          seenOrderIdsRef.current.add(newOrder.id);
+          orderStatusRef.current.set(newOrder.id, newOrder.status);
           setOrders((prev) => [newOrder, ...prev]);
-          if (soundEnabled) playAlert();
+          if (soundEnabled && newOrder.paid) playAlert();
         }
       )
       .on(
@@ -128,10 +179,23 @@ export default function AdminDashboard() {
         },
         (payload) => {
           const updated = payload.new as Order;
+          const prevStatus = orderStatusRef.current.get(updated.id);
+          orderStatusRef.current.set(updated.id, updated.status);
+          // Detect transition to "ready" → speak it (once per order)
+          if (
+            prevStatus &&
+            prevStatus !== "ready" &&
+            updated.status === "ready" &&
+            !announcedReadyRef.current.has(updated.id)
+          ) {
+            announcedReadyRef.current.add(updated.id);
+            announceReady(updated.display_order_number || `#${updated.order_number}`);
+          }
           setOrders((prev) => {
-            if (updated.status === "done" || updated.status === "cancelled") {
+            if (updated.status === "cancelled") {
               return prev.filter((o) => o.id !== updated.id);
             }
+            // Keep "done" orders for the kitchen history view
             return prev.map((o) => (o.id === updated.id ? updated : o));
           });
         }
@@ -141,7 +205,7 @@ export default function AdminDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, playAlert, soundEnabled]);
+  }, [restaurantId, playAlert, announceReady, soundEnabled]);
 
   const paidOrders = orders.filter((o) => o.paid);
   const unpaidOrders = orders.filter((o) => !o.paid && o.payment_method === "on_site");
@@ -149,10 +213,11 @@ export default function AdminDashboard() {
   const newOrders = paidOrders.filter((o) => o.status === "new");
   const preparingOrders = paidOrders.filter((o) => o.status === "preparing");
   const readyOrders = paidOrders.filter((o) => o.status === "ready");
+  const doneOrders = paidOrders.filter((o) => o.status === "done");
 
   const activeOrders =
     view === "cuisine"
-      ? [...newOrders, ...preparingOrders]
+      ? [...newOrders, ...preparingOrders, ...readyOrders, ...doneOrders]
       : [...unpaidOrders, ...paidOrders.filter((o) => ["new", "preparing", "ready"].includes(o.status))];
 
   if (loading) {
@@ -280,6 +345,8 @@ export default function AdminDashboard() {
           <KitchenView
             newOrders={newOrders}
             preparingOrders={preparingOrders}
+            readyOrders={readyOrders}
+            doneOrders={doneOrders}
           />
         )
       ) : null}
