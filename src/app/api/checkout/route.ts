@@ -448,11 +448,18 @@ export async function POST(request: Request) {
 
     // Generate display order number
     const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
-    const { data: orderNumberResult } = await supabase.rpc(
+    const { data: orderNumberResult, error: orderNumberError } = await supabase.rpc(
       "next_daily_order_number",
       { p_restaurant_id: restaurant.id, p_prefix: orderPrefix }
     );
-    const displayOrderNumber = orderNumberResult || `${orderPrefix}-000`;
+    if (orderNumberError || !orderNumberResult) {
+      console.error("[checkout] order numbering failed:", orderNumberError);
+      return NextResponse.json(
+        { error: "Erreur de numérotation des commandes" },
+        { status: 500 }
+      );
+    }
+    const displayOrderNumber = orderNumberResult;
 
     // Handle wallet payment (full or partial)
     if (payment_source === "wallet" && customerUserId) {

@@ -349,11 +349,17 @@ ALTER TABLE public.daily_order_counters ENABLE ROW LEVEL SECURITY;
 -- POSTGRES FUNCTIONS
 -- ============================================
 
--- Atomic daily order number generation
+-- Atomic daily order number generation.
+-- SECURITY DEFINER so the function can write to daily_order_counters even
+-- though the table has RLS enabled (no direct policies — RPC is the only path).
 CREATE OR REPLACE FUNCTION next_daily_order_number(
   p_restaurant_id UUID,
   p_prefix TEXT
-) RETURNS TEXT AS $$
+) RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
@@ -365,7 +371,10 @@ BEGIN
 
   RETURN p_prefix || '-' || LPAD(v_count::TEXT, 3, '0');
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+REVOKE ALL ON FUNCTION public.next_daily_order_number(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.next_daily_order_number(UUID, TEXT) TO anon, authenticated, service_role;
 
 -- Atomic wallet balance deduction
 CREATE OR REPLACE FUNCTION deduct_wallet_balance(

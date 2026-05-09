@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Driver, DeliveryStatus, OrderStatus, OrderType } from "@/lib/types";
 import { useCartStore } from "@/stores/cart-store";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
-import { Bell, BellOff, Phone, Bike, Check, ChefHat, UtensilsCrossed, PackageCheck } from "lucide-react";
+import { Bell, BellOff, Phone, Bike } from "lucide-react";
 import { toast } from "sonner";
 
 type DeliveryStep =
@@ -14,22 +14,6 @@ type DeliveryStep =
   | "assigned"
   | "picked_up"
   | "delivered";
-
-const DELIVERY_STEP_LABELS: Record<DeliveryStep, string> = {
-  new: "Reçue",
-  preparing: "Préparation",
-  assigned: "Livreur assigné",
-  picked_up: "En route",
-  delivered: "Livrée",
-};
-
-const STANDARD_STEP_LABELS: Record<OrderStatus, string> = {
-  new: "Commande reçue",
-  preparing: "En préparation",
-  ready: "Prête à servir",
-  done: "Terminée",
-  cancelled: "Annulée",
-};
 
 function deriveDeliveryStep(
   status: OrderStatus,
@@ -169,14 +153,6 @@ export function OrderStatusTracker({
     Math.min(100, (currentStepNumber / totalSteps) * 100)
   );
 
-  const standardIcons: Record<OrderStatus, React.ReactNode> = {
-    new: <Check className="h-3 w-3" strokeWidth={3} />,
-    preparing: <ChefHat className="h-3 w-3" strokeWidth={2.5} />,
-    ready: <UtensilsCrossed className="h-3 w-3" strokeWidth={2.5} />,
-    done: <PackageCheck className="h-3 w-3" strokeWidth={2.5} />,
-    cancelled: <Check className="h-3 w-3" />,
-  };
-
   return (
     <>
       {/* Live status banner */}
@@ -214,74 +190,6 @@ export function OrderStatusTracker({
         )}
         <div className="oc-status-bar">
           <div style={{ width: `${progressPct}%` }} />
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="oc-timeline">
-        <h3 className="oc-timeline-h">Étapes</h3>
-        <div>
-          {isDelivery
-            ? deliverySteps.map((s, i, arr) => {
-                const isDone = i < currentDeliveryIdx;
-                const isActive = i === currentDeliveryIdx;
-                const isLast = i === arr.length - 1;
-                return (
-                  <div key={s} className="oc-step">
-                    <div className="oc-step-rail">
-                      <div
-                        className={`oc-step-bullet${isDone ? " done" : ""}${isActive ? " active" : ""}`}
-                      >
-                        {isDone ? (
-                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                        ) : s === "assigned" || s === "picked_up" ? (
-                          <Bike className="h-3 w-3" strokeWidth={2.5} />
-                        ) : s === "delivered" ? (
-                          <PackageCheck className="h-3 w-3" strokeWidth={2.5} />
-                        ) : s === "preparing" ? (
-                          <ChefHat className="h-3 w-3" strokeWidth={2.5} />
-                        ) : (
-                          <Check className="h-3 w-3" strokeWidth={2.5} />
-                        )}
-                      </div>
-                      {!isLast && <div className={`oc-step-line${isDone ? " done" : ""}`} />}
-                    </div>
-                    <div className="oc-step-body">
-                      <p className={`oc-step-label${isDone || isActive ? " on" : ""}`}>
-                        {DELIVERY_STEP_LABELS[s]}
-                      </p>
-                      <p className={`oc-step-meta${isActive ? " active" : ""}`}>
-                        {isDone ? "Fait" : isActive ? "En cours…" : "—"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            : standardStatuses.map((s, i, arr) => {
-                const isDone = i < currentIdx;
-                const isActive = i === currentIdx;
-                const isLast = i === arr.length - 1;
-                return (
-                  <div key={s} className="oc-step">
-                    <div className="oc-step-rail">
-                      <div
-                        className={`oc-step-bullet${isDone ? " done" : ""}${isActive ? " active" : ""}`}
-                      >
-                        {isDone ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : standardIcons[s]}
-                      </div>
-                      {!isLast && <div className={`oc-step-line${isDone ? " done" : ""}`} />}
-                    </div>
-                    <div className="oc-step-body">
-                      <p className={`oc-step-label${isDone || isActive ? " on" : ""}`}>
-                        {STANDARD_STEP_LABELS[s]}
-                      </p>
-                      <p className={`oc-step-meta${isActive ? " active" : ""}`}>
-                        {isDone ? "Fait" : isActive ? "En cours…" : "—"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
         </div>
       </div>
 

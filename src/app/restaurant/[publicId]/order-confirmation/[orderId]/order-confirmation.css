@@ -531,3 +531,42 @@
   position: relative; z-index: 1;
 }
 .oc-signup-cta:hover { background: var(--paprika); color: var(--cream); }
+
+/* ──── Powered by TaapR — discreet footer ──── */
+.oc-poweredby {
+  text-align: center;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(26, 20, 16, 0.14);
+}
+.oc-poweredby a {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--ink-mute);
+  transition: color 0.2s;
+}
+.oc-poweredby a:hover { color: var(--paprika); }
+.oc-poweredby-line {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.oc-poweredby-line strong {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.oc-poweredby-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}

@@ -92,7 +92,7 @@ export function OrderConfirmationEmail({
             padding: "32px 20px 48px",
           }}
         >
-          {/* Wordmark */}
+          {/* Wordmark — restaurant name takes the lead (TaapR is white-label) */}
           <Section style={{ textAlign: "center", marginBottom: 24 }}>
             <Text
               style={{
@@ -104,18 +104,6 @@ export function OrderConfirmationEmail({
                 color: COLORS.paprika,
                 letterSpacing: "-0.04em",
                 lineHeight: 1,
-              }}
-            >
-              taapr.
-            </Text>
-            <Text
-              style={{
-                margin: "6px 0 0",
-                fontFamily: FONT_STACK_MONO,
-                fontSize: 10,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: COLORS.inkMute,
               }}
             >
               {restaurantName}
@@ -461,19 +449,40 @@ export function OrderConfirmationEmail({
             </Section>
           )}
 
-          {/* Footer */}
+          {/* Footer — discreet "powered by" */}
           <Section style={{ marginTop: 32, textAlign: "center" }}>
             <Text
               style={{
                 margin: 0,
+                fontFamily: FONT_STACK_SANS,
+                fontSize: 12,
+                color: COLORS.inkSoft,
+              }}
+            >
+              Propulsé par{" "}
+              <span
+                style={{
+                  fontFamily: FONT_STACK_SERIF,
+                  fontStyle: "italic",
+                  fontWeight: 700,
+                  color: COLORS.ink,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                TaapR
+              </span>
+            </Text>
+            <Text
+              style={{
+                margin: "4px 0 0",
                 fontFamily: FONT_STACK_MONO,
-                fontSize: 10,
-                letterSpacing: "0.12em",
+                fontSize: 9,
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 color: COLORS.inkMute,
               }}
             >
-              Service compris · powered by taapr
+              La suite tout-en-un pour les restaurateurs
             </Text>
           </Section>
         </Container>

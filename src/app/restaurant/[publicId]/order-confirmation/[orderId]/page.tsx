@@ -110,7 +110,6 @@ export default async function OrderConfirmationPage({
           <div className="oc-stamp" aria-hidden>
             <Check className="h-9 w-9" strokeWidth={3} />
           </div>
-          <p className="oc-script">Service compris.</p>
           <h1 className="oc-title">
             {customerName ? <>Merci <em>{customerName}</em>&nbsp;!</> : <>Commande <em>reçue</em>&nbsp;!</>}
           </h1>
@@ -121,12 +120,17 @@ export default async function OrderConfirmationPage({
           </p>
         </header>
 
+        {/* ──── Realtime status (lifted to top of page) ──── */}
+        <OrderStatusTracker
+          orderId={order.id}
+          initialStatus={order.status}
+          orderType={order.order_type ?? undefined}
+          initialDeliveryStatus={order.delivery_status ?? null}
+          initialDriver={driver}
+        />
+
         {/* ──── Receipt ──── */}
         <section className="oc-receipt" aria-label="Ticket de caisse">
-          <div className="oc-receipt-brand">
-            <span>taapr</span>
-            <span className="dot" />
-          </div>
           <p className="oc-receipt-tag">Ticket de caisse · {orderDate}</p>
 
           <div className="oc-receipt-num">
@@ -185,15 +189,6 @@ export default async function OrderConfirmationPage({
           <p className="oc-thanks">À très vite !</p>
         </section>
 
-        {/* ──── Realtime status ──── */}
-        <OrderStatusTracker
-          orderId={order.id}
-          initialStatus={order.status}
-          orderType={order.order_type ?? undefined}
-          initialDeliveryStatus={order.delivery_status ?? null}
-          initialDriver={driver}
-        />
-
         {/* ──── Email receipt fallback ──── */}
         {showEmailReceiptForm && <EmailReceiptForm orderId={order.id} />}
 
@@ -233,6 +228,18 @@ export default async function OrderConfirmationPage({
             </Link>
           </div>
         )}
+
+        {/* ──── Powered by TaapR ──── */}
+        <footer className="oc-poweredby">
+          <a href="https://www.taapr.fr" target="_blank" rel="noopener noreferrer">
+            <span className="oc-poweredby-line">
+              Propulsé par <strong>TaapR</strong>
+            </span>
+            <span className="oc-poweredby-tag">
+              La suite tout-en-un pour les restaurateurs
+            </span>
+          </a>
+        </footer>
       </div>
     </div>
   );
