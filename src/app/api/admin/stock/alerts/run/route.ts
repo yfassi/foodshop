@@ -12,7 +12,7 @@ interface PushSubRow {
 
 interface RestoSummary {
   restaurant_id: string;
-  restaurant_slug: string;
+  restaurant_public_id: string;
   restaurant_name: string;
   low_count: number;
   ingredient_ids: string[];
@@ -43,7 +43,7 @@ async function run(request: Request) {
   // Active stock restaurants
   const { data: restos } = await supabase
     .from("restaurants")
-    .select("id, slug, name")
+    .select("id, public_id, name")
     .eq("stock_module_active", true)
     .eq("stock_enabled", true);
 
@@ -79,7 +79,7 @@ async function run(request: Request) {
 
     summaries.push({
       restaurant_id: r.id,
-      restaurant_slug: r.slug,
+      restaurant_public_id: r.public_id,
       restaurant_name: r.name,
       low_count: toAlert.length,
       ingredient_ids: toAlert.map((i) => i.id),
@@ -104,7 +104,7 @@ async function run(request: Request) {
         s.low_count === 1
           ? "1 article à recommander avant ce soir."
           : `${s.low_count} articles à recommander avant ce soir.`,
-      url: `/admin/${s.restaurant_slug}/stock`,
+      url: `/admin/${s.restaurant_public_id}/stock`,
       tag: `stock-low-${s.restaurant_id}`,
     };
 

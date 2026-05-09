@@ -28,10 +28,10 @@ type FormState = {
 const EMPTY: FormState = { name: "", phone: "", email: "", notes: "" };
 
 export function SuppliersClient({
-  slug,
+  publicId,
   restaurantId,
 }: {
-  slug: string;
+  publicId: string;
   restaurantId: string;
 }) {
   const [items, setItems] = useState<Supplier[]>([]);
@@ -101,7 +101,7 @@ export function SuppliersClient({
   return (
     <div className="space-y-6 px-4 py-6 md:px-8">
       <Link
-        href={`/admin/${slug}/stock`}
+        href={`/admin/${publicId}/stock`}
         className="-ml-1 inline-flex h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

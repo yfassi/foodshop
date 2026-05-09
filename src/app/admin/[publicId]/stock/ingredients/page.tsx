@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { StockDashboard } from "@/components/admin/stock/stock-dashboard";
+import { IngredientsClient } from "@/components/admin/stock/ingredients-client";
 
-export default async function StockHome({
+export default async function StockIngredientsPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ publicId: string }>;
 }) {
-  const { slug } = await params;
+  const { publicId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,11 +17,11 @@ export default async function StockHome({
   const { data: restaurant } = await supabase
     .from("restaurants")
     .select("id, stock_module_active")
-    .eq("slug", slug)
+    .eq("public_id", publicId)
     .eq("owner_id", user.id)
     .single();
   if (!restaurant) redirect("/admin/login");
-  if (!restaurant.stock_module_active) redirect(`/admin/${slug}/stock/activation`);
+  if (!restaurant.stock_module_active) redirect(`/admin/${publicId}/stock/activation`);
 
-  return <StockDashboard slug={slug} restaurantId={restaurant.id} />;
+  return <IngredientsClient publicId={publicId} restaurantId={restaurant.id} />;
 }

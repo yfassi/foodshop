@@ -16,10 +16,10 @@ import type {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("restaurant_slug");
+    const publicId = searchParams.get("restaurant_public_id");
 
-    if (!slug) {
-      return NextResponse.json({ error: "Slug manquant" }, { status: 400 });
+    if (!publicId) {
+      return NextResponse.json({ error: "Identifiant restaurant manquant" }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
       .select("id, owner_id, order_types")
-      .eq("slug", slug)
+      .eq("public_id", publicId)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {

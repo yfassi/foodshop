@@ -95,7 +95,7 @@ const ORDER_STATUS: Record<ClientOrder["status"], { label: string; variant: "def
 
 interface Props {
   userId: string | null;
-  restaurantSlug: string;
+  restaurantPublicId: string;
   open: boolean;
   onClose: () => void;
   onChanged: () => void;
@@ -103,7 +103,7 @@ interface Props {
 
 export function ClientDetailSheet({
   userId,
-  restaurantSlug,
+  restaurantPublicId,
   open,
   onClose,
   onChanged,
@@ -133,7 +133,7 @@ export function ClientDetailSheet({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/clients/${userId}?restaurant_slug=${restaurantSlug}`
+        `/api/admin/clients/${userId}?restaurant_public_id=${restaurantPublicId}`
       );
       if (!res.ok) throw new Error("Erreur de chargement");
       const json: ClientDetail = await res.json();
@@ -146,7 +146,7 @@ export function ClientDetailSheet({
     } finally {
       setLoading(false);
     }
-  }, [userId, restaurantSlug]);
+  }, [userId, restaurantPublicId]);
 
   useEffect(() => {
     if (open && userId) load();
@@ -164,7 +164,7 @@ export function ClientDetailSheet({
     setSavingProfile(true);
     try {
       const res = await fetch(
-        `/api/admin/clients/${userId}?restaurant_slug=${restaurantSlug}`,
+        `/api/admin/clients/${userId}?restaurant_public_id=${restaurantPublicId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -197,7 +197,7 @@ export function ClientDetailSheet({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: restaurantSlug,
+          restaurant_public_id: restaurantPublicId,
           wallet_id: data.wallet.id,
           amount: cents,
           description: creditDesc || undefined,
@@ -227,7 +227,7 @@ export function ClientDetailSheet({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          restaurant_slug: restaurantSlug,
+          restaurant_public_id: restaurantPublicId,
           wallet_id: data.wallet.id,
           amount: cents,
           description: debitDesc || undefined,
@@ -252,7 +252,7 @@ export function ClientDetailSheet({
     setDeleting(true);
     try {
       const res = await fetch(
-        `/api/admin/clients/${userId}?restaurant_slug=${restaurantSlug}`,
+        `/api/admin/clients/${userId}?restaurant_public_id=${restaurantPublicId}`,
         { method: "DELETE" }
       );
       const j = await res.json();

@@ -6,9 +6,9 @@ export default async function StockLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ slug: string }>;
+  params: Promise<{ publicId: string }>;
 }) {
-  const { slug } = await params;
+  const { publicId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -18,7 +18,7 @@ export default async function StockLayout({
   const { data: restaurant } = await supabase
     .from("restaurants")
     .select("id, stock_module_active")
-    .eq("slug", slug)
+    .eq("public_id", publicId)
     .eq("owner_id", user.id)
     .single();
 

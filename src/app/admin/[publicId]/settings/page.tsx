@@ -238,7 +238,7 @@ export default function SettingsPage() {
     if (activeTab === "restaurant") sp.delete("tab");
     else sp.set("tab", activeTab);
     const qs = sp.toString();
-    router.replace(`/admin/${params.slug}/settings${qs ? `?${qs}` : ""}`, { scroll: false });
+    router.replace(`/admin/${params.publicId}/settings${qs ? `?${qs}` : ""}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -331,7 +331,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/stripe/billing/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ restaurant_slug: params.slug }),
+        body: JSON.stringify({ restaurant_public_id: params.publicId }),
       });
       const data = await res.json();
       if (res.ok && data.url) {

@@ -47,10 +47,10 @@ const EMPTY_FORM: FormState = {
 };
 
 export function IngredientsClient({
-  slug,
+  publicId,
   restaurantId,
 }: {
-  slug: string;
+  publicId: string;
   restaurantId: string;
 }) {
   const [items, setItems] = useState<Ingredient[]>([]);
@@ -154,7 +154,7 @@ export function IngredientsClient({
     <div className="space-y-6 px-4 py-6 md:px-8">
       <div className="flex items-center gap-2">
         <Link
-          href={`/admin/${slug}/stock`}
+          href={`/admin/${publicId}/stock`}
           className="-ml-1 inline-flex h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />

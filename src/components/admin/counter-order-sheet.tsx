@@ -27,7 +27,7 @@ type PaymentMode = "on_site" | "wallet_full" | "wallet_partial";
 interface CounterOrderSheetProps {
   open: boolean;
   onClose: () => void;
-  slug: string;
+  publicId: string;
 }
 
 function firstName(full: string): string {
@@ -37,7 +37,7 @@ function firstName(full: string): string {
 export function CounterOrderSheet({
   open,
   onClose,
-  slug,
+  publicId,
 }: CounterOrderSheetProps) {
   // Customer — by default we treat walk-ins as anonymous "client comptoir"
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
@@ -92,7 +92,7 @@ export function CounterOrderSheet({
   useEffect(() => {
     if (!open) return;
     setMenuLoading(true);
-    fetch(`/api/admin/menu?restaurant_slug=${encodeURIComponent(slug)}`)
+    fetch(`/api/admin/menu?restaurant_public_id=${encodeURIComponent(publicId)}`)
       .then((r) => r.json())
       .then((data) => {
         setMenu(data.menu || []);
@@ -111,7 +111,7 @@ export function CounterOrderSheet({
       .catch(() => toast.error("Impossible de charger le menu"))
       .finally(() => setMenuLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, slug]);
+  }, [open, publicId]);
 
   // Auto-fill order label (unless user edited it manually)
   useEffect(() => {
@@ -190,7 +190,7 @@ export function CounterOrderSheet({
         : { mode: "wallet_partial", on_site_method: onSiteMethod };
 
     const body = {
-      restaurant_slug: slug,
+      restaurant_public_id: publicId,
       items: items.map((i) => ({
         product_id: i.product_id,
         product_name: i.product_name,
@@ -246,7 +246,7 @@ export function CounterOrderSheet({
               Client
             </Label>
             <CustomerPicker
-              slug={slug}
+              publicId={publicId}
               selected={customer}
               onSelect={(c) => {
                 setCustomer(c);

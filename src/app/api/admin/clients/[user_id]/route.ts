@@ -4,8 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 async function authorize(request: Request) {
   const { searchParams } = new URL(request.url);
-  const restaurantSlug = searchParams.get("restaurant_slug");
-  if (!restaurantSlug) {
+  const restaurantPublicId = searchParams.get("restaurant_public_id");
+  if (!restaurantPublicId) {
     return { error: NextResponse.json({ error: "Slug manquant" }, { status: 400 }) };
   }
   const supabase = await createClient();
@@ -19,7 +19,7 @@ async function authorize(request: Request) {
   const { data: restaurant } = await adminSupabase
     .from("restaurants")
     .select("id, owner_id")
-    .eq("slug", restaurantSlug)
+    .eq("public_id", restaurantPublicId)
     .single();
   if (!restaurant || restaurant.owner_id !== user.id) {
     return { error: NextResponse.json({ error: "Non autorise" }, { status: 403 }) };

@@ -4,15 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const { restaurant_slug, wallet_id, amount, description } =
+    const { restaurant_public_id, wallet_id, amount, description } =
       (await request.json()) as {
-        restaurant_slug: string;
+        restaurant_public_id: string;
         wallet_id: string;
         amount: number; // cents, positif
         description?: string;
       };
 
-    if (!restaurant_slug || !wallet_id || !amount || amount <= 0) {
+    if (!restaurant_public_id || !wallet_id || !amount || amount <= 0) {
       return NextResponse.json({ error: "Donnees manquantes" }, { status: 400 });
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
       .select("id, owner_id")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
     if (!restaurant || restaurant.owner_id !== user.id) {
       return NextResponse.json({ error: "Non autorise" }, { status: 403 });

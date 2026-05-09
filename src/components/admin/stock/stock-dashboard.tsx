@@ -46,10 +46,10 @@ function statusOf(current: number, low: number) {
 }
 
 export function StockDashboard({
-  slug,
+  publicId,
   restaurantId,
 }: {
-  slug: string;
+  publicId: string;
   restaurantId: string;
 }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -113,13 +113,13 @@ export function StockDashboard({
           <h1 className="mt-1 text-2xl font-bold tracking-tight">Stock</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/${slug}/stock/scan`}>
+          <Link href={`/admin/${publicId}/stock/scan`}>
             <Button variant="outline" className="rounded-xl">
               <Camera className="mr-2 h-4 w-4" />
               Scanner un ticket
             </Button>
           </Link>
-          <Link href={`/admin/${slug}/stock/ingredients`}>
+          <Link href={`/admin/${publicId}/stock/ingredients`}>
             <Button className="rounded-xl">
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un ingrédient
@@ -161,7 +161,7 @@ export function StockDashboard({
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <p className="text-sm font-semibold">Inventaire</p>
             <Link
-              href={`/admin/${slug}/stock/movements`}
+              href={`/admin/${publicId}/stock/movements`}
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
             >
               <ScrollText className="h-3.5 w-3.5" />
@@ -183,7 +183,7 @@ export function StockDashboard({
               <p className="text-sm text-muted-foreground">
                 Aucun ingrédient pour l&apos;instant.
               </p>
-              <Link href={`/admin/${slug}/stock/ingredients`}>
+              <Link href={`/admin/${publicId}/stock/ingredients`}>
                 <Button size="sm" className="rounded-xl">
                   <Plus className="mr-2 h-4 w-4" />
                   Ajouter un ingrédient

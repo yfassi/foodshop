@@ -4,7 +4,7 @@ import { formatPrice } from "@/lib/format";
 
 export async function notifyAdmins(
   restaurantId: string,
-  restaurantSlug: string,
+  restaurantPublicId: string,
   displayOrderNumber: string,
   totalPrice: number
 ) {
@@ -26,7 +26,7 @@ export async function notifyAdmins(
           {
             title: "Nouvelle commande",
             body: `Commande ${displayOrderNumber} — ${formatPrice(totalPrice)}`,
-            url: `/admin/${restaurantSlug}`,
+            url: `/admin/${restaurantPublicId}`,
             tag: "new-order",
           }
         );

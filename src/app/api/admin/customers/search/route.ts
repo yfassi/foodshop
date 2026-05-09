@@ -14,10 +14,10 @@ interface CustomerHit {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const restaurantSlug = searchParams.get("restaurant_slug");
+    const restaurantPublicId = searchParams.get("restaurant_public_id");
     const q = (searchParams.get("q") || "").trim().toLowerCase();
 
-    if (!restaurantSlug) {
+    if (!restaurantPublicId) {
       return NextResponse.json({ error: "Slug manquant" }, { status: 400 });
     }
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
       .select("id, owner_id")
-      .eq("slug", restaurantSlug)
+      .eq("public_id", restaurantPublicId)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {

@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ScanClient } from "@/components/admin/stock/scan-client";
+import { SuppliersClient } from "@/components/admin/stock/suppliers-client";
 
-export default async function StockScanPage({
+export default async function StockSuppliersPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ publicId: string }>;
 }) {
-  const { slug } = await params;
+  const { publicId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,11 +17,11 @@ export default async function StockScanPage({
   const { data: restaurant } = await supabase
     .from("restaurants")
     .select("id, stock_module_active")
-    .eq("slug", slug)
+    .eq("public_id", publicId)
     .eq("owner_id", user.id)
     .single();
   if (!restaurant) redirect("/admin/login");
-  if (!restaurant.stock_module_active) redirect(`/admin/${slug}/stock/activation`);
+  if (!restaurant.stock_module_active) redirect(`/admin/${publicId}/stock/activation`);
 
-  return <ScanClient slug={slug} restaurantId={restaurant.id} />;
+  return <SuppliersClient publicId={publicId} restaurantId={restaurant.id} />;
 }

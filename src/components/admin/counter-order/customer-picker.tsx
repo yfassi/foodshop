@@ -24,7 +24,7 @@ interface CustomerHit {
 }
 
 interface CustomerPickerProps {
-  slug: string;
+  publicId: string;
   selected: SelectedCustomer | null;
   onSelect: (customer: SelectedCustomer | null) => void;
   guestName: string;
@@ -34,7 +34,7 @@ interface CustomerPickerProps {
 }
 
 export function CustomerPicker({
-  slug,
+  publicId,
   selected,
   onSelect,
   guestName,
@@ -56,8 +56,8 @@ export function CustomerPicker({
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/admin/customers/search?restaurant_slug=${encodeURIComponent(
-            slug
+          `/api/admin/customers/search?restaurant_public_id=${encodeURIComponent(
+            publicId
           )}&q=${encodeURIComponent(query)}`
         );
         const data = await res.json();
@@ -70,7 +70,7 @@ export function CustomerPicker({
     }, 200);
 
     return () => clearTimeout(handle);
-  }, [query, slug, isGuest, selected]);
+  }, [query, publicId, isGuest, selected]);
 
   if (selected) {
     return (

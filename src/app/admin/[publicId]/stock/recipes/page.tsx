@@ -5,9 +5,9 @@ import { RecipesClient } from "@/components/admin/stock/recipes-client";
 export default async function StockRecipesPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ publicId: string }>;
 }) {
-  const { slug } = await params;
+  const { publicId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,11 +17,11 @@ export default async function StockRecipesPage({
   const { data: restaurant } = await supabase
     .from("restaurants")
     .select("id, stock_module_active")
-    .eq("slug", slug)
+    .eq("public_id", publicId)
     .eq("owner_id", user.id)
     .single();
   if (!restaurant) redirect("/admin/login");
-  if (!restaurant.stock_module_active) redirect(`/admin/${slug}/stock/activation`);
+  if (!restaurant.stock_module_active) redirect(`/admin/${publicId}/stock/activation`);
 
   const { data: products } = await supabase
     .from("products")
@@ -37,7 +37,7 @@ export default async function StockRecipesPage({
 
   return (
     <RecipesClient
-      slug={slug}
+      publicId={publicId}
       restaurantId={restaurant.id}
       products={flatProducts}
     />

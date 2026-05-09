@@ -34,10 +34,10 @@ const REASON_LABEL: Record<StockMovementReason, string> = {
 const ADJUST_REASONS: StockMovementReason[] = ["manual_adjust", "loss"];
 
 export function MovementsClient({
-  slug,
+  publicId,
   restaurantId,
 }: {
-  slug: string;
+  publicId: string;
   restaurantId: string;
 }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -113,7 +113,7 @@ export function MovementsClient({
   return (
     <div className="space-y-6 px-4 py-6 md:px-8">
       <Link
-        href={`/admin/${slug}/stock`}
+        href={`/admin/${publicId}/stock`}
         className="-ml-1 inline-flex h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

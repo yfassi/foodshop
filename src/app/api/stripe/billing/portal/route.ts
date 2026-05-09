@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
 
 interface PortalBody {
-  restaurant_slug: string;
+  restaurant_public_id: string;
 }
 
 /**
@@ -19,7 +19,7 @@ interface PortalBody {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as PortalBody;
-    const { restaurant_slug } = body;
+    const { restaurant_public_id } = body;
 
     const supabaseAuth = await createClient();
     const {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id, slug, stripe_customer_id")
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .eq("owner_id", user.id)
       .single();
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: restaurant.stripe_customer_id,
-      return_url: `${appUrl}/admin/${restaurant_slug}/settings?tab=account`,
+      return_url: `${appUrl}/admin/${restaurant_public_id}/settings?tab=account`,
     });
 
     return NextResponse.json({ url: session.url });

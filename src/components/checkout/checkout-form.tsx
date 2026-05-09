@@ -312,7 +312,7 @@ export function CheckoutForm({
           </div>
         ) : (
           <Link
-            href={`/restaurant/${slug}/login`}
+            href={`/restaurant/${publicId}/login`}
             className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
           >
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">

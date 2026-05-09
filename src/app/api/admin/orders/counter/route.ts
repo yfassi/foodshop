@@ -19,7 +19,7 @@ type PaymentBody =
   | { mode: "wallet_partial"; on_site_method: "card" | "cash" | "other" };
 
 interface CounterBody {
-  restaurant_slug: string;
+  restaurant_public_id: string;
   items: CounterItem[];
   order_type: "dine_in" | "takeaway";
   customer_user_id?: string;
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CounterBody;
     const {
-      restaurant_slug,
+      restaurant_public_id,
       items,
       order_type,
       customer_user_id,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       payment,
     } = body;
 
-    if (!restaurant_slug || !items?.length || !customer_label || !payment) {
+    if (!restaurant_public_id || !items?.length || !customer_label || !payment) {
       return NextResponse.json({ error: "Donnees manquantes" }, { status: 400 });
     }
 
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       .select(
         "id, owner_id, is_accepting_orders, opening_hours, order_types"
       )
-      .eq("slug", restaurant_slug)
+      .eq("public_id", restaurant_public_id)
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {
@@ -353,7 +353,7 @@ export async function POST(request: Request) {
 
     notifyAdmins(
       restaurant.id,
-      restaurant_slug,
+      restaurant_public_id,
       displayOrderNumber,
       totalPrice
     );
