@@ -59,6 +59,8 @@ import {
   ShieldCheck,
   FileText,
   BadgeCheck,
+  Palette,
+  List as ListIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -74,11 +76,13 @@ import type {
   DeliveryZone,
   SubscriptionTier,
   FloorPlan,
+  MenuLayout,
 } from "@/lib/types";
 import {
   getTierLabel,
   getTierPrice,
   nextTier,
+  normalizeTier,
 } from "@/lib/subscription";
 import { ADDONS, PLANS } from "@/lib/plans";
 import { FeatureGate } from "@/components/upsell/feature-gate";
@@ -301,6 +305,9 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // Menu layout (linear list vs category-first grid)
+  const [menuLayout, setMenuLayout] = useState<MenuLayout>("linear");
+
   // Loyalty
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTier[]>([]);
@@ -382,6 +389,7 @@ export default function SettingsPage() {
         setHours(h);
 
         setLogoUrl(data.logo_url || null);
+        setMenuLayout((data.menu_layout as MenuLayout) ?? "linear");
 
         const methods: string[] = data.accepted_payment_methods || ["on_site"];
         setAcceptOnSite(methods.includes("on_site"));
@@ -399,7 +407,7 @@ export default function SettingsPage() {
         setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
 
         setDeliveryAddonActive(data.delivery_addon_active ?? false);
-        setSubscriptionTier((data.subscription_tier ?? "essentiel") as SubscriptionTier);
+        setSubscriptionTier(normalizeTier(data.subscription_tier));
         setDeliveryEnabled(data.delivery_enabled ?? false);
         const dc = (data.delivery_config || {}) as DeliveryConfig;
         setDeliveryCoords(dc.coords ?? null);
@@ -552,6 +560,21 @@ export default function SettingsPage() {
       toast.success("Enregistré");
     }
   }, [restaurant, name, address, phone, contactEmail, socialLinks, description, hours, orderTypeDineIn, orderTypeTakeaway, orderTypeDelivery, deliveryAddonActive]);
+
+  const autoSaveMenuLayout = useCallback(async () => {
+    if (!hasLoaded.current) return;
+    if (!restaurant) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ menu_layout: menuLayout })
+      .eq("id", restaurant.id);
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde de la mise en page");
+    } else {
+      toast.success("Mise en page enregistrée");
+    }
+  }, [restaurant, menuLayout]);
 
   const autoSavePaymentMethods = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -709,6 +732,12 @@ export default function SettingsPage() {
     const t = setTimeout(autoSaveFloorPlan, 1200);
     return () => clearTimeout(t);
   }, [autoSaveFloorPlan]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    const t = setTimeout(autoSaveMenuLayout, 400);
+    return () => clearTimeout(t);
+  }, [autoSaveMenuLayout]);
 
   const autoSaveDelivery = useCallback(async () => {
     if (!hasLoaded.current) return;
@@ -1134,33 +1163,155 @@ export default function SettingsPage() {
                 </div>
               </CollapsibleCard>
 
-              {/* Logo */}
+              {/* Apparence & communication */}
               <CollapsibleCard
-                icon={Camera}
-                title="Logo"
-                description="JPG, PNG, WebP ou SVG (max 2 Mo)"
-                isOpen={openSections.has("logo")}
-                onToggle={() => toggleSection("logo")}
+                icon={Palette}
+                title="Apparence & communication"
+                description="Logo, contacts, réseaux sociaux et mise en page de la carte"
+                isOpen={openSections.has("apparence")}
+                onToggle={() => toggleSection("apparence")}
               >
-                <div className="relative inline-block">
-                  <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
-                    {uploadingLogo ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    ) : logoUrl ? (
-                      <Image src={logoUrl} alt="Logo" fill className="object-cover" sizes="96px" />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                        <Camera className="h-5 w-5" />
-                        <span className="text-[10px] font-medium">Ajouter</span>
+                <div className="space-y-6">
+                  {/* Logo */}
+                  <div className="space-y-2">
+                    <Label>Logo du restaurant</Label>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, WebP ou SVG (max 2 Mo)</p>
+                    <div className="relative inline-block pt-1">
+                      <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
+                        {uploadingLogo ? (
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        ) : logoUrl ? (
+                          <Image src={logoUrl} alt="Logo" fill className="object-cover" sizes="96px" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                            <Camera className="h-5 w-5" />
+                            <span className="text-[10px] font-medium">Ajouter</span>
+                          </div>
+                        )}
+                        <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadLogo(file); e.target.value = ""; }} />
+                      </label>
+                      {logoUrl && (
+                        <button onClick={removeLogo} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-foreground">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Contacts */}
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Contact</p>
+                      <p className="text-xs text-muted-foreground">Email et téléphone affichés à vos clients</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="r-email">Email de contact</Label>
+                        <Input id="r-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@restaurant.fr" />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-phone-2">Téléphone</Label>
+                        <Input id="r-phone-2" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="06 12 34 56 78" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Réseaux sociaux */}
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Réseaux sociaux</p>
+                      <p className="text-xs text-muted-foreground">URL complète, laisser vide si non concerné</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="r-instagram">Instagram</Label>
+                        <Input id="r-instagram" value={socialLinks.instagram ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, instagram: e.target.value }))} placeholder="https://instagram.com/..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-facebook">Facebook</Label>
+                        <Input id="r-facebook" value={socialLinks.facebook ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, facebook: e.target.value }))} placeholder="https://facebook.com/..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-tiktok">TikTok</Label>
+                        <Input id="r-tiktok" value={socialLinks.tiktok ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, tiktok: e.target.value }))} placeholder="https://tiktok.com/@..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="r-website">Site web</Label>
+                        <Input id="r-website" value={socialLinks.website ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, website: e.target.value }))} placeholder="https://..." />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Mise en page de la carte */}
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Mise en page de la carte</p>
+                      <p className="text-xs text-muted-foreground">Choisissez comment vos clients (et le comptoir) découvrent les articles</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setMenuLayout("linear")}
+                        className={cn(
+                          "group relative flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-colors",
+                          menuLayout === "linear"
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-background hover:border-primary/40"
+                        )}
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <ListIcon className="h-4 w-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold">Liste classique</p>
+                          <p className="text-xs text-muted-foreground">
+                            Un défilement continu, catégorie par catégorie. Recommandé pour des cartes courtes.
+                          </p>
+                        </div>
+                        {menuLayout === "linear" && (
+                          <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMenuLayout("category_grid")}
+                        className={cn(
+                          "group relative flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-colors",
+                          menuLayout === "category_grid"
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-background hover:border-primary/40"
+                        )}
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <LayoutGrid className="h-4 w-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold">Grille par catégories</p>
+                          <p className="text-xs text-muted-foreground">
+                            Un écran d&apos;accueil avec un gros pavé par catégorie. Idéal pour les cartes riches.
+                          </p>
+                        </div>
+                        {menuLayout === "category_grid" && (
+                          <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                    {menuLayout === "category_grid" && (
+                      <p className="text-xs text-muted-foreground">
+                        Astuce : ajoutez une image à chaque catégorie depuis l&apos;onglet <strong>Articles</strong> pour que les pavés soient illustrés.
+                      </p>
                     )}
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadLogo(file); e.target.value = ""; }} />
-                  </label>
-                  {logoUrl && (
-                    <button onClick={removeLogo} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-foreground">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  </div>
                 </div>
               </CollapsibleCard>
 
@@ -1190,7 +1341,7 @@ export default function SettingsPage() {
               <CollapsibleCard
                 icon={Store}
                 title="Informations"
-                description="Les informations visibles par vos clients"
+                description="Nom, description et adresse de l'établissement"
                 isOpen={openSections.has("info")}
                 onToggle={() => toggleSection("info")}
               >
@@ -1203,46 +1354,9 @@ export default function SettingsPage() {
                     <Label htmlFor="r-desc">Description</Label>
                     <textarea id="r-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Une courte description..." rows={2} className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]" />
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="r-address">Adresse</Label>
-                      <Input id="r-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 rue Example, 69000 Lyon" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="r-phone">Téléphone</Label>
-                      <Input id="r-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="06 12 34 56 78" />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="r-email">Email de contact</Label>
-                      <Input id="r-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@restaurant.fr" />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium">Réseaux sociaux</p>
-                      <p className="text-xs text-muted-foreground">URL complète, laisser vide si non concerné</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="r-instagram">Instagram</Label>
-                        <Input id="r-instagram" value={socialLinks.instagram ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, instagram: e.target.value }))} placeholder="https://instagram.com/..." />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="r-facebook">Facebook</Label>
-                        <Input id="r-facebook" value={socialLinks.facebook ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, facebook: e.target.value }))} placeholder="https://facebook.com/..." />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="r-tiktok">TikTok</Label>
-                        <Input id="r-tiktok" value={socialLinks.tiktok ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, tiktok: e.target.value }))} placeholder="https://tiktok.com/@..." />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="r-website">Site web</Label>
-                        <Input id="r-website" value={socialLinks.website ?? ""} onChange={(e) => setSocialLinks((s) => ({ ...s, website: e.target.value }))} placeholder="https://..." />
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="r-address">Adresse</Label>
+                    <Input id="r-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 rue Example, 69000 Lyon" />
                   </div>
                 </div>
               </CollapsibleCard>
@@ -2128,7 +2242,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* API hint for non-Groupe plans */}
-                    {!PLANS[subscriptionTier].features.api && (
+                    {!PLANS[normalizeTier(subscriptionTier)].features.api && (
                       <div className="flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">

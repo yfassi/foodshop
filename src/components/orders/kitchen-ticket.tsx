@@ -144,17 +144,29 @@ export function KitchenTicket({ order, compact = false, locked = false }: Kitche
       {/* Dashed separator */}
       <div className="mx-3.5 border-t border-dashed border-zinc-300" />
 
-      {/* Items */}
+      {/* Items — late additions (added_at) get a green badge + side bar */}
       <div className={`px-3.5 pt-2.5 ${compact ? "pb-2.5" : "pb-3"}`}>
         <ul className={compact ? "space-y-1" : "space-y-1.5"}>
           {order.items.map((item, i) => (
-            <li key={i}>
+            <li
+              key={i}
+              className={
+                item.added_at
+                  ? "-mx-1 rounded border-l-4 border-emerald-500 bg-emerald-50 px-1.5 py-0.5"
+                  : ""
+              }
+            >
               <p className={`font-semibold leading-snug ${compact ? "text-sm" : "text-base"}`}>
                 <span className="mr-1 font-mono text-primary">{item.quantity}×</span>
                 {item.product_name}
                 {item.is_menu && (
                   <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
                     (menu)
+                  </span>
+                )}
+                {item.added_at && (
+                  <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                    Ajouté
                   </span>
                 )}
               </p>

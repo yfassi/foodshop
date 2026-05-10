@@ -16,6 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Restaurant, SubscriptionTier } from "@/lib/types";
 import {
@@ -41,6 +49,11 @@ import {
   FileText,
   Save,
   Loader2,
+  KeyRound,
+  Pencil,
+  UserPlus,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 interface RestaurantDetail extends Restaurant {
@@ -177,6 +190,12 @@ function ToggleRow({
   );
 }
 
+type OwnerDialogMode =
+  | { kind: "closed" }
+  | { kind: "create" }
+  | { kind: "edit-email" }
+  | { kind: "reset-password" };
+
 export default function SuperAdminRestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -184,6 +203,17 @@ export default function SuperAdminRestaurantDetailPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [ownerDialog, setOwnerDialog] = useState<OwnerDialogMode>({
+    kind: "closed",
+  });
+  const [ownerEmailInput, setOwnerEmailInput] = useState("");
+  const [ownerPasswordInput, setOwnerPasswordInput] = useState("");
+  const [ownerSubmitting, setOwnerSubmitting] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const fetchRestaurant = useCallback(async () => {
     setLoading(true);
@@ -229,6 +259,86 @@ export default function SuperAdminRestaurantDetailPage() {
           : "Verification refusee"
       );
     }
+  };
+
+  const openOwnerDialog = (mode: OwnerDialogMode) => {
+    setOwnerEmailInput(
+      mode.kind === "edit-email" ? restaurant?.owner_email ?? "" : ""
+    );
+    setOwnerPasswordInput("");
+    setOwnerDialog(mode);
+  };
+
+  const closeOwnerDialog = () => {
+    if (ownerSubmitting) return;
+    setOwnerDialog({ kind: "closed" });
+    setOwnerEmailInput("");
+    setOwnerPasswordInput("");
+  };
+
+  const submitOwnerDialog = async () => {
+    if (!restaurant || ownerDialog.kind === "closed") return;
+
+    const url = `/api/super-admin/restaurants/${restaurant.id}/owner`;
+    let method: "POST" | "PATCH" = "PATCH";
+    let payload: Record<string, string> = {};
+
+    if (ownerDialog.kind === "create") {
+      method = "POST";
+      payload = { email: ownerEmailInput, password: ownerPasswordInput };
+    } else if (ownerDialog.kind === "edit-email") {
+      payload = { email: ownerEmailInput };
+    } else if (ownerDialog.kind === "reset-password") {
+      payload = { password: ownerPasswordInput };
+    }
+
+    setOwnerSubmitting(true);
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Erreur");
+      setOwnerSubmitting(false);
+      return;
+    }
+
+    toast.success(
+      ownerDialog.kind === "create"
+        ? "Acces cree"
+        : ownerDialog.kind === "edit-email"
+          ? "Email mis a jour"
+          : "Mot de passe mis a jour"
+    );
+    setOwnerDialog({ kind: "closed" });
+    setOwnerEmailInput("");
+    setOwnerPasswordInput("");
+    setOwnerSubmitting(false);
+    await fetchRestaurant();
+  };
+
+  const submitDelete = async () => {
+    if (!restaurant) return;
+    if (deleteConfirm.trim() !== restaurant.name.trim()) {
+      toast.error("Le nom ne correspond pas");
+      return;
+    }
+    setDeleting(true);
+    const res = await fetch(
+      `/api/super-admin/restaurants/${restaurant.id}?confirm=${encodeURIComponent(restaurant.name)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Erreur lors de la suppression");
+      setDeleting(false);
+      return;
+    }
+    toast.success("Restaurant supprime");
+    router.push("/super-admin/restaurants");
   };
 
   const handleSave = async () => {
@@ -599,9 +709,12 @@ export default function SuperAdminRestaurantDetailPage() {
           </div>
         </Section>
 
-        {/* Proprietaire */}
-        <Section title="Proprietaire">
-          <div className="space-y-2">
+        {/* Acces / Proprietaire */}
+        <Section
+          title="Acces"
+          description="Email et mot de passe utilises par le restaurateur pour se connecter."
+        >
+          <div className="space-y-3">
             <div className="flex items-start justify-between gap-2">
               <span className="text-xs text-muted-foreground">Email</span>
               <span className="text-right text-sm font-medium">
@@ -611,7 +724,7 @@ export default function SuperAdminRestaurantDetailPage() {
                     {restaurant.owner_email}
                   </span>
                 ) : (
-                  "—"
+                  <span className="text-muted-foreground">Aucun acces</span>
                 )}
               </span>
             </div>
@@ -626,6 +739,49 @@ export default function SuperAdminRestaurantDetailPage() {
                   year: "numeric",
                 })}
               </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {restaurant.owner_email ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "edit-email" })}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Modifier l&apos;email
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "reset-password" })}
+                  >
+                    <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                    Reinitialiser le mot de passe
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "create" })}
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                    Remplacer l&apos;acces
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => openOwnerDialog({ kind: "create" })}
+                >
+                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                  Creer un acces
+                </Button>
+              )}
             </div>
           </div>
         </Section>
@@ -679,7 +835,170 @@ export default function SuperAdminRestaurantDetailPage() {
           Ouvrir le dashboard admin de ce restaurant
           <ExternalLink className="h-4 w-4" />
         </Link>
+
+        {/* Danger zone */}
+        <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 dark:border-red-900/40 dark:bg-red-950/20">
+          <div className="mb-3 flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <div>
+              <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
+                Zone dangereuse
+              </h3>
+              <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">
+                La suppression est definitive. Toutes les commandes, categories,
+                produits et donnees liees seront effaces.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              setDeleteConfirm("");
+              setDeleteOpen(true);
+            }}
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Supprimer ce restaurant
+          </Button>
+        </div>
       </div>
+
+      {/* Owner dialog */}
+      <Dialog
+        open={ownerDialog.kind !== "closed"}
+        onOpenChange={(open) => {
+          if (!open) closeOwnerDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {ownerDialog.kind === "create"
+                ? restaurant.owner_email
+                  ? "Remplacer l'acces"
+                  : "Creer un acces"
+                : ownerDialog.kind === "edit-email"
+                  ? "Modifier l'email"
+                  : "Reinitialiser le mot de passe"}
+            </DialogTitle>
+            <DialogDescription>
+              {ownerDialog.kind === "create"
+                ? "Un nouvel utilisateur sera cree et associe comme proprietaire."
+                : ownerDialog.kind === "edit-email"
+                  ? "L'email de connexion sera mis a jour pour ce restaurant."
+                  : "Le mot de passe sera ecrase. Notez-le avant de fermer."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {(ownerDialog.kind === "create" ||
+              ownerDialog.kind === "edit-email") && (
+              <div>
+                <Label htmlFor="owner-email">Email</Label>
+                <Input
+                  id="owner-email"
+                  type="email"
+                  autoComplete="off"
+                  value={ownerEmailInput}
+                  onChange={(e) => setOwnerEmailInput(e.target.value)}
+                  placeholder="restaurateur@exemple.fr"
+                  className="mt-1.5"
+                />
+              </div>
+            )}
+            {(ownerDialog.kind === "create" ||
+              ownerDialog.kind === "reset-password") && (
+              <div>
+                <Label htmlFor="owner-password">Mot de passe</Label>
+                <Input
+                  id="owner-password"
+                  type="text"
+                  autoComplete="off"
+                  value={ownerPasswordInput}
+                  onChange={(e) => setOwnerPasswordInput(e.target.value)}
+                  placeholder="Au moins 8 caracteres"
+                  className="mt-1.5 font-mono"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Visible une fois — communiquez-le au restaurateur.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={closeOwnerDialog}
+              disabled={ownerSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button onClick={submitOwnerDialog} disabled={ownerSubmitting}>
+              {ownerSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Valider"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete dialog */}
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer ce restaurant ?</DialogTitle>
+            <DialogDescription>
+              Action irreversible. Toutes les donnees liees seront effacees
+              (commandes, produits, categories, fidelite, livraison, etc.).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="delete-confirm">
+              Tapez <span className="font-mono font-semibold">{restaurant.name}</span> pour confirmer
+            </Label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="mt-1.5"
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitDelete}
+              disabled={
+                deleting || deleteConfirm.trim() !== restaurant.name.trim()
+              }
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Supprimer definitivement
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sticky save bar */}
       {dirty && (

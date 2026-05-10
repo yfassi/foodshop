@@ -163,9 +163,12 @@ export interface Restaurant {
   stock_stripe_subscription_id: string | null;
   stock_subscription_status: string | null;
   floor_plan: FloorPlan;
+  menu_layout: MenuLayout;
   created_at: string;
   updated_at: string;
 }
+
+export type MenuLayout = "linear" | "category_grid";
 
 export type QueueTicketStatus = "waiting" | "active" | "completed" | "expired";
 
@@ -189,6 +192,7 @@ export interface Category {
   name: string;
   description: string | null;
   icon: string | null;
+  image_url: string | null;
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;
@@ -258,6 +262,13 @@ export interface OrderItem {
   line_total: number;
   is_menu?: boolean;
   menu_supplement?: number;
+  /**
+   * ISO timestamp set when an item is appended to a counter order after
+   * its initial creation (see PATCH /api/admin/orders/counter/[orderId]).
+   * Items missing this field were part of the original order. Kitchen-side
+   * uses this to surface late additions as a delta.
+   */
+  added_at?: string;
 }
 
 export interface Order {
