@@ -19,9 +19,14 @@ export default function AdminResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setReady(true);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event) => {
-        if (event === "PASSWORD_RECOVERY") {
+        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
           setReady(true);
         }
       }
