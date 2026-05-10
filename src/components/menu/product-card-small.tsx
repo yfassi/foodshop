@@ -13,7 +13,13 @@ function hasRequiredModifiers(product: ProductWithModifiers) {
   return product.modifier_groups.some((g) => g.min_select > 0);
 }
 
-export function ProductCardSmall({ product }: { product: ProductWithModifiers }) {
+export function ProductCardSmall({
+  product,
+  fullWidth = false,
+}: {
+  product: ProductWithModifiers;
+  fullWidth?: boolean;
+}) {
   const [showModal, setShowModal] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
@@ -58,24 +64,26 @@ export function ProductCardSmall({ product }: { product: ProductWithModifiers })
             openModal();
           }
         }}
-        className={`relative flex shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#dbd7d2] bg-white text-left transition-colors ${
+        className={`relative flex flex-col overflow-hidden rounded-[14px] border border-[#dbd7d2] bg-white text-left transition-colors ${
+          fullWidth ? "w-full" : "shrink-0"
+        } ${
           isUnavailable ? "cursor-not-allowed opacity-50" : "cursor-pointer active:opacity-75"
         }`}
-        style={{ width: "164px" }}
+        style={fullWidth ? undefined : { width: "164px" }}
       >
         {/* Thumbnail */}
         {product.image_url ? (
-          <div className="relative h-28 w-full">
+          <div className={`relative w-full ${fullWidth ? "h-36" : "h-28"}`}>
             <Image
               src={product.image_url}
               alt={product.name}
               fill
               className={`object-cover ${isUnavailable ? "grayscale" : ""}`}
-              sizes="164px"
+              sizes={fullWidth ? "(max-width: 768px) 50vw, 33vw" : "164px"}
             />
           </div>
         ) : (
-          <div className="flex h-28 w-full items-center justify-center bg-gradient-to-br from-[#fdf2e8] to-[#f8e6d3]">
+          <div className={`flex w-full items-center justify-center bg-gradient-to-br from-[#fdf2e8] to-[#f8e6d3] ${fullWidth ? "h-36" : "h-28"}`}>
             <Plus className="h-7 w-7 text-[#d7352d]/30" />
           </div>
         )}

@@ -7,12 +7,20 @@ import { CategoryTileGrid } from "./category-grid";
 import { FeaturedProducts } from "./featured-products";
 import { FloatingCartButton } from "@/components/cart/floating-cart-button";
 import { ModifierModal } from "./modifier-modal";
+import { ProductCardSmall } from "./product-card-small";
 import { useCartStore } from "@/stores/cart-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { isCurrentlyOpen } from "@/lib/constants";
+import { getCategoryIcon } from "@/lib/category-icons";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { WelcomeModal } from "./welcome-modal";
 import type { OrderType } from "@/lib/types";
+
+const NOUVEAUTES_NAME = "nouveautés";
+
+function isNouveautes(category: { name: string }) {
+  return category.name.trim().toLowerCase() === NOUVEAUTES_NAME;
+}
 
 export function MenuGrid({
   categories,
@@ -150,6 +158,11 @@ export function MenuGrid({
         .filter((cat) => cat.products.length > 0)
     : categories;
 
+  // The "Nouveautés" pinned-at-top horizontal scroll: visible whenever the
+  // user is on an initial view (no search, not drilled-in inside grid mode).
+  const nouveautesCategory = categories.find(isNouveautes) ?? null;
+  const isInitialView = !query && (!isCategoryGrid || !pickedCategoryId);
+
   // In category_grid + drilled-in mode without a search, show only the picked
   // category. Search overrides the picked category and falls back to all
   // matching categories.
@@ -157,6 +170,25 @@ export function MenuGrid({
     isCategoryGrid && pickedCategoryId && !query
       ? searchedCategories.filter((c) => c.id === pickedCategoryId)
       : searchedCategories;
+
+  // In linear mode we render Nouveautés as a pinned horizontal scroll above
+  // the rest of the menu, so we strip it from the body to avoid duplication.
+  // Search results keep Nouveautés inline so the user sees matching products
+  // grouped by category.
+  const bodyCategories =
+    isInitialView && !isCategoryGrid
+      ? filteredCategories.filter((c) => !isNouveautes(c))
+      : filteredCategories;
+
+  // Tile grid excludes Nouveautés (already pinned at top).
+  const tileCategories = categories.filter((c) => !isNouveautes(c));
+
+  // Picked category in drilled-in mode (only one).
+  const drilledCategory =
+    isCategoryGrid && pickedCategoryId && !query
+      ? filteredCategories[0] ?? null
+      : null;
+  const DrilledIcon = drilledCategory ? getCategoryIcon(drilledCategory.icon) : null;
 
   // Collect featured products (only when not searching, only on linear).
   const featuredProducts =
@@ -203,8 +235,11 @@ export function MenuGrid({
           </div>
         </div>
 
-        {/* Category pills (hidden when searching, hidden on tile landing) */}
-        {!query && !showTileLanding && (
+        {/* Category pills:
+            - linear mode (no search): inline scroll-snap nav
+            - category_grid landing: hidden (tiles do the navigation)
+            - category_grid drilled-in: hidden (use the back button) */}
+        {!query && !isCategoryGrid && (
           <ScrollArea className="w-full">
             <div className="flex gap-1.5 px-4 py-2.5">
               {categories.map((cat) => (
@@ -213,9 +248,7 @@ export function MenuGrid({
                   ref={(el) => {
                     if (el) chipRefs.current.set(cat.id, el);
                   }}
-                  onClick={() =>
-                    isCategoryGrid ? handlePickCategory(cat.id) : scrollToCategory(cat.id)
-                  }
+                  onClick={() => scrollToCategory(cat.id)}
                   className={`h-[34px] shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-medium transition-all ${
                     activeCategoryId === cat.id
                       ? "border-[#1c1410] bg-[#1c1410] font-semibold text-white"
@@ -231,12 +264,22 @@ export function MenuGrid({
         )}
       </nav>
 
-      {/* Tile landing (category_grid layout, no category picked, no search) */}
+      {/* Pinned Nouveautés horizontal scroll — always at top of an initial view */}
+      {isInitialView &&
+        nouveautesCategory &&
+        nouveautesCategory.products.length > 0 && (
+          <div className="px-4 pt-4 md:px-6">
+            <CategorySection category={nouveautesCategory} horizontal />
+          </div>
+        )}
+
+      {/* Tile landing (category_grid layout, no category picked, no search).
+          Nouveautés is excluded — it's pinned above as a horizontal scroll. */}
       {showTileLanding && (
-        <CategoryTileGrid categories={categories} onSelect={handlePickCategory} />
+        <CategoryTileGrid categories={tileCategories} onSelect={handlePickCategory} />
       )}
 
-      {/* Featured products (only when not searching) */}
+      {/* Featured products (linear mode, not searching) */}
       {!showTileLanding && featuredProducts.length > 0 && (
         <FeaturedProducts
           products={featuredProducts}
@@ -244,40 +287,70 @@ export function MenuGrid({
         />
       )}
 
-      {/* Categories + products */}
-      {!showTileLanding && (
-      <div className="px-4 py-4 md:px-6">
-        {filteredCategories.length === 0 && query ? (
-          <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
-            <div className="grid h-[72px] w-[72px] place-items-center rounded-full border border-[#dbd7d2] bg-[#fdf9f3]">
-              <Search className="h-7 w-7 text-[#a89e94]" />
-            </div>
-            <p className="text-[17px] font-extrabold tracking-tight text-[#1c1410]">
-              Aucun résultat
-            </p>
-            <p className="max-w-[24ch] text-[13px] leading-snug text-[#68625e]">
-              Essayez un autre terme de recherche.
-            </p>
-            <button
-              onClick={() => setSearchQuery("")}
-              className="mt-1 inline-flex h-9 items-center justify-center rounded-full border-[1.5px] border-[#1c1410] bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#1c1410] transition-colors hover:bg-[#1c1410] hover:text-white"
-            >
-              Effacer
-            </button>
+      {/* category_grid drilled-in: 2-col image-on-top card grid for the picked category */}
+      {!showTileLanding && drilledCategory && (
+        <div className="px-4 py-4 md:px-6">
+          <div className="mb-3 flex items-center gap-2">
+            {DrilledIcon && (
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#fdf9f3] text-[#68625e]">
+                <DrilledIcon className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-[#1c1410]">
+              {drilledCategory.name}
+            </h2>
+            <span className="ml-1 font-mono text-[11px] font-semibold text-[#a89e94]">
+              {drilledCategory.products.length}
+            </span>
           </div>
-        ) : (
-          filteredCategories.map((category) => (
-            <CategorySection
-              key={category.id}
-              category={category}
-              horizontal={category.name.toLowerCase() === "nouveautés"}
-              ref={(el) => {
-                if (el) categoryRefs.current.set(category.id, el);
-              }}
-            />
-          ))
-        )}
-      </div>
+          {drilledCategory.products.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[#dbd7d2] bg-[#fdf9f3] px-4 py-6 text-center text-[13px] text-[#68625e]">
+              Aucun article disponible.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {drilledCategory.products.map((product) => (
+                <ProductCardSmall key={product.id} product={product} fullWidth />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Linear / search results body */}
+      {!showTileLanding && !drilledCategory && (
+        <div className="px-4 py-4 md:px-6">
+          {bodyCategories.length === 0 && query ? (
+            <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
+              <div className="grid h-[72px] w-[72px] place-items-center rounded-full border border-[#dbd7d2] bg-[#fdf9f3]">
+                <Search className="h-7 w-7 text-[#a89e94]" />
+              </div>
+              <p className="text-[17px] font-extrabold tracking-tight text-[#1c1410]">
+                Aucun résultat
+              </p>
+              <p className="max-w-[24ch] text-[13px] leading-snug text-[#68625e]">
+                Essayez un autre terme de recherche.
+              </p>
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-1 inline-flex h-9 items-center justify-center rounded-full border-[1.5px] border-[#1c1410] bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#1c1410] transition-colors hover:bg-[#1c1410] hover:text-white"
+              >
+                Effacer
+              </button>
+            </div>
+          ) : (
+            bodyCategories.map((category) => (
+              <CategorySection
+                key={category.id}
+                category={category}
+                horizontal={isNouveautes(category)}
+                ref={(el) => {
+                  if (el) categoryRefs.current.set(category.id, el);
+                }}
+              />
+            ))
+          )}
+        </div>
       )}
 
       {/* Floating cart button */}
