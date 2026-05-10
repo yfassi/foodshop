@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { AnimatedBackground } from "@/components/animated-background";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function CustomerSignupPage() {
   const params = useParams<{ publicId: string }>();
@@ -102,139 +101,139 @@ export default function CustomerSignupPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
-      <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
-        <Link
-          href={`/restaurant/${publicId}/order`}
-          className="mb-6 inline-flex h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour
-        </Link>
-
-        <h2 className="mb-6 text-xl font-bold">Créer un compte</h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="fullName" className="text-sm font-medium">
-              Prénom / Nom <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Prénom"
-              autoComplete="name"
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              autoComplete="email"
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="password" className="text-sm font-medium">
-              Mot de passe <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative mt-1.5">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => validateField("password", password)}
-                placeholder="Min. 6 caractères"
-                autoComplete="new-password"
-                aria-invalid={!!errors.password}
-                aria-describedby={errors.password ? "password-error" : undefined}
-                required
-                className="h-12 pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {errors.password && (
-              <p id="password-error" className="mt-1 text-xs text-destructive" role="alert">
-                {errors.password}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="confirmPassword" className="text-sm font-medium">
-              Confirmer le mot de passe <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative mt-1.5">
-              <Input
-                id="confirmPassword"
-                type={showConfirm ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onBlur={() => validateField("confirmPassword", confirmPassword)}
-                placeholder="Répéter le mot de passe"
-                autoComplete="new-password"
-                aria-invalid={!!errors.confirmPassword}
-                aria-describedby={errors.confirmPassword ? "confirm-error" : undefined}
-                required
-                className="h-12 pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm(!showConfirm)}
-                aria-label={showConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
-              >
-                {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p id="confirm-error" className="mt-1 text-xs text-destructive" role="alert">
-                {errors.confirmPassword}
-              </p>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading || !fullName || !email || !password || !confirmPassword}
-            className="h-12 w-full rounded-xl font-semibold"
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Créer mon compte
-          </Button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-muted-foreground">
+    <AuthShell
+      kicker="★ NOUVEAU CLIENT"
+      title={
+        <>
+          Créez votre <em>compte.</em>
+          <span className="dot" />
+        </>
+      }
+      subtitle="On garde vos commandes et vos points de fidélité au chaud."
+      backHref={`/restaurant/${publicId}/order`}
+      backLabel="Retour au menu"
+      brandHref={null}
+      footer={
+        <>
           Déjà un compte ?{" "}
-          <Link
-            href={`/restaurant/${publicId}/login`}
-            className="font-medium text-primary hover:underline"
-          >
-            Connexion
+          <Link href={`/restaurant/${publicId}/login`} className="as-link">
+            Connexion →
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="fullName">
+            Prénom / Nom <span className="text-[var(--paprika)]">*</span>
+          </Label>
+          <Input
+            id="fullName"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Prénom"
+            autoComplete="name"
+            required
+            className="mt-1.5 h-12"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="email">
+            Email <span className="text-[var(--paprika)]">*</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="votre@email.com"
+            autoComplete="email"
+            required
+            className="mt-1.5 h-12"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="password">
+            Mot de passe <span className="text-[var(--paprika)]">*</span>
+          </Label>
+          <div className="relative mt-1.5">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => validateField("password", password)}
+              placeholder="Min. 6 caractères"
+              autoComplete="new-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
+              required
+              className="h-12 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--ink-mute)] transition-colors hover:text-[var(--paprika)]"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.password && (
+            <p id="password-error" className="auth-error" role="alert">
+              {errors.password}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="confirmPassword">
+            Confirmer le mot de passe <span className="text-[var(--paprika)]">*</span>
+          </Label>
+          <div className="relative mt-1.5">
+            <Input
+              id="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onBlur={() => validateField("confirmPassword", confirmPassword)}
+              placeholder="Répéter le mot de passe"
+              autoComplete="new-password"
+              aria-invalid={!!errors.confirmPassword}
+              aria-describedby={errors.confirmPassword ? "confirm-error" : undefined}
+              required
+              className="h-12 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(!showConfirm)}
+              aria-label={showConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--ink-mute)] transition-colors hover:text-[var(--paprika)]"
+            >
+              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p id="confirm-error" className="auth-error" role="alert">
+              {errors.confirmPassword}
+            </p>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !fullName || !email || !password || !confirmPassword}
+          className="auth-primary"
+        >
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>Créer mon compte <span className="arrow">→</span></>
+          )}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

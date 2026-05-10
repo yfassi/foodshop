@@ -1,0 +1,282 @@
+/* ════════════════════════════════════════════════════════════════════
+   TAAPR · Auth Shell — Landing-aligned chrome for login / signup / reset
+   Cream base, paprika orbs, floating food icons, Fraunces title.
+   Scoped under .lv4 so we inherit the landing tokens.
+   ════════════════════════════════════════════════════════════════════ */
+
+.lv4.auth-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 32px 16px;
+  overflow: hidden;
+  background: var(--cream);
+}
+
+/* Background layer (orbs + floating food icons) sits behind the card. */
+.lv4 .auth-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lv4 .auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.lv4 .auth-orb-1 {
+  left: -120px; top: -120px;
+  width: 28rem; height: 28rem;
+  background: rgba(230, 74, 25, 0.18);
+  animation: orb-drift-1 20s ease-in-out infinite;
+}
+.lv4 .auth-orb-2 {
+  right: -160px; top: 25%;
+  width: 32rem; height: 32rem;
+  background: rgba(242, 179, 61, 0.18);
+  animation: orb-drift-2 25s ease-in-out infinite;
+}
+.lv4 .auth-orb-3 {
+  left: 25%; bottom: -120px;
+  width: 26rem; height: 26rem;
+  background: rgba(30, 42, 74, 0.10);
+  animation: orb-drift-3 22s ease-in-out infinite;
+}
+
+.lv4 .auth-food {
+  position: absolute;
+  color: var(--paprika);
+  opacity: 0;
+  animation: float-food ease-in-out infinite;
+}
+.lv4 .auth-food svg {
+  width: 28px; height: 28px;
+  stroke-width: 1.5;
+}
+@media (min-width: 640px) {
+  .lv4 .auth-food svg { width: 32px; height: 32px; }
+}
+
+/* Decorative stamp — small homage to the hero stamp. Hidden on small screens. */
+.lv4 .auth-stamp {
+  position: absolute;
+  top: 24px; right: 24px;
+  display: none;
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--paprika);
+  align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; color: var(--paprika);
+  letter-spacing: 0.18em; text-align: center;
+  transform: rotate(-12deg);
+  animation: stamp 12s linear infinite;
+  pointer-events: none;
+}
+.lv4 .auth-stamp strong {
+  font-family: var(--serif); font-style: italic; font-size: 22px;
+  display: block; line-height: 1; margin: 4px 0;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 900px) {
+  .lv4 .auth-stamp { display: flex; top: 32px; right: 32px; }
+}
+
+/* Container & card */
+.lv4 .auth-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.lv4 .auth-brand {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+.lv4 .auth-brand .logo { font-size: 26px; }
+
+.lv4 .auth-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(26, 20, 16, 0.08);
+  border-radius: var(--r-lg);
+  padding: 28px 24px;
+  box-shadow: 0 24px 60px -20px rgba(26, 20, 16, 0.18),
+              0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+@media (min-width: 480px) {
+  .lv4 .auth-card { padding: 32px 28px; }
+}
+
+.lv4 .auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  transition: color 0.2s;
+}
+.lv4 .auth-back:hover { color: var(--paprika); }
+
+.lv4 .auth-head {
+  margin-bottom: 22px;
+}
+.lv4 .auth-kicker {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em;
+  color: var(--paprika); font-weight: 600; margin-bottom: 10px;
+  display: inline-block; text-transform: uppercase;
+}
+.lv4 .auth-title {
+  font-family: var(--serif); font-weight: 700;
+  font-size: clamp(28px, 4.4vw, 36px);
+  line-height: 1; letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0;
+}
+.lv4 .auth-title em {
+  font-style: italic; color: var(--paprika);
+}
+.lv4 .auth-title .dot {
+  display: inline-block; width: 8px; height: 8px;
+  background: var(--paprika); border-radius: 50%;
+  margin-left: 4px; vertical-align: baseline;
+}
+.lv4 .auth-sub {
+  font-family: var(--sans); font-size: 14px;
+  color: var(--ink-soft); line-height: 1.45;
+  margin: 10px 0 0;
+}
+
+.lv4 .auth-body { font-family: var(--sans); }
+
+.lv4 .auth-footer {
+  margin-top: 18px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.lv4 .auth-footer a, .lv4 .auth-footer .as-link {
+  color: var(--paprika); font-weight: 600;
+}
+.lv4 .auth-footer a:hover, .lv4 .auth-footer .as-link:hover {
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+.lv4 .auth-divider {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(26, 20, 16, 0.08);
+}
+
+/* Tweak shadcn inputs/buttons rendered inside the card to follow the cream palette. */
+.lv4 .auth-card label {
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  color: var(--ink); letter-spacing: 0.005em;
+}
+.lv4 .auth-card input {
+  font-family: var(--sans);
+  background: var(--white);
+  border-color: rgba(26, 20, 16, 0.14);
+  color: var(--ink);
+}
+.lv4 .auth-card input::placeholder { color: rgba(26, 20, 16, 0.35); }
+.lv4 .auth-card input:focus,
+.lv4 .auth-card input:focus-visible {
+  border-color: var(--paprika);
+  box-shadow: 0 0 0 3px rgba(230, 74, 25, 0.18);
+  outline: none;
+}
+
+/* Primary CTA inside the card uses the lv4 paprika pill button. */
+.lv4 .auth-primary {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--paprika);
+  color: var(--cream);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.lv4 .auth-primary:hover:not(:disabled) {
+  background: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(230, 74, 25, 0.25);
+}
+.lv4 .auth-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.lv4 .auth-primary .arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--cream); color: var(--paprika);
+  font-size: 12px; transition: transform 0.25s ease;
+}
+.lv4 .auth-primary:hover:not(:disabled) .arrow { transform: translateX(3px); }
+
+.lv4 .auth-secondary {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r-full);
+  background: var(--cream-deep);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid rgba(26, 20, 16, 0.08);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.lv4 .auth-secondary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.lv4 .auth-quiet {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%;
+  height: 40px;
+  background: transparent;
+  border: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.lv4 .auth-quiet:hover:not(:disabled) { color: var(--paprika); }
+.lv4 .auth-quiet:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.lv4 .auth-error {
+  margin-top: 6px;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--paprika);
+}
