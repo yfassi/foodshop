@@ -45,7 +45,7 @@ export function MenuPicker({ categories, onAddItem, menuLayout = "linear" }: Men
 
   if (showTileLanding) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {categories.map((cat) => {
           const Icon = getCategoryIcon(cat.icon);
           return (
@@ -56,25 +56,25 @@ export function MenuPicker({ categories, onAddItem, menuLayout = "linear" }: Men
                 setPickedCategoryId(cat.id);
                 setActiveCategoryId(cat.id);
               }}
-              className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-foreground/40 hover:shadow-sm"
+              className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left transition-all hover:border-foreground/40 hover:shadow-sm"
             >
-              <div className="relative aspect-[5/3] w-full bg-muted">
+              <div className="relative aspect-[4/3] w-full bg-muted">
                 {cat.image_url ? (
                   <Image
                     src={cat.image_url}
                     alt=""
                     fill
-                    sizes="(max-width: 640px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
                     className="object-cover"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <Icon className="h-7 w-7 text-foreground" />
+                    <Icon className="h-6 w-6 text-foreground" />
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-center px-2 py-2.5">
-                <span className="text-center text-sm font-bold tracking-tight text-foreground sm:text-base">
+              <div className="flex items-center justify-center px-1.5 py-1.5">
+                <span className="line-clamp-2 text-center text-[12px] font-bold leading-tight tracking-tight text-foreground sm:text-[13px]">
                   {cat.name}
                 </span>
               </div>
@@ -156,13 +156,13 @@ export function MenuPicker({ categories, onAddItem, menuLayout = "linear" }: Men
           - linear: existing big text buttons */}
       {activeCategory && (
         isCategoryGrid ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {activeCategory.products.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => handleAddProduct(p)}
-                className="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-foreground/40 active:bg-muted"
+                className="flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left transition-colors hover:border-foreground/40 active:bg-muted"
               >
                 {p.image_url ? (
                   <div className="relative aspect-[4/3] w-full bg-muted">
@@ -170,18 +170,18 @@ export function MenuPicker({ categories, onAddItem, menuLayout = "linear" }: Men
                       src={p.image_url}
                       alt={p.name}
                       fill
-                      sizes="(max-width: 640px) 50vw, 33vw"
+                      sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
                       className="object-cover"
                     />
                   </div>
                 ) : (
                   <div className="aspect-[4/3] w-full bg-muted" />
                 )}
-                <div className="flex flex-1 flex-col gap-1 p-3">
-                  <p className="line-clamp-2 text-sm font-bold leading-tight">
+                <div className="flex flex-1 flex-col gap-0.5 px-2 py-1.5">
+                  <p className="line-clamp-2 text-[12px] font-bold leading-tight">
                     {p.name}
                   </p>
-                  <p className="mt-auto text-sm font-semibold text-muted-foreground">
+                  <p className="mt-auto text-[12px] font-semibold text-muted-foreground">
                     {formatPrice(p.price)}
                   </p>
                 </div>

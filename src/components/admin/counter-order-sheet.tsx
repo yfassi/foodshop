@@ -391,7 +391,7 @@ export function CounterOrderSheet({
         {/* === Main: split between menu picker and cart === */}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* Menu picker — dominant area */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {menuLoading ? (
               <div className="flex h-32 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

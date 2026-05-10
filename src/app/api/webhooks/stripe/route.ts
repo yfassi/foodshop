@@ -133,6 +133,25 @@ export async function POST(request: Request) {
             p_stripe_session_id: session.id,
             ...(description && { p_description: description }),
           });
+
+          // Look up the freshly-created transaction row by stripe_session_id
+          // (set inside credit_wallet_balance) so we can fire the receipt
+          // email idempotently. Failure to send must not fail the webhook.
+          try {
+            const { data: tx } = await supabase
+              .from("wallet_transactions")
+              .select("id")
+              .eq("stripe_session_id", session.id)
+              .single<{ id: string }>();
+            if (tx) {
+              const { sendWalletTopupEmail } = await import(
+                "@/lib/email/send-wallet-topup"
+              );
+              await sendWalletTopupEmail({ transactionId: tx.id });
+            }
+          } catch (emailErr) {
+            console.error("[webhook] wallet topup email error:", emailErr);
+          }
         }
       }
     } else {

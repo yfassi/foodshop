@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice, formatDate } from "@/lib/format";
 import { TopupDrawer } from "@/components/wallet/topup-drawer";
+import { TopupSuccessModal } from "@/components/wallet/topup-success-modal";
 import { useCartStore } from "@/stores/cart-store";
 import type { LoyaltyTier, WalletTopupTier, WalletTransaction, WalletTxType, OrderItem } from "@/lib/types";
 
@@ -228,9 +229,21 @@ export function AccountPage({
     return () => { supabase.removeChannel(channel); };
   }, [walletId, fetchTransactions]);
 
+  // Snapshot of transaction IDs we already knew about on first render —
+  // anything new that shows up while `awaitingTopup` is true is the topup we
+  // just paid for, and is what we display in the success modal.
+  const knownTxIds = useRef<Set<string>>(
+    new Set(walletTransactions.map((t) => t.id)),
+  );
+  const [awaitingTopup, setAwaitingTopup] = useState(false);
+  const [topupSuccessTx, setTopupSuccessTx] = useState<WalletTransaction | null>(
+    null,
+  );
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("wallet_topup") === "success") {
+      setAwaitingTopup(true);
       fetchBalance();
       fetchTransactions();
       const url = new URL(window.location.href);
@@ -238,6 +251,38 @@ export function AccountPage({
       window.history.replaceState({}, "", url.toString());
     }
   }, [fetchBalance, fetchTransactions]);
+
+  // While we're waiting for the webhook to credit, retry every 1.5s for up
+  // to ~12s in case realtime hasn't pushed the new transaction yet.
+  useEffect(() => {
+    if (!awaitingTopup) return;
+    let attempts = 0;
+    const id = window.setInterval(() => {
+      attempts += 1;
+      fetchBalance();
+      fetchTransactions();
+      if (attempts >= 8) window.clearInterval(id);
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [awaitingTopup, fetchBalance, fetchTransactions]);
+
+  // Whenever the transactions list changes, surface the first NEW
+  // topup_stripe row as the success modal payload. Then clear the flag.
+  useEffect(() => {
+    if (!awaitingTopup) {
+      // Keep our snapshot fresh once the modal has been shown.
+      for (const t of transactions) knownTxIds.current.add(t.id);
+      return;
+    }
+    for (const t of transactions) {
+      if (!knownTxIds.current.has(t.id) && t.type === "topup_stripe") {
+        setTopupSuccessTx(t);
+        setAwaitingTopup(false);
+        break;
+      }
+    }
+    for (const t of transactions) knownTxIds.current.add(t.id);
+  }, [transactions, awaitingTopup]);
 
   const sortedTiers = [...loyaltyTiers].sort((a, b) => a.points - b.points);
   const nextTier = sortedTiers.find((t) => t.points > totalPoints);
@@ -721,6 +766,11 @@ export function AccountPage({
         </div>
 
         <TopupDrawer publicId={publicId} open={topupOpen} onClose={() => setTopupOpen(false)} tiers={topupTiers} />
+        <TopupSuccessModal
+          open={!!topupSuccessTx}
+          transaction={topupSuccessTx}
+          onClose={() => setTopupSuccessTx(null)}
+        />
       </div>
     </div>
   );
