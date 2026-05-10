@@ -265,7 +265,7 @@ export function CounterOrderSheet({
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="h-[100dvh] max-h-[100dvh] rounded-none">
+      <DrawerContent className="!mt-0 h-[100dvh] !max-h-[100dvh] !rounded-none [&>div:first-child]:hidden">
         <DrawerTitle className="sr-only">Nouvelle commande comptoir</DrawerTitle>
 
         {/* === Compact header === */}

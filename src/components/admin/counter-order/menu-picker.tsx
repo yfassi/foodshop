@@ -56,30 +56,28 @@ export function MenuPicker({ categories, onAddItem, menuLayout = "linear" }: Men
                 setPickedCategoryId(cat.id);
                 setActiveCategoryId(cat.id);
               }}
-              className="group relative flex aspect-[5/3] flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-card px-3 py-4 text-center transition-all hover:border-foreground/40 hover:shadow-sm"
+              className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-foreground/40 hover:shadow-sm"
             >
-              {cat.image_url ? (
-                <Image
-                  src={cat.image_url}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 50vw, 33vw"
-                  className="absolute inset-0 object-cover opacity-90"
-                />
-              ) : (
-                <span className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-muted text-foreground">
-                  <Icon className="h-5 w-5" />
+              <div className="relative aspect-[5/3] w-full bg-muted">
+                {cat.image_url ? (
+                  <Image
+                    src={cat.image_url}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 50vw, 33vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Icon className="h-7 w-7 text-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-center px-2 py-2.5">
+                <span className="text-center text-sm font-bold tracking-tight text-foreground sm:text-base">
+                  {cat.name}
                 </span>
-              )}
-              <span
-                className={
-                  cat.image_url
-                    ? "relative z-10 rounded-full bg-background/95 px-3 py-1 text-sm font-bold tracking-tight text-foreground shadow-sm"
-                    : "text-sm font-bold tracking-tight text-foreground sm:text-base"
-                }
-              >
-                {cat.name}
-              </span>
+              </div>
             </button>
           );
         })}
