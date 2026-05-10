@@ -5,13 +5,15 @@ import { toast } from "sonner";
 import {
   Drawer,
   DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatPrice } from "@/lib/format";
 import type { CartItem, CategoryWithProducts, OrderType } from "@/lib/types";
 import {
@@ -19,7 +21,19 @@ import {
   type SelectedCustomer,
 } from "./counter-order/customer-picker";
 import { MenuPicker } from "./counter-order/menu-picker";
-import { Loader2, Minus, Plus, Trash2, Wallet, CreditCard, Banknote, MoreHorizontal } from "lucide-react";
+import {
+  Loader2,
+  Minus,
+  Plus,
+  Trash2,
+  Wallet,
+  CreditCard,
+  Banknote,
+  MoreHorizontal,
+  X,
+  ChevronDown,
+  User as UserIcon,
+} from "lucide-react";
 
 type OnSiteMethod = "card" | "cash" | "other";
 type PaymentMode = "on_site" | "wallet_full" | "wallet_partial";
@@ -70,6 +84,9 @@ export function CounterOrderSheet({
 
   // Submit
   const [submitting, setSubmitting] = useState(false);
+
+  // Compact customer popover open/close
+  const [customerOpen, setCustomerOpen] = useState(false);
 
   // Reset state when closing
   useEffect(() => {
@@ -234,125 +251,243 @@ export function CounterOrderSheet({
     }
   };
 
+  const customerLabel = customer
+    ? customer.full_name
+    : isGuest
+    ? guestName.trim() || "Client comptoir"
+    : "Client comptoir";
+
+  const orderTypeLabels: Record<OrderType, string> = {
+    dine_in: "Sur place",
+    takeaway: "À emporter",
+    delivery: "Livraison",
+  };
+
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[95vh]">
-        <DrawerHeader className="px-4 pb-2 pt-3">
-          <DrawerTitle>Nouvelle commande comptoir</DrawerTitle>
-        </DrawerHeader>
+      <DrawerContent className="h-[100dvh] max-h-[100dvh] rounded-none">
+        <DrawerTitle className="sr-only">Nouvelle commande comptoir</DrawerTitle>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          {/* === Customer === */}
-          <section className="mb-5">
-            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Client
-            </Label>
-            <CustomerPicker
-              publicId={publicId}
-              selected={customer}
-              onSelect={(c) => {
-                setCustomer(c);
-                if (c) {
-                  setIsGuest(false);
-                  setGuestName("");
-                  setLabelDirty(false);
-                  if (paymentMode !== "on_site" && (!c.balance || c.balance <= 0)) {
+        {/* === Compact header === */}
+        <header className="flex items-center gap-2 border-b border-border bg-background px-3 py-2">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          {/* Customer pill */}
+          <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-full border border-border bg-card px-3 text-sm font-medium transition-colors hover:border-foreground/40"
+              >
+                <UserIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{customerLabel}</span>
+                {customer && balance > 0 && (
+                  <span className="ml-0.5 shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
+                    {formatPrice(balance)}
+                  </span>
+                )}
+                <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-80 p-3">
+              <CustomerPicker
+                publicId={publicId}
+                selected={customer}
+                onSelect={(c) => {
+                  setCustomer(c);
+                  if (c) {
+                    setIsGuest(false);
+                    setGuestName("");
+                    setLabelDirty(false);
+                    if (
+                      paymentMode !== "on_site" &&
+                      (!c.balance || c.balance <= 0)
+                    ) {
+                      setPaymentMode("on_site");
+                    }
+                    setCustomerOpen(false);
+                  } else {
                     setPaymentMode("on_site");
                   }
-                } else {
-                  setPaymentMode("on_site");
-                }
-              }}
-              guestName={guestName}
-              onGuestNameChange={(v) => {
-                setGuestName(v);
-                setLabelDirty(false);
-              }}
-              isGuest={isGuest}
-              onGuestModeChange={(g) => {
-                setIsGuest(g);
-                if (g) {
-                  setCustomer(null);
-                  setPaymentMode("on_site");
-                }
-              }}
-            />
-          </section>
-
-          {/* === Order label & type === */}
-          <section className="mb-5 grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label
-                htmlFor="order-label"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                Nom de la commande
-              </Label>
-              <Input
-                id="order-label"
-                value={orderLabel}
-                onChange={(e) => {
-                  setOrderLabel(e.target.value);
-                  setLabelDirty(true);
                 }}
-                placeholder="CPT_Jean"
+                guestName={guestName}
+                onGuestNameChange={(v) => {
+                  setGuestName(v);
+                  setLabelDirty(false);
+                }}
+                isGuest={isGuest}
+                onGuestModeChange={(g) => {
+                  setIsGuest(g);
+                  if (g) {
+                    setCustomer(null);
+                    setPaymentMode("on_site");
+                    setCustomerOpen(false);
+                  }
+                }}
               />
+            </PopoverContent>
+          </Popover>
+
+          {/* Order type pills */}
+          {allowedTypes.length > 1 && (
+            <div className="flex h-9 items-center gap-0.5 rounded-full border border-border bg-muted/40 p-0.5">
+              {allowedTypes.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setOrderType(t)}
+                  className={`h-full rounded-full px-3 text-xs font-medium transition-colors ${
+                    orderType === t
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {orderTypeLabels[t]}
+                </button>
+              ))}
             </div>
-            {allowedTypes.length > 1 && (
-              <div>
-                <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Type
-                </Label>
-                <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                  {allowedTypes.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setOrderType(t)}
-                      className={`flex-1 rounded-md px-3 text-xs font-medium transition-colors ${
-                        orderType === t
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {t === "dine_in"
-                        ? "Sur place"
-                        : t === "takeaway"
-                        ? "À emporter"
-                        : "Livraison"}
-                    </button>
+          )}
+
+          {/* Order label */}
+          <Input
+            value={orderLabel}
+            onChange={(e) => {
+              setOrderLabel(e.target.value);
+              setLabelDirty(true);
+            }}
+            placeholder="CPT_001"
+            className="h-9 w-32 text-sm"
+            aria-label="Nom de la commande"
+          />
+
+          {/* Pager */}
+          <Input
+            value={pagerNumber}
+            onChange={(e) => setPagerNumber(e.target.value)}
+            placeholder="Bipper"
+            maxLength={20}
+            className="h-9 w-24 text-sm"
+            aria-label="Numéro de bipper"
+          />
+
+          {/* Notes */}
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes…"
+            maxLength={500}
+            className="hidden h-9 flex-1 text-sm md:block"
+            aria-label="Notes"
+          />
+        </header>
+
+        {/* === Main: split between menu picker and cart === */}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Menu picker — dominant area */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            {menuLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <MenuPicker
+                categories={menu}
+                onAddItem={(it) => setItems((prev) => [...prev, it])}
+                menuLayout={menuLayout}
+              />
+            )}
+          </div>
+
+          {/* Cart side panel — desktop/tablet only */}
+          <aside className="hidden w-[22rem] shrink-0 flex-col border-l border-border bg-muted/20 md:flex">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Panier
+              </p>
+              <span className="font-mono text-xs font-semibold text-muted-foreground">
+                {items.reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {items.length === 0 ? (
+                <p className="p-6 text-center text-xs text-muted-foreground">
+                  Cliquez sur un article pour l&apos;ajouter.
+                </p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {items.map((i) => (
+                    <div key={i.id} className="flex items-center gap-2 px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {i.product_name}
+                          {i.is_menu && (
+                            <span className="ml-1 text-xs font-semibold text-primary">
+                              (Menu)
+                            </span>
+                          )}
+                        </p>
+                        {i.modifiers.length > 0 && (
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {i.modifiers.map((m) => m.modifier_name).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 rounded-lg bg-muted">
+                        <button
+                          type="button"
+                          onClick={() => handleQuantity(i.id, -1)}
+                          className="flex h-7 w-7 items-center justify-center"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-5 text-center text-sm font-bold">
+                          {i.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuantity(i.id, +1)}
+                          className="flex h-7 w-7 items-center justify-center"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <p className="w-14 text-right text-sm font-semibold tabular-nums">
+                        {formatPrice(i.line_total)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(i.id)}
+                        className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-destructive"
+                        aria-label="Retirer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </section>
+              )}
+            </div>
+          </aside>
+        </div>
 
-          {/* === Articles === */}
-          <section className="mb-5">
-            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Articles
-            </Label>
-
-            {/* Cart summary */}
-            {items.length > 0 && (
-              <div className="mb-3 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {/* === Bottom bar: cart (mobile), payment, total, send === */}
+        <footer className="border-t border-border bg-background">
+          {/* Mobile cart preview (hidden on md+) */}
+          {items.length > 0 && (
+            <div className="max-h-40 overflow-y-auto border-b border-border md:hidden">
+              <div className="divide-y divide-border">
                 {items.map((i) => (
-                  <div key={i.id} className="flex items-center gap-2 p-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {i.product_name}
-                        {i.is_menu && (
-                          <span className="ml-1 text-xs font-semibold text-primary">
-                            (Menu)
-                          </span>
-                        )}
-                      </p>
-                      {i.modifiers.length > 0 && (
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {i.modifiers.map((m) => m.modifier_name).join(", ")}
-                        </p>
-                      )}
-                    </div>
+                  <div key={i.id} className="flex items-center gap-2 px-3 py-2">
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {i.product_name}
+                    </p>
                     <div className="flex items-center gap-1 rounded-lg bg-muted">
                       <button
                         type="button"
@@ -372,184 +507,104 @@ export function CounterOrderSheet({
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
-                    <p className="w-16 text-right text-sm font-semibold">
+                    <p className="w-14 text-right text-sm font-semibold tabular-nums">
                       {formatPrice(i.line_total)}
                     </p>
                     <button
                       type="button"
                       onClick={() => handleRemove(i.id)}
-                      className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-destructive"
+                      className="flex h-6 w-6 items-center justify-center text-muted-foreground"
                       aria-label="Retirer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
               </div>
-            )}
-
-            {menuLoading ? (
-              <div className="flex h-32 items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <MenuPicker
-                categories={menu}
-                onAddItem={(it) => setItems((prev) => [...prev, it])}
-                menuLayout={menuLayout}
-              />
-            )}
-          </section>
-
-          {/* === Pager & notes === */}
-          <section className="mb-5 grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label
-                htmlFor="pager"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                N° de bipper
-              </Label>
-              <Input
-                id="pager"
-                value={pagerNumber}
-                onChange={(e) => setPagerNumber(e.target.value)}
-                placeholder="Ex: 12"
-                maxLength={20}
-              />
             </div>
-            <div>
-              <Label
-                htmlFor="notes"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                Notes (optionnel)
-              </Label>
-              <Input
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Sans oignon…"
-                maxLength={500}
-              />
-            </div>
-          </section>
+          )}
 
-          {/* === Payment === */}
-          <section className="mb-2">
-            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Paiement
-            </Label>
-            <div className="space-y-2">
-              {hasWallet && (
+          {/* Compact payment row */}
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+            {hasWallet && (
+              <button
+                type="button"
+                onClick={() => setPaymentMode("wallet_full")}
+                className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
+                  paymentMode !== "on_site"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-foreground hover:border-foreground/40"
+                }`}
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                Cagnotte
+                <span className="ml-1 font-mono text-[10px] font-semibold opacity-80">
+                  {formatPrice(balance)}
+                </span>
+              </button>
+            )}
+            {(
+              [
+                { v: "card" as const, label: "CB", Icon: CreditCard },
+                { v: "cash" as const, label: "Espèces", Icon: Banknote },
+                { v: "other" as const, label: "Autre", Icon: MoreHorizontal },
+              ] satisfies {
+                v: OnSiteMethod;
+                label: string;
+                Icon: React.ComponentType<{ className?: string }>;
+              }[]
+            ).map(({ v, label, Icon }) => {
+              const isSelectedOnSite =
+                paymentMode === "on_site" && onSiteMethod === v;
+              const isPartialMethod =
+                effectivePaymentMode === "wallet_partial" && onSiteMethod === v;
+              return (
                 <button
+                  key={v}
                   type="button"
-                  onClick={() => setPaymentMode("wallet_full")}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                    paymentMode !== "on_site"
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card hover:border-foreground/30"
+                  onClick={() => {
+                    setOnSiteMethod(v);
+                    if (paymentMode !== "on_site" && !hasWallet) {
+                      setPaymentMode("on_site");
+                    }
+                    if (effectivePaymentMode !== "wallet_partial" && paymentMode !== "wallet_full") {
+                      setPaymentMode("on_site");
+                    }
+                  }}
+                  className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
+                    isSelectedOnSite || isPartialMethod
+                      ? "border-foreground bg-foreground/[0.06] text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground"
                   }`}
                 >
-                  <Wallet className="h-4 w-4 shrink-0 text-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Cagnotte</p>
-                    <p className="text-xs text-muted-foreground">
-                      Solde&nbsp;: {formatPrice(balance)}
-                      {totalPrice > 0 && balance < totalPrice && (
-                        <span className="ml-2 font-medium text-destructive">
-                          Reste {formatPrice(totalPrice - balance)} à encaisser
-                        </span>
-                      )}
-                      {totalPrice > 0 && balance >= totalPrice && (
-                        <span className="ml-2 text-foreground">
-                          (reste {formatPrice(balance - totalPrice)} après)
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
                 </button>
-              )}
+              );
+            })}
+            {effectivePaymentMode === "wallet_partial" && (
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Reste {formatPrice(remainder)} à encaisser
+              </span>
+            )}
 
-              {(paymentMode === "on_site" ||
-                effectivePaymentMode === "wallet_partial") && (
-                <div
-                  className={`rounded-xl border p-3 ${
-                    paymentMode === "on_site"
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode("on_site")}
-                    className="mb-2 flex w-full items-center gap-3 text-left"
-                  >
-                    <Banknote className="h-4 w-4 shrink-0 text-primary" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">
-                        {effectivePaymentMode === "wallet_partial"
-                          ? `Complément à encaisser : ${formatPrice(remainder)}`
-                          : "Paiement au comptoir"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        CB, espèces ou autre
-                      </p>
-                    </div>
-                  </button>
-                  <div className="mt-1 grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { v: "card" as const, label: "CB", Icon: CreditCard },
-                        { v: "cash" as const, label: "Espèces", Icon: Banknote },
-                        {
-                          v: "other" as const,
-                          label: "Autre",
-                          Icon: MoreHorizontal,
-                        },
-                      ] satisfies {
-                        v: OnSiteMethod;
-                        label: string;
-                        Icon: React.ComponentType<{ className?: string }>;
-                      }[]
-                    ).map(({ v, label, Icon }) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setOnSiteMethod(v)}
-                        className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-medium transition-colors ${
-                          onSiteMethod === v
-                            ? "border-foreground bg-foreground/[0.04] text-foreground"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">Total</span>
+              <span className="text-xl font-bold tabular-nums">
+                {formatPrice(totalPrice)}
+              </span>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className="h-10 rounded-full px-5 text-sm font-semibold"
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Envoyer
+              </Button>
             </div>
-          </section>
-        </div>
-
-        <DrawerFooter className="border-t border-border px-4 pt-3">
-          <div className="mb-2 flex items-baseline justify-between">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-2xl font-bold">{formatPrice(totalPrice)}</span>
           </div>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="h-12 w-full rounded-xl text-sm font-semibold"
-            size="lg"
-          >
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Envoyer en cuisine
-          </Button>
-        </DrawerFooter>
+        </footer>
       </DrawerContent>
     </Drawer>
   );
