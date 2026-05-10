@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   QrCode,
   ShoppingBag,
@@ -10,10 +10,19 @@ import {
   Heart,
   Bike,
   Package,
+  Check,
   type LucideIcon,
 } from "lucide-react";
 import { LandingNav } from "@/components/landing-v4/nav";
 import { LandingFooter } from "@/components/landing-v4/footer";
+import {
+  PLANS,
+  PLAN_ORDER,
+  ADDONS,
+  ADDON_ORDER,
+  annualNote,
+  type PlanId,
+} from "@/lib/plans";
 import "./landing-v4.css";
 
 type Module = {
@@ -91,7 +100,7 @@ const MODULES: Module[] = [
       "CA temps réel, ticket moyen, top ventes",
       "Plan de salle interactif",
       "Export CSV pour la compta",
-      "Multi-établissements (Business)",
+      "Multi-établissements (Groupe)",
     ],
     price: "Inclus dans tous les plans",
     cta: { label: "Voir les tarifs", href: "#pricing" },
@@ -114,7 +123,7 @@ const MODULES: Module[] = [
       "Écran cuisine ou app smartphone",
       "Tickets formatés à votre charte",
     ],
-    price: "Inclus dès Starter",
+    price: "Inclus dès Essentiel",
     cta: { label: "Voir les tarifs", href: "#pricing" },
     visualKey: "kitchen",
   },
@@ -164,7 +173,7 @@ const MODULES: Module[] = [
     id: "stock",
     name: "Module Stock",
     hint: "OCR tickets, alertes seuil bas",
-    short: "+12€/mois",
+    short: "+19€/mois",
     paid: true,
     Icon: Package,
     iconClass: "mustard",
@@ -177,114 +186,127 @@ const MODULES: Module[] = [
       "Alertes seuil bas SMS / push",
       "Export inventaire CSV",
     ],
-    price: "+12€",
+    price: "+19€",
     cta: { label: "Voir le module", href: "/stock" },
     visualKey: "stock",
   },
 ];
 
-type PlanId = "plat" | "menu" | "carte";
-
-type Plan = {
-  id: PlanId;
-  name: string;
-  sub: string;
-  price: number;
-  per: string;
-  cta: string;
-  primary: boolean;
-  featured?: boolean;
-};
-
-const PLANS: Plan[] = [
-  {
-    id: "plat",
-    name: "Starter",
-    sub: "Pour les restos qui démarrent",
-    price: 29,
-    per: "/ mois, par resto",
-    cta: "Démarrer",
-    primary: false,
-  },
-  {
-    id: "menu",
-    name: "Pro",
-    sub: "L'expérience complète",
-    price: 79,
-    per: "/ mois, par resto",
-    cta: "Essai 14 jours",
-    primary: true,
-    featured: true,
-  },
-  {
-    id: "carte",
-    name: "Business",
-    sub: "Pour les groupes & multi-restos",
-    price: 149,
-    per: "/ mois, jusqu'à 5 restos",
-    cta: "Nous contacter",
-    primary: false,
-  },
-];
-
-type FeatureValue = boolean | string;
-type FeatureRow = {
+/**
+ * Per-plan feature display groups for the pricing section.
+ *
+ * Each group lists features with optional sub-descriptions. The boolean shape
+ * of which-plan-includes-what lives in `lib/plans.ts` (source of truth);
+ * this array only controls the visual grouping + copy on the landing.
+ */
+type PlanFeatureItem = {
   label: string;
   desc?: string;
-  values: Record<PlanId, FeatureValue>;
+  /** When defined, plans listed here always render the value as "included"
+   *  even when the feature flag is false (e.g. an "or paid via add-on" line). */
+  forceIncludedFor?: PlanId[];
+  /** Custom value text per plan (overrides the boolean rendering). */
+  override?: Partial<Record<PlanId, string>>;
+  /** Feature key in PLANS[plan].features. Omit for header-only rows. */
+  feature?:
+    | "qrTable"
+    | "clickCollect"
+    | "unlimitedMenu"
+    | "stripe"
+    | "printer"
+    | "pushSmartphone"
+    | "kitchenScreen"
+    | "dashboard"
+    | "floorPlan"
+    | "csvExport"
+    | "loyalty"
+    | "multiEstablishment"
+    | "api";
 };
-type FeatureCategory = { name: string; rows: FeatureRow[] };
 
-const COMPARE: FeatureCategory[] = [
+type PlanFeatureGroup = { title: string; items: PlanFeatureItem[] };
+
+const PLAN_FEATURE_GROUPS: PlanFeatureGroup[] = [
   {
-    name: "★ COMMANDE CLIENT",
-    rows: [
-      { label: "QR à table", values: { plat: true, menu: true, carte: true } },
-      { label: "Click & collect", values: { plat: true, menu: true, carte: true } },
-      { label: "Carte digitale", desc: "produits, options, allergènes", values: { plat: "illimitée", menu: "illimitée", carte: "illimitée" } },
+    title: "Commandes",
+    items: [
+      { label: "QR à table", feature: "qrTable" },
+      { label: "Click & collect", feature: "clickCollect" },
+      {
+        label: "Carte illimitée",
+        desc: "produits, options, allergènes",
+        feature: "unlimitedMenu",
+      },
     ],
   },
   {
-    name: "★ PAIEMENT",
-    rows: [
-      { label: "Stripe inclus", desc: "0% de commission Taapr", values: { plat: true, menu: true, carte: true } },
-      { label: "Apple Pay · Google Pay", values: { plat: true, menu: true, carte: true } },
-      { label: "Tickets-restos", values: { plat: true, menu: true, carte: true } },
-      { label: "Pourboires", values: { plat: true, menu: true, carte: true } },
+    title: "Paiement",
+    items: [
+      {
+        label: "Stripe · 0% commission",
+        desc: "Apple Pay, Google Pay, tickets-restos",
+        feature: "stripe",
+      },
     ],
   },
   {
-    name: "★ CUISINE",
-    rows: [
-      { label: "Imprimante ESC/POS", desc: "Epson · Star · Bixolon · Citizen", values: { plat: true, menu: true, carte: true } },
-      { label: "Écran cuisine dédié", values: { plat: false, menu: true, carte: true } },
-      { label: "Push smartphone", values: { plat: true, menu: true, carte: true } },
+    title: "Cuisine",
+    items: [
+      { label: "Imprimante ESC/POS", feature: "printer" },
+      { label: "Push smartphone", feature: "pushSmartphone" },
+      { label: "Écran cuisine dédié", feature: "kitchenScreen" },
     ],
   },
   {
-    name: "★ PILOTAGE",
-    rows: [
-      { label: "Dashboard temps réel", values: { plat: true, menu: true, carte: true } },
-      { label: "Top ventes & stats", values: { plat: true, menu: true, carte: true } },
-      { label: "Plan de salle interactif", values: { plat: false, menu: true, carte: true } },
-      { label: "Export CSV", desc: "pour la compta", values: { plat: false, menu: true, carte: true } },
+    title: "Pilotage",
+    items: [
+      { label: "Dashboard & top ventes", feature: "dashboard" },
+      { label: "Plan de salle interactif", feature: "floorPlan" },
+      { label: "Export CSV / compta", feature: "csvExport" },
     ],
   },
   {
-    name: "★ MARQUE & MULTI",
-    rows: [
-      { label: "Fidélité + SMS", values: { plat: false, menu: true, carte: true } },
-      { label: "Multi-établissements", desc: "restos inclus dans le plan", values: { plat: "1 resto", menu: "1 resto", carte: "jusqu'à 5" } },
-      { label: "Restaurant supplémentaire", desc: "en option à la carte", values: { plat: false, menu: "+39 €/mois", carte: "inclus jusqu'à 5" } },
-      { label: "API & webhooks", values: { plat: false, menu: false, carte: true } },
-      { label: "Account manager dédié", values: { plat: false, menu: false, carte: true } },
+    title: "Fidélisation & multi",
+    items: [
+      {
+        label: "Fidélité + SMS",
+        desc: "tampons digitaux, relances clients",
+        feature: "loyalty",
+      },
+      {
+        label: "Multi-établissements",
+        feature: "multiEstablishment",
+        override: {
+          essentiel: "—",
+          pro: "1 inclus, +39 €/resto",
+          groupe: "jusqu'à 5 inclus",
+        },
+      },
+      {
+        label: "API & webhooks",
+        feature: "api",
+      },
     ],
   },
   {
-    name: "★ VOLUME & SUPPORT",
-    rows: [
-      { label: "Commandes par mois", values: { plat: "illimité", menu: "illimité", carte: "illimité" } },
-      { label: "Support", values: { plat: "E-mail", menu: "7j/7", carte: "Prioritaire" } },
+    title: "Support",
+    items: [
+      {
+        label: "Support",
+        override: {
+          essentiel: "E-mail · < 24 h",
+          pro: "7j/7 · < 4 h",
+          groupe: "Prioritaire dédié",
+        },
+      },
+      {
+        label: "Account manager",
+        override: {
+          essentiel: "—",
+          pro: "—",
+          groupe: "Dédié",
+        },
+      },
     ],
   },
 ];
@@ -344,7 +366,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Et si j'ouvre un deuxième restaurant ?",
-    a: "Sur le plan Pro, vous pouvez ajouter un restaurant supplémentaire pour 39 €/mois. À partir de 3 établissements, le plan Business (149 €/mois jusqu'à 5 restos inclus) devient plus avantageux. Tout se gère depuis le même compte avec un switcher dans l'admin.",
+    a: "Sur le plan Pro, vous pouvez ajouter un restaurant supplémentaire pour 39 €/mois. À partir de 3 établissements, le plan Groupe (149 €/mois jusqu'à 5 restos inclus) devient plus avantageux. Tout se gère depuis le même compte avec un switcher dans l'admin.",
   },
   {
     q: "Et si je veux récupérer mes données ?",
@@ -761,70 +783,138 @@ export default function Home() {
           </div>
         </div>
 
-        {/* COMPARISON TABLE */}
-        <div className="cmp-scroll">
-          <div className="cmp-table">
-            {/* Plan column headers */}
-            <div className="cmp-th cmp-th-empty" />
-            {PLANS.map((plan) => {
-              const monthly = plan.price;
-              const yearly = Math.round((plan.price * 10) / 12);
-              const display = billing === "annuel" && plan.price > 0 ? yearly : monthly;
-              return (
-                <div
-                  key={plan.id}
-                  className={`cmp-th cmp-th-plan${plan.featured ? " featured" : ""}`}
-                >
-                  {plan.featured && <span className="cmp-plan-stamp">★ POPULAIRE</span>}
-                  <div className="cmp-plan-name">{plan.name}</div>
-                  <div className="cmp-plan-sub">{plan.sub}</div>
-                  <div className="cmp-plan-price">
-                    <span className="num">{display}</span>
-                    <span className="cur">€</span>
-                  </div>
-                  <div className="cmp-plan-per">{plan.per}</div>
-                  <Link
-                    href="/admin/onboarding"
-                    className={`${plan.primary ? "btn-primary" : "btn-ghost"} cmp-plan-cta`}
-                  >
-                    {plan.cta}
-                    {plan.primary && <span className="arrow">→</span>}
-                  </Link>
+        {/* PLAN CARDS */}
+        <div className="plans-grid">
+          {PLAN_ORDER.map((id) => {
+            const plan = PLANS[id];
+            const price = billing === "annuel" ? plan.annualPrice : plan.monthlyPrice;
+            const note = billing === "annuel" ? annualNote(plan) : "";
+            return (
+              <article
+                key={plan.id}
+                className={`plan-card${plan.featured ? " plan-card-featured" : ""}`}
+              >
+                {plan.featured && (
+                  <span className="plan-card-stamp">★ POPULAIRE</span>
+                )}
+                <div className="plan-card-head">
+                  <span className="plan-card-name">{plan.name}</span>
+                  <span className="plan-card-tagline">{plan.tagline}</span>
                 </div>
+                <div className="plan-card-price">
+                  <span className="num">{price}</span>
+                  <span className="cur">€</span>
+                  <span className="per">/ mois</span>
+                </div>
+                <div className="plan-card-note">
+                  {note ||
+                    (plan.id === "pro"
+                      ? "+ 39 €/mois par resto supplémentaire"
+                      : plan.id === "groupe"
+                      ? "Jusqu'à 5 établissements inclus"
+                      : "1 établissement · sans engagement")}
+                </div>
+                <Link
+                  href={
+                    plan.cta.href.startsWith("/admin/onboarding")
+                      ? `/admin/onboarding?plan=${plan.id}${
+                          billing === "annuel" ? "&billing=annual" : ""
+                        }`
+                      : plan.cta.href
+                  }
+                  className={`plan-card-cta${
+                    plan.featured ? " btn-primary" : " btn-ghost"
+                  }`}
+                >
+                  {plan.cta.label}
+                  {plan.featured && <span className="arrow">→</span>}
+                </Link>
+
+                <div className="plan-card-features">
+                  {PLAN_FEATURE_GROUPS.map((group) => (
+                    <div key={group.title} className="plan-feat-group">
+                      <div className="plan-feat-group-title">{group.title}</div>
+                      <ul>
+                        {group.items.map((item) => {
+                          const overrideText = item.override?.[plan.id];
+                          const has = item.feature
+                            ? plan.features[item.feature]
+                            : false;
+                          const isIncluded =
+                            overrideText !== undefined ? false : has;
+                          return (
+                            <li
+                              key={item.label}
+                              className={`plan-feat${
+                                overrideText
+                                  ? " plan-feat-text"
+                                  : isIncluded
+                                  ? " plan-feat-on"
+                                  : " plan-feat-off"
+                              }`}
+                            >
+                              {overrideText ? (
+                                <span className="plan-feat-mark text">✦</span>
+                              ) : isIncluded ? (
+                                <span className="plan-feat-mark on" aria-hidden="true">
+                                  <Check size={14} strokeWidth={2.5} />
+                                </span>
+                              ) : (
+                                <span className="plan-feat-mark off" aria-hidden="true">
+                                  ×
+                                </span>
+                              )}
+                              <span className="plan-feat-body">
+                                <span className="plan-feat-label">
+                                  {item.label}
+                                  {overrideText ? (
+                                    <em className="plan-feat-value"> · {overrideText}</em>
+                                  ) : null}
+                                </span>
+                                {item.desc && (
+                                  <small className="plan-feat-desc">{item.desc}</small>
+                                )}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {/* ADD-ONS · "Selon votre activité" */}
+        <div className="addons-section">
+          <div className="addons-head">
+            <span className="kicker">★ SELON VOTRE ACTIVITÉ</span>
+            <p className="addons-sub">
+              Activez les modules dont vous avez besoin, à tout moment depuis votre admin.
+            </p>
+          </div>
+          <div className="addons-grid">
+            {ADDON_ORDER.map((id) => {
+              const a = ADDONS[id];
+              const Icon = id === "livraison" ? Bike : Package;
+              return (
+                <article key={a.id} className="addon-card">
+                  <div className="addon-card-icon" aria-hidden="true">
+                    <Icon size={20} strokeWidth={1.75} />
+                  </div>
+                  <div className="addon-card-body">
+                    <div className="addon-card-name">{a.name}</div>
+                    <div className="addon-card-desc">{a.description}</div>
+                  </div>
+                  <div className="addon-card-price">
+                    <span className="num">+{a.monthlyPrice}€</span>
+                    <span className="per">/ mois</span>
+                  </div>
+                </article>
               );
             })}
-
-            {/* Categories + rows */}
-            {COMPARE.map((cat) => (
-              <Fragment key={cat.name}>
-                <div className="cmp-cat">{cat.name}</div>
-                {cat.rows.map((row) => (
-                  <Fragment key={row.label}>
-                    <div className="cmp-cell cmp-cell-feature">
-                      <span>{row.label}</span>
-                      {row.desc && <small>{row.desc}</small>}
-                    </div>
-                    {PLANS.map((plan) => {
-                      const value = row.values[plan.id];
-                      return (
-                        <div
-                          key={plan.id}
-                          className={`cmp-cell cmp-cell-plan${plan.featured ? " featured" : ""}`}
-                        >
-                          {value === true ? (
-                            <span className="cmp-yes" aria-label="Inclus">✓</span>
-                          ) : value === false ? (
-                            <span className="cmp-no" aria-label="Non inclus">—</span>
-                          ) : (
-                            <span className="cmp-val">{value}</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </Fragment>
-                ))}
-              </Fragment>
-            ))}
           </div>
         </div>
 

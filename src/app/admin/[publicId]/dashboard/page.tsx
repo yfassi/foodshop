@@ -44,8 +44,7 @@ import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { ExportCsvButton } from "@/components/admin/export-csv-button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { canUseExportCsv } from "@/lib/subscription";
-import type { SubscriptionTier } from "@/lib/types";
+import { FeatureGate } from "@/components/upsell/feature-gate";
 
 /* ─── Period presets ─── */
 const PERIOD_PRESETS: { key: Period; label: string; group: "quick" | "relative" | "rolling" }[] = [
@@ -105,7 +104,6 @@ export default function DashboardPage() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantTier, setRestaurantTier] = useState<SubscriptionTier>("plat");
 
   // Effective date range
   const dateRange = useMemo(() => {
@@ -126,7 +124,7 @@ export default function DashboardPage() {
 
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id, subscription_tier")
+        .select("id")
         .eq("public_id", params.publicId)
         .single();
 
@@ -136,7 +134,6 @@ export default function DashboardPage() {
       }
 
       setRestaurantId(restaurant.id);
-      setRestaurantTier((restaurant.subscription_tier ?? "plat") as SubscriptionTier);
 
       const { data } = await supabase
         .from("orders")
@@ -332,12 +329,14 @@ export default function DashboardPage() {
           subtitle={`${getPeriodLabel(period, customRange)} · ${metrics.totalOrders} commandes · ${formatPrice(metrics.revenue)}`}
           actions={
             <>
-              {restaurantId && canUseExportCsv(restaurantTier) && (
-                <ExportCsvButton
-                  restaurantId={restaurantId}
-                  type="orders"
-                  label="Exporter"
-                />
+              {restaurantId && (
+                <FeatureGate feature="csvExport" fallback="modal-on-click">
+                  <ExportCsvButton
+                    restaurantId={restaurantId}
+                    type="orders"
+                    label="Exporter"
+                  />
+                </FeatureGate>
               )}
               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>

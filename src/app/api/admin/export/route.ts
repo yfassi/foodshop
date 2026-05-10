@@ -45,7 +45,7 @@ export async function GET(req: Request) {
   if (!resto || resto.owner_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "menu")) {
+  if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "pro")) {
     return NextResponse.json(
       { error: "Export disponible dès le plan Pro" },
       { status: 403 },

@@ -34,6 +34,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getRestaurantStatusLabel } from "@/lib/constants";
+import { PlanProvider } from "@/hooks/use-plan";
+import type { AddonId, PlanId } from "@/lib/plans";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +49,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { FeatureGate } from "@/components/upsell/feature-gate";
 
 type SettingsSection = {
   icon: React.ComponentType<{ className?: string }>;
@@ -109,6 +112,8 @@ export function AdminShell({
   isSuperAdmin = false,
   actingAsSuperAdmin = false,
   actingOwnerEmail = null,
+  planId,
+  activeAddons,
   children,
 }: {
   publicId: string;
@@ -125,6 +130,8 @@ export function AdminShell({
   isSuperAdmin?: boolean;
   actingAsSuperAdmin?: boolean;
   actingOwnerEmail?: string | null;
+  planId: PlanId;
+  activeAddons: AddonId[];
   children: React.ReactNode;
 }) {
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(initialIsAcceptingOrders);
@@ -221,6 +228,7 @@ export function AdminShell({
   };
 
   return (
+    <PlanProvider planId={planId} addons={activeAddons}>
     <div className="min-h-screen bg-background">
       {/* Banners */}
       {actingAsSuperAdmin && (
@@ -344,16 +352,18 @@ export function AdminShell({
                     {restaurants.length > 0 && (
                       <Separator className="my-1" />
                     )}
-                    <button
-                      type="button"
-                      onClick={goToAddRestaurant}
-                      className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-                    >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                        <Plus className="h-4 w-4" />
-                      </div>
-                      Ajouter un restaurant
-                    </button>
+                    <FeatureGate feature="multiEstablishment" fallback="modal-on-click">
+                      <button
+                        type="button"
+                        onClick={goToAddRestaurant}
+                        className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                      >
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                          <Plus className="h-4 w-4" />
+                        </div>
+                        Ajouter un restaurant
+                      </button>
+                    </FeatureGate>
                   </>
                 )}
               </PopoverContent>
@@ -645,16 +655,18 @@ export function AdminShell({
                   })}
                 </div>
                 {canAddRestaurant && (
-                  <button
-                    type="button"
-                    onClick={goToAddRestaurant}
-                    className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-                  >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                      <Plus className="h-4 w-4" />
-                    </div>
-                    Ajouter un restaurant
-                  </button>
+                  <FeatureGate feature="multiEstablishment" fallback="modal-on-click">
+                    <button
+                      type="button"
+                      onClick={goToAddRestaurant}
+                      className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      Ajouter un restaurant
+                    </button>
+                  </FeatureGate>
                 )}
                 <Separator className="!my-3" />
               </div>
@@ -700,5 +712,6 @@ export function AdminShell({
         </DialogContent>
       </Dialog>
     </div>
+    </PlanProvider>
   );
 }

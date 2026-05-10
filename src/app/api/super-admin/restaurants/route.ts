@@ -110,7 +110,7 @@ export async function PATCH(request: Request) {
 
   if (
     body.subscription_tier &&
-    ["plat", "menu", "carte"].includes(body.subscription_tier)
+    ["essentiel", "pro", "groupe"].includes(body.subscription_tier)
   ) {
     update.subscription_tier = body.subscription_tier;
   }

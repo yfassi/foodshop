@@ -1049,7 +1049,189 @@
 .lv4 .cmp-foot {
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em;
   color: var(--ink-soft); text-align: center;
-  margin-top: 18px;
+  margin-top: 28px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PLANS (3 cards) — replaces cmp-table on the public landing
+   ════════════════════════════════════════════════════════════════════ */
+.lv4 .plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 8px;
+}
+
+.lv4 .plan-card {
+  position: relative;
+  display: flex; flex-direction: column;
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  border-radius: 18px;
+  padding: 26px 24px 28px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.lv4 .plan-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(26,20,16,.08); }
+.lv4 .plan-card-featured {
+  border-width: 2px;
+  border-color: var(--paprika);
+  background: linear-gradient(180deg, #fff 0%, var(--cream) 60%);
+  box-shadow: 0 14px 32px rgba(230,74,25,.14);
+}
+.lv4 .plan-card-featured:hover { box-shadow: 0 20px 40px rgba(230,74,25,.22); }
+
+.lv4 .plan-card-stamp {
+  position: absolute; top: -12px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--paprika); color: var(--cream);
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 5px 12px; border-radius: 999px;
+  white-space: nowrap;
+}
+
+.lv4 .plan-card-head {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 14px;
+}
+.lv4 .plan-card-name {
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lv4 .plan-card-tagline {
+  font-family: var(--serif); font-style: italic;
+  font-size: 18px; color: var(--ink); line-height: 1.25;
+}
+
+.lv4 .plan-card-price {
+  display: flex; align-items: baseline; gap: 4px;
+  margin-bottom: 4px;
+}
+.lv4 .plan-card-price .num {
+  font-family: var(--display, var(--serif));
+  font-size: 56px; font-weight: 600; color: var(--ink);
+  line-height: 1;
+}
+.lv4 .plan-card-price .cur {
+  font-family: var(--display, var(--serif));
+  font-size: 24px; font-weight: 600; color: var(--ink);
+  margin-left: 2px;
+}
+.lv4 .plan-card-price .per {
+  font-family: var(--mono); font-size: 12px;
+  letter-spacing: 0.06em; color: var(--ink-soft);
+  margin-left: 6px;
+}
+
+.lv4 .plan-card-note {
+  font-size: 12px; color: var(--ink-soft);
+  margin-bottom: 18px; min-height: 18px;
+}
+
+.lv4 .plan-card-cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 14px 18px; border-radius: 999px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.06em; text-decoration: none;
+  margin-bottom: 22px;
+}
+
+.lv4 .plan-card-features {
+  display: flex; flex-direction: column; gap: 18px;
+  border-top: 1px dashed rgba(26,20,16,.18);
+  padding-top: 16px;
+}
+.lv4 .plan-feat-group {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.lv4 .plan-feat-group-title {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.lv4 .plan-card-features ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.lv4 .plan-feat {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13.5px; line-height: 1.35;
+  color: var(--ink);
+}
+.lv4 .plan-feat-off { opacity: 0.45; }
+.lv4 .plan-feat-mark {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  margin-top: 1px;
+}
+.lv4 .plan-feat-mark.on { background: var(--paprika); color: var(--cream); }
+.lv4 .plan-feat-mark.off { background: rgba(26,20,16,.10); color: var(--ink-mute); font-weight: 600; }
+.lv4 .plan-feat-mark.text { background: transparent; color: var(--paprika); font-size: 12px; }
+.lv4 .plan-feat-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lv4 .plan-feat-label { font-weight: 500; }
+.lv4 .plan-feat-value { font-style: italic; color: var(--paprika); font-weight: 600; }
+.lv4 .plan-feat-desc { font-size: 11px; color: var(--ink-soft); }
+
+/* ════════════════════════════════════════════════════════════════════
+   ADD-ONS · "Selon votre activité"
+   ════════════════════════════════════════════════════════════════════ */
+.lv4 .addons-section {
+  margin-top: 36px;
+  padding: 28px;
+  border-radius: 18px;
+  background: rgba(26,20,16,.04);
+  border: 1px dashed rgba(26,20,16,.16);
+}
+.lv4 .addons-head {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  margin-bottom: 18px;
+}
+.lv4 .addons-head .kicker { color: var(--paprika); }
+.lv4 .addons-sub {
+  font-size: 14px; color: var(--ink-soft); max-width: 580px; margin: 0;
+}
+.lv4 .addons-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.lv4 .addon-card {
+  display: flex; align-items: center; gap: 14px;
+  background: #fff;
+  border: 1px solid rgba(26,20,16,.10);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.lv4 .addon-card-icon {
+  flex: 0 0 auto;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(230,74,25,.12); color: var(--paprika);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.lv4 .addon-card-body { flex: 1 1 auto; min-width: 0; }
+.lv4 .addon-card-name {
+  font-family: var(--serif); font-style: italic;
+  font-size: 18px; color: var(--ink);
+}
+.lv4 .addon-card-desc {
+  font-size: 12.5px; color: var(--ink-soft);
+}
+.lv4 .addon-card-price {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 4px;
+}
+.lv4 .addon-card-price .num {
+  font-family: var(--display, var(--serif));
+  font-size: 22px; font-weight: 700; color: var(--ink);
+}
+.lv4 .addon-card-price .per {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-soft);
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 900px) {
+  .lv4 .plans-grid { grid-template-columns: 1fr; gap: 26px; }
+  .lv4 .plan-card-featured { order: -1; }
+  .lv4 .addons-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 800px) {
@@ -1059,6 +1241,9 @@
   .lv4 .cmp-cell { padding: 12px 18px; font-size: 13px; }
   .lv4 .cmp-plan-name { font-size: 20px; }
   .lv4 .cmp-plan-price .num { font-size: 42px; }
+  .lv4 .plan-card { padding: 22px 18px 24px; }
+  .lv4 .plan-card-price .num { font-size: 48px; }
+  .lv4 .addons-section { padding: 22px; }
 }
 
 /* ════════════════════════════════════════════════════════════════════
