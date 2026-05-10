@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff, User } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { AnimatedBackground } from "@/components/animated-background";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function CustomerLoginPage() {
   const params = useParams<{ publicId: string }>();
@@ -65,97 +64,87 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-10">
-      <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm sm:p-8">
-        <Link
-          href={`/restaurant/${publicId}/order`}
-          className="-ml-1 inline-flex h-9 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour
-        </Link>
+    <AuthShell
+      kicker="★ ESPACE CLIENT"
+      title={
+        <>
+          Bonjour, <em>connectez-vous.</em>
+          <span className="dot" />
+        </>
+      }
+      subtitle="Retrouvez vos commandes et points de fidélité."
+      backHref={`/restaurant/${publicId}/order`}
+      backLabel="Retour au menu"
+      brandHref={null}
+      footer={
+        <>
+          Pas encore de compte ?{" "}
+          <Link href={`/restaurant/${publicId}/signup`} className="as-link">
+            Créer un compte →
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="votre@email.com"
+            autoComplete="email"
+            required
+            className="mt-1.5 h-12"
+          />
+        </div>
 
-        <div className="mb-7 mt-4 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <User className="h-6 w-6" strokeWidth={2} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Connexion</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Retrouvez vos commandes et vos points fidélité
-            </p>
+        <div>
+          <Label htmlFor="password">Mot de passe</Label>
+          <div className="relative mt-1.5">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mot de passe"
+              autoComplete="current-password"
+              required
+              className="h-12 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--ink-mute)] transition-colors hover:text-[var(--paprika)]"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              autoComplete="email"
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
-            <div className="relative mt-1.5">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe"
-                autoComplete="current-password"
-                required
-                className="h-12 pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading || !email || !password}
-            className="h-12 w-full rounded-xl font-semibold"
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Connexion
-          </Button>
-        </form>
-
         <button
-          type="button"
-          onClick={handleResetPassword}
-          disabled={loading || resetSent}
-          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          type="submit"
+          disabled={loading || !email || !password}
+          className="auth-primary"
         >
-          {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>Connexion <span className="arrow">→</span></>
+          )}
         </button>
+      </form>
 
-        <p className="mt-3 text-center text-sm text-muted-foreground">
-          Pas encore de compte ?{" "}
-          <Link
-            href={`/restaurant/${publicId}/signup`}
-            className="font-medium text-primary hover:underline"
-          >
-            Créer un compte
-          </Link>
-        </p>
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={handleResetPassword}
+        disabled={loading || resetSent}
+        className="auth-quiet mt-3"
+      >
+        {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+      </button>
+    </AuthShell>
   );
 }

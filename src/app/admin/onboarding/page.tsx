@@ -342,9 +342,15 @@ function OnboardingPageInner() {
       };
       frame();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Erreur lors de la création"
-      );
+      const fullMessage =
+        err instanceof Error ? err.message : "Erreur lors de la création";
+      const [title, ...rest] = fullMessage.split(": ");
+      const description = rest.join(": ").trim();
+      toast.error(title || "Erreur lors de la création", {
+        description: description || undefined,
+        duration: 30000,
+        closeButton: true,
+      });
       setSubmitting(false);
     }
   };
