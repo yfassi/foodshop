@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { Suspense, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
@@ -110,6 +110,16 @@ const DEFAULT_HOURS: HoursState = {
 /* ─── Component ─── */
 
 export default function OnboardingPage() {
+  // useSearchParams() inside the page requires a Suspense boundary so Next can
+  // statically prerender the shell while the search params resolve client-side.
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageInner />
+    </Suspense>
+  );
+}
+
+function OnboardingPageInner() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [animClass, setAnimClass] = useState("");
