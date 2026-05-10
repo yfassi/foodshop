@@ -79,6 +79,7 @@ import {
   getTierLabel,
   getTierPrice,
   nextTier,
+  normalizeTier,
 } from "@/lib/subscription";
 import { ADDONS, PLANS } from "@/lib/plans";
 import { FeatureGate } from "@/components/upsell/feature-gate";
@@ -399,7 +400,7 @@ export default function SettingsPage() {
         setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
 
         setDeliveryAddonActive(data.delivery_addon_active ?? false);
-        setSubscriptionTier((data.subscription_tier ?? "essentiel") as SubscriptionTier);
+        setSubscriptionTier(normalizeTier(data.subscription_tier));
         setDeliveryEnabled(data.delivery_enabled ?? false);
         const dc = (data.delivery_config || {}) as DeliveryConfig;
         setDeliveryCoords(dc.coords ?? null);
@@ -2128,7 +2129,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* API hint for non-Groupe plans */}
-                    {!PLANS[subscriptionTier].features.api && (
+                    {!PLANS[normalizeTier(subscriptionTier)].features.api && (
                       <div className="flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">

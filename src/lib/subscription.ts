@@ -42,23 +42,23 @@ export function tierAtLeast(
   min: SubscriptionTier,
 ): boolean {
   if (!tier) return false;
-  return TIER_RANK[tier] >= TIER_RANK[min];
+  return TIER_RANK[normalizeTier(tier)] >= TIER_RANK[normalizeTier(min)];
 }
 
 export function getTierLabel(tier: SubscriptionTier): string {
-  return PLANS[tier].name;
+  return PLANS[normalizeTier(tier)].name;
 }
 
 export function getTierPrice(tier: SubscriptionTier): number {
-  return PLANS[tier].monthlyPrice;
+  return PLANS[normalizeTier(tier)].monthlyPrice;
 }
 
 export function getTierCapacity(tier: SubscriptionTier): number {
-  return PLANS[tier].includedRestaurants;
+  return PLANS[normalizeTier(tier)].includedRestaurants;
 }
 
 export function nextTier(tier: SubscriptionTier): SubscriptionTier | null {
-  const idx = PLAN_ORDER.indexOf(tier);
+  const idx = PLAN_ORDER.indexOf(normalizeTier(tier));
   if (idx < 0 || idx >= PLAN_ORDER.length - 1) return null;
   return PLAN_ORDER[idx + 1];
 }
@@ -72,7 +72,7 @@ export const EXTRA_RESTAURANT_PRICE = PLANS.pro.extraRestaurantPrice ?? 39;
 // for server-side callers that don't want to import the full plans config.
 
 function hasFeature(tier: SubscriptionTier, feature: FeatureKey): boolean {
-  return PLANS[tier].features[feature];
+  return PLANS[normalizeTier(tier)].features[feature];
 }
 
 export function canUseLoyalty(tier: SubscriptionTier): boolean {
@@ -96,7 +96,8 @@ export function canUseApi(tier: SubscriptionTier): boolean {
 }
 
 export function canManageMultipleRestaurants(tier: SubscriptionTier): boolean {
-  return PLANS[tier].includedRestaurants > 1 || PLANS[tier].extraRestaurantPrice !== null;
+  const plan = PLANS[normalizeTier(tier)];
+  return plan.includedRestaurants > 1 || plan.extraRestaurantPrice !== null;
 }
 
 export type { PlanId };
