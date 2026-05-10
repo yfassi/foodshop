@@ -43,12 +43,12 @@ export async function GET() {
   );
 
   // Per-tier MRR aggregation (active restaurants only).
-  // Normalize legacy tier values (essentiel/pro/business) to the current model.
+  // normalizeTier() handles any legacy values still in the DB (plat/menu/carte/business).
   let totalMrr = 0;
   const tierCounts: Record<SubscriptionTier, number> = {
-    plat: 0,
-    menu: 0,
-    carte: 0,
+    essentiel: 0,
+    pro: 0,
+    groupe: 0,
   };
   const enriched = list.map((r) => {
     const tier = normalizeTier(r.subscription_tier);

@@ -79,10 +79,9 @@ import {
   getTierLabel,
   getTierPrice,
   nextTier,
-  canUseLoyalty,
-  canUseFloorPlan,
-  canUseApi,
 } from "@/lib/subscription";
+import { ADDONS, PLANS } from "@/lib/plans";
+import { FeatureGate } from "@/components/upsell/feature-gate";
 import {
   DAYS_FR,
   DAYS_FR_SHORT,
@@ -96,7 +95,6 @@ import { QueueManager } from "@/components/admin/queue-manager";
 import { DeliveryZoneBuilder } from "@/components/admin/delivery-zone-builder";
 import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
 import { DriverManager } from "@/components/admin/driver-manager";
-import { TierLockBanner } from "@/components/admin/tier-lock-banner";
 import { FloorPlanEditor } from "@/components/admin/floor-plan-editor";
 import { ApiKeysManager } from "@/components/admin/api-keys-manager";
 import { QrPosterDownload } from "@/components/admin/qr-poster-download";
@@ -268,7 +266,7 @@ export default function SettingsPage() {
 
   // Delivery
   const [deliveryAddonActive, setDeliveryAddonActive] = useState(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("plat");
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("essentiel");
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryCoords, setDeliveryCoords] = useState<DeliveryCoords | null>(null);
   const [deliveryPrepTime, setDeliveryPrepTime] = useState<number>(20);
@@ -401,7 +399,7 @@ export default function SettingsPage() {
         setQueueMaxConcurrent(data.queue_max_concurrent ?? 5);
 
         setDeliveryAddonActive(data.delivery_addon_active ?? false);
-        setSubscriptionTier((data.subscription_tier ?? "plat") as SubscriptionTier);
+        setSubscriptionTier((data.subscription_tier ?? "essentiel") as SubscriptionTier);
         setDeliveryEnabled(data.delivery_enabled ?? false);
         const dc = (data.delivery_config || {}) as DeliveryConfig;
         setDeliveryCoords(dc.coords ?? null);
@@ -1631,32 +1629,23 @@ export default function SettingsPage() {
           {/* ═══ Tab: Fidélité ═══ */}
           <TabsContent value="loyalty">
             <div className="space-y-4">
-              {!canUseLoyalty(subscriptionTier) ? (
-                <TierLockBanner
-                  current={subscriptionTier}
-                  required="menu"
-                  feature="Programme de fidélité + SMS"
-                  description="Tampons digitaux & relances clientes"
-                />
-              ) : (
-                <>
-                  <Card size="sm">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                          <Gift className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-sm">Programme de fidélité</CardTitle>
-                          <CardDescription className="text-xs">1 EUR dépensé = 1 point de fidélité</CardDescription>
-                        </div>
+              <FeatureGate feature="loyalty">
+                <Card size="sm">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        <Gift className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <CardAction><Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} /></CardAction>
-                    </CardHeader>
-                  </Card>
-                  {loyaltyEnabled && <LoyaltyTierBuilder restaurantId={restaurant.id} tiers={loyaltyTiers} onChange={setLoyaltyTiers} />}
-                </>
-              )}
+                      <div className="flex-1">
+                        <CardTitle className="text-sm">Programme de fidélité</CardTitle>
+                        <CardDescription className="text-xs">1 EUR dépensé = 1 point de fidélité</CardDescription>
+                      </div>
+                    </div>
+                    <CardAction><Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} /></CardAction>
+                  </CardHeader>
+                </Card>
+                {loyaltyEnabled && <LoyaltyTierBuilder restaurantId={restaurant.id} tiers={loyaltyTiers} onChange={setLoyaltyTiers} />}
+              </FeatureGate>
             </div>
           </TabsContent>
 
@@ -1986,32 +1975,18 @@ export default function SettingsPage() {
           {/* ═══ Tab: Plan de salle ═══ */}
           <TabsContent value="floor">
             <div className="space-y-4">
-              {!canUseFloorPlan(subscriptionTier) ? (
-                <TierLockBanner
-                  current={subscriptionTier}
-                  required="menu"
-                  feature="Plan de salle interactif"
-                  description="Disposez vos tables, suivez l'occupation"
-                />
-              ) : (
+              <FeatureGate feature="floorPlan">
                 <FloorPlanEditor value={floorPlan} onChange={setFloorPlan} />
-              )}
+              </FeatureGate>
             </div>
           </TabsContent>
 
           {/* ═══ Tab: API & webhooks ═══ */}
           <TabsContent value="api">
             <div className="space-y-4">
-              {!canUseApi(subscriptionTier) ? (
-                <TierLockBanner
-                  current={subscriptionTier}
-                  required="carte"
-                  feature="API & webhooks"
-                  description="Authentifiez vos intégrations externes (n8n, Zapier, scripts maison…)"
-                />
-              ) : (
+              <FeatureGate feature="api">
                 <ApiKeysManager restaurantId={restaurant.id} />
-              )}
+              </FeatureGate>
             </div>
           </TabsContent>
 
@@ -2069,6 +2044,111 @@ export default function SettingsPage() {
                     <p className="text-[11px] text-muted-foreground">
                       Modifier la formule, les moyens de paiement, télécharger les factures…
                     </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ─── Modules ─── */}
+              <Card size="sm">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm">Modules</CardTitle>
+                      <CardDescription className="text-xs">
+                        Modules complémentaires activés sur ce restaurant
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {/* Livraison */}
+                    <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          <Bike className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            Module {ADDONS.livraison.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {deliveryAddonActive
+                              ? `Actif · +${ADDONS.livraison.monthlyPrice} €/mois`
+                              : `${ADDONS.livraison.description} · +${ADDONS.livraison.monthlyPrice} €/mois`}
+                          </p>
+                        </div>
+                      </div>
+                      {deliveryAddonActive ? (
+                        <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700">
+                          ● Actif
+                        </Badge>
+                      ) : (
+                        <Link
+                          href={`/admin/${params.publicId}/settings?tab=delivery`}
+                          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          Activer
+                        </Link>
+                      )}
+                    </div>
+
+                    {/* Stock */}
+                    <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            Module {ADDONS.stock.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {stockModuleActive
+                              ? `Actif · +${ADDONS.stock.monthlyPrice} €/mois`
+                              : `${ADDONS.stock.description} · +${ADDONS.stock.monthlyPrice} €/mois`}
+                          </p>
+                        </div>
+                      </div>
+                      {stockModuleActive ? (
+                        <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700">
+                          ● Actif
+                        </Badge>
+                      ) : (
+                        <Link
+                          href={`/admin/${params.publicId}/stock/activation`}
+                          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          Activer
+                        </Link>
+                      )}
+                    </div>
+
+                    {/* API hint for non-Groupe plans */}
+                    {!PLANS[subscriptionTier].features.api && (
+                      <div className="flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                            <Key className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">API & webhooks</p>
+                            <p className="text-xs text-muted-foreground">
+                              Disponible avec le plan {PLANS.groupe.name} · {PLANS.groupe.monthlyPrice} €/mois
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/admin/${params.publicId}/settings?tab=api`}
+                          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          Voir
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -31,7 +31,7 @@ export default async function AdminLayout({
   let actingOwnerEmail: string | null = null;
 
   const RESTAURANT_FIELDS =
-    "id, name, owner_id, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active, stock_enabled, stock_module_active";
+    "id, name, owner_id, is_accepting_orders, verification_status, opening_hours, delivery_enabled, delivery_addon_active, stock_enabled, stock_module_active, subscription_tier";
 
   if (isDemo) {
     const { data } = await supabase
@@ -94,6 +94,12 @@ export default async function AdminLayout({
     }
   }
 
+  const { normalizeTier } = await import("@/lib/subscription");
+  const planId = normalizeTier(restaurant.subscription_tier);
+  const activeAddons: ("livraison" | "stock")[] = [];
+  if (restaurant.delivery_addon_active) activeAddons.push("livraison");
+  if (restaurant.stock_module_active) activeAddons.push("stock");
+
   return (
     <AdminShell
       publicId={publicId}
@@ -114,6 +120,8 @@ export default async function AdminLayout({
       isSuperAdmin={isSuperAdminUser}
       actingAsSuperAdmin={actingAsSuperAdmin}
       actingOwnerEmail={actingOwnerEmail}
+      planId={planId}
+      activeAddons={activeAddons}
     >
       {children}
     </AdminShell>

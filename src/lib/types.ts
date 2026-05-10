@@ -3,7 +3,7 @@
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
 export type OrderType = "dine_in" | "takeaway" | "delivery";
-export type SubscriptionTier = "plat" | "menu" | "carte";
+export type SubscriptionTier = "essentiel" | "pro" | "groupe";
 
 export type DeliveryStatus =
   | "pending"

@@ -32,7 +32,15 @@ interface OnboardingBody {
   password?: string;
   queue_enabled?: boolean;
   queue_max_concurrent?: number;
+  subscription_tier?: "essentiel" | "pro" | "groupe";
+  /** Optional add-ons selected during onboarding. Activates the corresponding
+   *  module flags. The user later confirms billing via Stripe Customer Portal. */
+  addons?: ("livraison" | "stock")[];
+  billing_period?: "monthly" | "annual";
 }
+
+const VALID_TIERS = new Set(["essentiel", "pro", "groupe"]);
+const VALID_ADDONS = new Set(["livraison", "stock"]);
 
 function toSlug(name: string) {
   return name
@@ -54,7 +62,17 @@ export async function POST(request: Request) {
     const body = JSON.parse(formData.get("data") as string) as OnboardingBody;
     const verificationFile = formData.get("verification_document") as File | null;
 
-    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent } = body;
+    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent, subscription_tier, addons, billing_period } = body;
+
+    const tier =
+      subscription_tier && VALID_TIERS.has(subscription_tier)
+        ? subscription_tier
+        : "essentiel";
+    const safeAddons = Array.isArray(addons)
+      ? addons.filter((a) => VALID_ADDONS.has(a))
+      : [];
+    const wantsLivraison = safeAddons.includes("livraison");
+    const wantsStock = safeAddons.includes("stock");
 
     if (!name) {
       return NextResponse.json(
@@ -193,9 +211,20 @@ export async function POST(request: Request) {
       is_accepting_orders: true,
       verification_status: "pending",
       verification_document_url,
+      subscription_tier: tier,
+      delivery_addon_active: wantsLivraison,
+      delivery_enabled: wantsLivraison,
+      stock_module_active: wantsStock,
+      stock_enabled: wantsStock,
       ...(queue_enabled != null && { queue_enabled }),
       ...(queue_max_concurrent != null && { queue_max_concurrent }),
     });
+
+    // billing_period is captured for future Stripe Checkout integration but is
+    // not persisted yet — restaurants currently set up billing post-onboarding
+    // via the Stripe Customer Portal. Remove this line once the plan-checkout
+    // flow lands.
+    void billing_period;
 
     if (error) {
       console.error("Onboarding insert error:", error);
