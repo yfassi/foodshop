@@ -350,17 +350,15 @@ export default function AdminDashboard() {
                 onClick={handlePushToggle}
                 disabled={pushSubscribed || pushLoading}
                 className={cn(
-                  "flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  "flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
                   pushSubscribed
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
                 )}
                 title={pushSubscribed ? "Notifications activées" : "Activer les notifications push"}
+                aria-label={pushSubscribed ? "Notifications actives" : "Activer notifications push"}
               >
                 {pushSubscribed ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-                <span className="hidden sm:inline">
-                  {pushSubscribed ? "Notifications actives" : "Activer push"}
-                </span>
               </button>
             )}
           </div>
