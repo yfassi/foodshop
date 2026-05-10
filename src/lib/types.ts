@@ -163,9 +163,12 @@ export interface Restaurant {
   stock_stripe_subscription_id: string | null;
   stock_subscription_status: string | null;
   floor_plan: FloorPlan;
+  menu_layout: MenuLayout;
   created_at: string;
   updated_at: string;
 }
+
+export type MenuLayout = "linear" | "category_grid";
 
 export type QueueTicketStatus = "waiting" | "active" | "completed" | "expired";
 
@@ -189,6 +192,7 @@ export interface Category {
   name: string;
   description: string | null;
   icon: string | null;
+  image_url: string | null;
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;

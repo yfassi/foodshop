@@ -257,6 +257,8 @@ export default function MenuManagementPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [categoryIcon, setCategoryIcon] = useState<string | null>(null);
+  const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
+  const [uploadingCategoryImage, setUploadingCategoryImage] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
 
   // Category delete confirmation
@@ -673,6 +675,7 @@ export default function MenuManagementPage() {
     setEditingCategory(null);
     setCategoryName("");
     setCategoryIcon(null);
+    setCategoryImageUrl(null);
     setCategoryDialogOpen(true);
   };
 
@@ -680,7 +683,91 @@ export default function MenuManagementPage() {
     setEditingCategory(cat);
     setCategoryName(cat.name);
     setCategoryIcon(cat.icon);
+    setCategoryImageUrl(cat.image_url);
     setCategoryDialogOpen(true);
+  };
+
+  const uploadCategoryImage = async (file: File) => {
+    if (!editingCategory || !restaurantId) {
+      toast.error("Enregistrez d'abord la catégorie pour ajouter une image");
+      return;
+    }
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Format accepté : JPG, PNG ou WebP");
+      return;
+    }
+    const MAX_SIZE = 3 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("Image trop lourde (max 3 Mo)");
+      return;
+    }
+
+    setUploadingCategoryImage(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "jpg";
+    const filePath = `${restaurantId}/categories/${editingCategory.id}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(filePath, file, { contentType: file.type, upsert: true });
+
+    if (uploadError) {
+      toast.error(uploadError.message || "Erreur lors de l'upload");
+      setUploadingCategoryImage(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(filePath);
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const res = await fetch("/api/admin/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingCategory.id,
+        restaurant_id: restaurantId,
+        image_url: newUrl,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Erreur lors de l'enregistrement");
+      setUploadingCategoryImage(false);
+      return;
+    }
+    setCategoryImageUrl(newUrl);
+    setUploadingCategoryImage(false);
+    toast.success("Image ajoutée");
+    fetchMenu();
+  };
+
+  const removeCategoryImage = async () => {
+    if (!editingCategory || !restaurantId) return;
+    const supabase = createClient();
+    if (categoryImageUrl) {
+      const pathMatch = categoryImageUrl.split("/product-images/")[1]?.split("?")[0];
+      if (pathMatch) {
+        await supabase.storage.from("product-images").remove([pathMatch]);
+      }
+    }
+    const res = await fetch("/api/admin/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingCategory.id,
+        restaurant_id: restaurantId,
+        image_url: null,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setCategoryImageUrl(null);
+    toast.success("Image supprimée");
+    fetchMenu();
   };
 
   const saveCategory = async () => {
@@ -1364,6 +1451,58 @@ export default function MenuManagementPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Illustration</Label>
+              <p className="text-xs text-muted-foreground">
+                Utilisée pour le pavé de catégorie en mise en page « Grille ». JPG, PNG ou WebP, max 3 Mo.
+              </p>
+              {editingCategory ? (
+                <div className="relative inline-block pt-1">
+                  <label className="relative flex h-24 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
+                    {uploadingCategoryImage ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    ) : categoryImageUrl ? (
+                      <Image
+                        src={categoryImageUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="128px"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-5 w-5" />
+                        <span className="text-[10px] font-medium">Ajouter</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadCategoryImage(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {categoryImageUrl && (
+                    <button
+                      type="button"
+                      onClick={removeCategoryImage}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-foreground"
+                      aria-label="Retirer l'image"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  Créez la catégorie d&apos;abord, puis rouvrez-la pour ajouter une image.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

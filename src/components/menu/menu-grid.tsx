@@ -1,15 +1,16 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { CategoryWithProducts, ProductWithModifiers } from "@/lib/types";
+import type { CategoryWithProducts, MenuLayout, ProductWithModifiers } from "@/lib/types";
 import { CategorySection } from "./category-section";
+import { CategoryTileGrid } from "./category-grid";
 import { FeaturedProducts } from "./featured-products";
 import { FloatingCartButton } from "@/components/cart/floating-cart-button";
 import { ModifierModal } from "./modifier-modal";
 import { useCartStore } from "@/stores/cart-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { isCurrentlyOpen } from "@/lib/constants";
-import { Search, X } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { WelcomeModal } from "./welcome-modal";
 import type { OrderType } from "@/lib/types";
 
@@ -23,6 +24,7 @@ export function MenuGrid({
   orderTypes,
   loyaltyEnabled,
   queueEnabled,
+  menuLayout = "linear",
 }: {
   categories: CategoryWithProducts[];
   isAcceptingOrders: boolean;
@@ -33,6 +35,7 @@ export function MenuGrid({
   orderTypes: OrderType[];
   loyaltyEnabled: boolean;
   queueEnabled: boolean;
+  menuLayout?: MenuLayout;
 }) {
   const setRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
   const orderType = useCartStore((s) => s.orderType);
@@ -54,6 +57,24 @@ export function MenuGrid({
     categories[0]?.id ?? ""
   );
   const isScrollingTo = useRef(false);
+
+  // category_grid mode: which category the user has drilled into.
+  // null = show the tile grid landing.
+  const [pickedCategoryId, setPickedCategoryId] = useState<string | null>(null);
+  const isCategoryGrid = menuLayout === "category_grid";
+  const showTileLanding = isCategoryGrid && !pickedCategoryId && !searchQuery;
+
+  const handlePickCategory = useCallback((categoryId: string) => {
+    setPickedCategoryId(categoryId);
+    setActiveCategoryId(categoryId);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, []);
+
+  const handleBackToTiles = useCallback(() => {
+    setPickedCategoryId(null);
+    setSearchQuery("");
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, []);
 
   useEffect(() => {
     setRestaurantPublicId(publicId);
@@ -118,7 +139,7 @@ export function MenuGrid({
 
   // Filter categories/products by search query
   const query = searchQuery.toLowerCase().trim();
-  const filteredCategories = query
+  const searchedCategories = query
     ? categories
         .map((cat) => ({
           ...cat,
@@ -129,20 +150,39 @@ export function MenuGrid({
         .filter((cat) => cat.products.length > 0)
     : categories;
 
-  // Collect featured products (only when not searching)
-  const featuredProducts = query
-    ? []
-    : categories.flatMap((cat) =>
-        cat.products.filter((p) => p.is_featured && p.is_available)
-      );
+  // In category_grid + drilled-in mode without a search, show only the picked
+  // category. Search overrides the picked category and falls back to all
+  // matching categories.
+  const filteredCategories =
+    isCategoryGrid && pickedCategoryId && !query
+      ? searchedCategories.filter((c) => c.id === pickedCategoryId)
+      : searchedCategories;
+
+  // Collect featured products (only when not searching, only on linear).
+  const featuredProducts =
+    query || isCategoryGrid
+      ? []
+      : categories.flatMap((cat) =>
+          cat.products.filter((p) => p.is_featured && p.is_available)
+        );
 
   return (
     <div>
       {/* Sticky category nav + search */}
       <nav className="sticky top-0 z-10 border-b border-[#E6D9C2] bg-[#F5EBDB]/95 backdrop-blur-sm">
         {/* Search bar — pill, fond crème (kit mobile) */}
-        <div className="px-4 pt-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 px-4 pt-3">
+          {isCategoryGrid && pickedCategoryId && (
+            <button
+              type="button"
+              onClick={handleBackToTiles}
+              aria-label="Retour aux catégories"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#dbd7d2] bg-white text-[#1c1410] transition-colors hover:border-[#1c1410]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
+          <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-[#68625e]" />
             <input
               value={searchQuery}
@@ -163,8 +203,8 @@ export function MenuGrid({
           </div>
         </div>
 
-        {/* Category pills (hidden when searching) — kit: pill-shaped, #1c1410 active */}
-        {!query && (
+        {/* Category pills (hidden when searching, hidden on tile landing) */}
+        {!query && !showTileLanding && (
           <ScrollArea className="w-full">
             <div className="flex gap-1.5 px-4 py-2.5">
               {categories.map((cat) => (
@@ -173,7 +213,9 @@ export function MenuGrid({
                   ref={(el) => {
                     if (el) chipRefs.current.set(cat.id, el);
                   }}
-                  onClick={() => scrollToCategory(cat.id)}
+                  onClick={() =>
+                    isCategoryGrid ? handlePickCategory(cat.id) : scrollToCategory(cat.id)
+                  }
                   className={`h-[34px] shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-medium transition-all ${
                     activeCategoryId === cat.id
                       ? "border-[#1c1410] bg-[#1c1410] font-semibold text-white"
@@ -189,8 +231,13 @@ export function MenuGrid({
         )}
       </nav>
 
+      {/* Tile landing (category_grid layout, no category picked, no search) */}
+      {showTileLanding && (
+        <CategoryTileGrid categories={categories} onSelect={handlePickCategory} />
+      )}
+
       {/* Featured products (only when not searching) */}
-      {featuredProducts.length > 0 && (
+      {!showTileLanding && featuredProducts.length > 0 && (
         <FeaturedProducts
           products={featuredProducts}
           onProductClick={setSelectedProduct}
@@ -198,6 +245,7 @@ export function MenuGrid({
       )}
 
       {/* Categories + products */}
+      {!showTileLanding && (
       <div className="px-4 py-4 md:px-6">
         {filteredCategories.length === 0 && query ? (
           <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
@@ -230,6 +278,7 @@ export function MenuGrid({
           ))
         )}
       </div>
+      )}
 
       {/* Floating cart button */}
       <FloatingCartButton publicId={publicId} disabled={!isAcceptingOrders || !isOpen} categories={categories} queueEnabled={queueEnabled} />

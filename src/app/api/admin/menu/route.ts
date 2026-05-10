@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
     const { data: restaurant } = await adminSupabase
       .from("restaurants")
-      .select("id, owner_id, order_types")
+      .select("id, owner_id, order_types, menu_layout")
       .eq("public_id", publicId)
       .single();
 
@@ -197,6 +197,10 @@ export async function GET(request: Request) {
       menu,
       order_types: (restaurant.order_types as string[]) || ["dine_in", "takeaway"],
       next_counter_label: nextCounterLabel,
+      menu_layout:
+        (restaurant as { menu_layout?: string }).menu_layout === "category_grid"
+          ? "category_grid"
+          : "linear",
     });
   } catch (err) {
     console.error("Admin menu error:", err);

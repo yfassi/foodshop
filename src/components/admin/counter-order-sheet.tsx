@@ -58,6 +58,7 @@ export function CounterOrderSheet({
     "takeaway",
   ]);
   const [menuLoading, setMenuLoading] = useState(false);
+  const [menuLayout, setMenuLayout] = useState<"linear" | "category_grid">("linear");
 
   // Pager / notes
   const [pagerNumber, setPagerNumber] = useState("");
@@ -107,6 +108,7 @@ export function CounterOrderSheet({
         if (data.next_counter_label) {
           setNextCounterLabel(data.next_counter_label as string);
         }
+        setMenuLayout(data.menu_layout === "category_grid" ? "category_grid" : "linear");
       })
       .catch(() => toast.error("Impossible de charger le menu"))
       .finally(() => setMenuLoading(false));
@@ -394,6 +396,7 @@ export function CounterOrderSheet({
               <MenuPicker
                 categories={menu}
                 onAddItem={(it) => setItems((prev) => [...prev, it])}
+                menuLayout={menuLayout}
               />
             )}
           </section>
