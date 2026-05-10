@@ -228,8 +228,22 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("Onboarding insert error:", error);
+      const parts = [
+        error.message,
+        error.code ? `code=${error.code}` : null,
+        error.details ? `details=${error.details}` : null,
+        error.hint ? `hint=${error.hint}` : null,
+      ].filter(Boolean);
       return NextResponse.json(
-        { error: "Erreur lors de la création du restaurant" },
+        {
+          error: `Erreur lors de la création du restaurant: ${parts.join(" · ")}`,
+          debug: {
+            code: error.code ?? null,
+            message: error.message ?? null,
+            details: error.details ?? null,
+            hint: error.hint ?? null,
+          },
+        },
         { status: 500 }
       );
     }
@@ -237,6 +251,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ slug, public_id });
   } catch (err) {
     console.error("Onboarding error:", err);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : null;
+    return NextResponse.json(
+      {
+        error: `Erreur serveur: ${message}`,
+        debug: { message, stack },
+      },
+      { status: 500 }
+    );
   }
 }
