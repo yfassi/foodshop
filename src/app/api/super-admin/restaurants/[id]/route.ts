@@ -103,3 +103,58 @@ export async function GET(
     },
   });
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !isSuperAdmin(user.email)) {
+    return NextResponse.json({ error: "Non autorise" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const url = new URL(request.url);
+  const confirmName = url.searchParams.get("confirm");
+
+  const admin = createAdminClient();
+
+  const { data: restaurant, error: fetchError } = await admin
+    .from("restaurants")
+    .select("id, name, owner_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !restaurant) {
+    return NextResponse.json(
+      { error: "Restaurant non trouve" },
+      { status: 404 }
+    );
+  }
+
+  if (!confirmName || confirmName.trim() !== restaurant.name.trim()) {
+    return NextResponse.json(
+      { error: "Le nom de confirmation ne correspond pas" },
+      { status: 400 }
+    );
+  }
+
+  const { error: deleteError } = await admin
+    .from("restaurants")
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) {
+    console.error("Super-admin delete restaurant error:", deleteError);
+    return NextResponse.json(
+      { error: "Erreur lors de la suppression" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true });
+}
