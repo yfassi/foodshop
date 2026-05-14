@@ -7,7 +7,7 @@ import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Wallet, FlaskConical, Plus } from "lucide-react";
+import { CreditCard, Banknote, Wallet, FlaskConical, Plus, Printer } from "lucide-react";
 import { AddItemsSheet } from "@/components/admin/counter-order/add-items-sheet";
 import { useParams } from "next/navigation";
 
@@ -83,6 +83,24 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       }
     } catch {
       toast.error("Erreur lors de l'encaissement");
+    }
+  };
+
+  const printReceipt = async () => {
+    try {
+      const res = await fetch("/api/print/job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id, job_type: "receipt" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Erreur lors de l'impression");
+      } else {
+        toast.success("Reçu envoyé à l'impression");
+      }
+    } catch {
+      toast.error("Erreur lors de l'impression");
     }
   };
 
@@ -343,6 +361,16 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
           )}
         </div>
       )}
+
+      {/* Print receipt — available regardless of payment status */}
+      <button
+        type="button"
+        onClick={printReceipt}
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Printer className="h-3.5 w-3.5" />
+        Imprimer le reçu
+      </button>
 
       {showAddItems && (
         <AddItemsSheet

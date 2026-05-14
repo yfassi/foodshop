@@ -6,6 +6,7 @@ import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo"
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
 import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
 import type {
@@ -557,6 +558,8 @@ export async function POST(request: Request) {
         notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
         // Fire-and-forget customer confirmation email (idempotent)
         void sendOrderConfirmationEmail({ orderId: order.id });
+        // Fire-and-forget print jobs (idempotent)
+        void enqueueOrderPrintJobs(order.id);
         return NextResponse.json({ order_id: order.id });
       }
 

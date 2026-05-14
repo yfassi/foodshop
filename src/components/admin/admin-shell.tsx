@@ -28,6 +28,7 @@ import {
   Power,
   Loader2,
   Shield,
+  Printer,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
@@ -66,6 +67,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   { icon: Bike, label: "Livraison", tab: "delivery" },
   { icon: Package, label: "Stock", tab: "stock" },
   { icon: LayoutGrid, label: "Plan de salle", tab: "floor" },
+  { icon: Printer, label: "Matériel", tab: "materiel" },
   { icon: Key, label: "API", tab: "api" },
   { icon: User, label: "Compte", tab: "account" },
 ];

@@ -7,7 +7,7 @@ import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Lock } from "lucide-react";
+import { Lock, Printer } from "lucide-react";
 
 const EDITABLE_STATUSES: OrderStatus[] = ["new", "preparing", "ready", "done", "cancelled"];
 
@@ -50,6 +50,24 @@ export function KitchenTicket({ order, compact = false, locked = false }: Kitche
       }
     } catch {
       toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const printTicket = async () => {
+    try {
+      const res = await fetch("/api/print/job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id, job_type: "kitchen" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Erreur lors de l'impression");
+      } else {
+        toast.success("Ticket envoyé à l'impression");
+      }
+    } catch {
+      toast.error("Erreur lors de l'impression");
     }
   };
 
@@ -96,6 +114,15 @@ export function KitchenTicket({ order, compact = false, locked = false }: Kitche
             {orderTypeLabel && ` · ${orderTypeLabel}`}
           </p>
         </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={printTicket}
+            aria-label="Imprimer le ticket"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Printer className="h-3.5 w-3.5" />
+          </button>
         <div className="relative" ref={pickerRef}>
           {locked ? (
             <span
@@ -131,6 +158,7 @@ export function KitchenTicket({ order, compact = false, locked = false }: Kitche
               )}
             </>
           )}
+        </div>
         </div>
       </div>
 

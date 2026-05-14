@@ -113,6 +113,47 @@ export interface RestaurantAdmin {
   created_at: string;
 }
 
+// ============================================
+// PRINTING (cloud-pull thermal printers)
+// ============================================
+
+export type PrinterKind = "epson_sdp" | "star_cloudprnt";
+
+// Client-facing shape: deliberately omits token_hash (server-only secret).
+export interface Printer {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  kind: PrinterKind;
+  token_prefix: string;
+  auto_print_kitchen: boolean;
+  auto_print_receipt: boolean;
+  is_active: boolean;
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrintJobType = "kitchen" | "receipt" | "test";
+export type PrintJobSource = "auto" | "manual";
+export type PrintJobStatus = "pending" | "printing" | "done" | "error";
+
+export interface PrintJob {
+  id: string;
+  restaurant_id: string;
+  printer_id: string;
+  order_id: string | null;
+  job_type: PrintJobType;
+  source: PrintJobSource;
+  status: PrintJobStatus;
+  payload_xml: string;
+  attempts: number;
+  error_message: string | null;
+  claimed_at: string | null;
+  printed_at: string | null;
+  created_at: string;
+}
+
 export interface RestaurantSocialLinks {
   instagram?: string;
   facebook?: string;

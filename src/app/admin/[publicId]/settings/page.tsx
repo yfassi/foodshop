@@ -61,6 +61,7 @@ import {
   BadgeCheck,
   Palette,
   List as ListIcon,
+  Printer,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -101,6 +102,7 @@ import { DeliveryMapPicker } from "@/components/admin/delivery-map-picker";
 import { DriverManager } from "@/components/admin/driver-manager";
 import { FloorPlanEditor } from "@/components/admin/floor-plan-editor";
 import { ApiKeysManager } from "@/components/admin/api-keys-manager";
+import { PrinterManager } from "@/components/admin/printer-manager";
 import { QrPosterDownload } from "@/components/admin/qr-poster-download";
 import { buildCustomerOrderUrl } from "@/lib/qr";
 import {
@@ -120,6 +122,7 @@ type Tab =
   | "delivery"
   | "stock"
   | "floor"
+  | "materiel"
   | "api"
   | "account";
 
@@ -978,6 +981,7 @@ export default function SettingsPage() {
     delivery:   { label: "Livraison",     subtitle: "Module Livraison, zones, livreurs et tarifs.",            icon: Bike },
     stock:      { label: "Stock",         subtitle: "Module Stock — suivi des entrées/sorties.",               icon: Package },
     floor:      { label: "Plan de salle", subtitle: "Tables, capacités et organisation visuelle.",             icon: LayoutGrid },
+    materiel:   { label: "Matériel",      subtitle: "Imprimantes tickets WiFi — tickets cuisine & reçus.",     icon: Printer },
     api:        { label: "API",           subtitle: "Clés API et webhooks pour vos intégrations.",             icon: Key },
     account:    { label: "Compte",        subtitle: "Email, mot de passe et sécurité du compte.",              icon: User },
   };
@@ -2092,6 +2096,13 @@ export default function SettingsPage() {
               <FeatureGate feature="floorPlan">
                 <FloorPlanEditor value={floorPlan} onChange={setFloorPlan} />
               </FeatureGate>
+            </div>
+          </TabsContent>
+
+          {/* ═══ Tab: Matériel ═══ */}
+          <TabsContent value="materiel">
+            <div className="space-y-4">
+              <PrinterManager restaurantId={restaurant.id} />
             </div>
           </TabsContent>
 

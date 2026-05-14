@@ -3,6 +3,7 @@ import { stripeLive, stripeTest } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
 import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 import { formatPrice } from "@/lib/format";
 import Stripe from "stripe";
 
@@ -179,6 +180,9 @@ export async function POST(request: Request) {
 
         // Send customer confirmation email (idempotent — safe on webhook retry)
         void sendOrderConfirmationEmail({ orderId });
+
+        // Queue print jobs (idempotent — safe on webhook retry)
+        void enqueueOrderPrintJobs(orderId);
 
         // Send push notification to admin
         if (order) {
