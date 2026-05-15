@@ -20,6 +20,7 @@ import {
   Gem,
   Sparkles,
   Sparkle,
+  AlertTriangle,
 } from "lucide-react";
 import type { LoyaltyTier } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
@@ -120,6 +121,22 @@ const TIER_THEMES: TierTheme[] = [
 
 const themeFor = (index: number) =>
   TIER_THEMES[Math.min(index, TIER_THEMES.length - 1)];
+
+function tierIssue(tier: LoyaltyTier): string | null {
+  if (!tier.points || tier.points <= 0) {
+    return "Définissez un seuil de points supérieur à 0.";
+  }
+  if (tier.reward_type === "free_product") {
+    if (!tier.product_id) {
+      return "Sélectionnez l'article offert. Sinon le client ne pourra pas réclamer la récompense.";
+    }
+  } else if (tier.reward_type === "discount") {
+    if (!tier.discount_amount || tier.discount_amount <= 0) {
+      return "Définissez un montant de réduction supérieur à 0 €.";
+    }
+  }
+  return null;
+}
 
 function ProductSearchSelect({
   groups,
@@ -388,8 +405,28 @@ export function LoyaltyTierBuilder({
       ? `linear-gradient(to right, ${themeFor(0).hex}, ${themeFor(0).hex})`
       : `linear-gradient(to right, ${gradientStops})`;
 
+  const incompleteCount = sorted.filter((t) => tierIssue(t) !== null).length;
+
   return (
     <div className="space-y-4">
+      {incompleteCount > 0 && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="text-xs">
+            <p className="font-semibold text-amber-900 dark:text-amber-200">
+              {incompleteCount === 1
+                ? "1 palier est incomplet"
+                : `${incompleteCount} paliers sont incomplets`}
+            </p>
+            <p className="mt-0.5 text-amber-800/80 dark:text-amber-300/80">
+              Tant qu&apos;un palier n&apos;a pas d&apos;article (ou de réduction)
+              défini, vos clients verront « Article offert » sans pouvoir le
+              réclamer.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Visual progress bar */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-1 flex items-center justify-between">
@@ -419,15 +456,17 @@ export function LoyaltyTierBuilder({
             const Icon = theme.Icon;
             const pos = maxPoints > 0 ? (tier.points / maxPoints) * 100 : 0;
             const clamped = Math.min(Math.max(pos, 0), 100);
-            const rewardLabel =
-              tier.label ||
-              (tier.reward_type === "free_product"
-                ? tier.product_name
-                  ? `${tier.product_name} offert`
-                  : "Article offert"
-                : tier.discount_amount
-                  ? `${(tier.discount_amount / 100).toFixed(2)} € offerts`
-                  : "Réduction");
+            const issue = tierIssue(tier);
+            const rewardLabel = issue
+              ? "À configurer"
+              : tier.label ||
+                (tier.reward_type === "free_product"
+                  ? tier.product_name
+                    ? `${tier.product_name} offert`
+                    : "Article offert"
+                  : tier.discount_amount
+                    ? `${(tier.discount_amount / 100).toFixed(2)} € offerts`
+                    : "Réduction");
 
             return (
               <div
@@ -437,10 +476,18 @@ export function LoyaltyTierBuilder({
               >
                 {/* Marker */}
                 <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-background ring-4 ${theme.ring} ${theme.border} shadow-md`}
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-full border-2 bg-background ring-4 ${theme.ring} ${theme.border} shadow-md`}
                   style={{ color: theme.hex }}
                 >
                   <Icon className="h-4 w-4" />
+                  {issue && (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-amber-500 text-white"
+                      title={issue}
+                    >
+                      <AlertTriangle className="h-2 w-2" strokeWidth={3} />
+                    </span>
+                  )}
                 </div>
                 {/* Label below */}
                 <div className="mt-2 w-32 -translate-x-[calc(50%-1.125rem)] text-center">
@@ -469,10 +516,13 @@ export function LoyaltyTierBuilder({
       {sorted.map((tier, i) => {
         const theme = themeFor(i);
         const Icon = theme.Icon;
+        const issue = tierIssue(tier);
         return (
           <div
             key={tier.id}
-            className={`overflow-hidden rounded-xl border bg-card ${theme.border}`}
+            className={`overflow-hidden rounded-xl border bg-card ${
+              issue ? "border-amber-400 dark:border-amber-700" : theme.border
+            }`}
           >
             {/* Colored header */}
             <div
@@ -495,6 +545,12 @@ export function LoyaltyTierBuilder({
                     >
                       {theme.name}
                     </span>
+                    {issue && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        À compléter
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     Atteint à {tier.points} points
@@ -510,6 +566,13 @@ export function LoyaltyTierBuilder({
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
+
+            {issue && (
+              <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50/60 px-4 py-2 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{issue}</span>
+              </div>
+            )}
 
             <div className="space-y-3 p-4">
               {/* Points */}
