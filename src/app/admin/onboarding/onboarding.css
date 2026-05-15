@@ -631,3 +631,122 @@ textarea.lv4-ob-input { min-height: 64px; resize: vertical; line-height: 1.5; }
   .lv4-ob-choices { grid-template-columns: 1fr; }
   .lv4-ob-choice.full { grid-column: span 1; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ONBOARDING — STEP PLAN (cards + addons)
+   ════════════════════════════════════════════════════════════════════ */
+.lv4-ob-billing {
+  display: inline-flex; gap: 4px;
+  background: rgba(26,20,16,.06);
+  border-radius: 999px; padding: 4px;
+}
+.lv4-ob-billing-opt {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-soft);
+  background: transparent; border: none; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px;
+  transition: background .15s ease, color .15s ease;
+}
+.lv4-ob-billing-opt.on { background: var(--ink); color: var(--cream); }
+
+.lv4-ob-plans {
+  display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px;
+}
+.lv4-ob-plan {
+  position: relative;
+  display: flex; flex-direction: column; align-items: stretch; text-align: left;
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
+  padding: 16px 14px 14px;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.lv4-ob-plan.featured { border-color: var(--paprika); }
+.lv4-ob-plan.on {
+  border-color: var(--paprika);
+  box-shadow: 0 0 0 3px rgba(230,74,25,.15);
+}
+.lv4-ob-plan:hover { transform: translateY(-1px); }
+
+.lv4-ob-plan-stamp {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  background: var(--paprika); color: var(--cream);
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+.lv4-ob-plan-name {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+.lv4-ob-plan-tagline {
+  font-family: var(--serif); font-style: italic;
+  font-size: 13px; color: var(--ink); margin-bottom: 8px;
+  line-height: 1.2;
+}
+.lv4-ob-plan-price {
+  display: flex; align-items: baseline; gap: 2px; margin-bottom: 4px;
+}
+.lv4-ob-plan-price .num {
+  font-family: var(--display, var(--serif));
+  font-size: 32px; font-weight: 600; color: var(--ink); line-height: 1;
+}
+.lv4-ob-plan-price .cur {
+  font-family: var(--display, var(--serif));
+  font-size: 16px; font-weight: 600; color: var(--ink);
+}
+.lv4-ob-plan-price .per {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-soft);
+  letter-spacing: 0.06em; margin-left: 4px;
+}
+.lv4-ob-plan-note {
+  font-size: 11px; color: var(--ink-soft); line-height: 1.3;
+}
+
+.lv4-ob-addons {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.lv4-ob-addon {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--cream);
+  border: 1px solid rgba(26,20,16,.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.lv4-ob-addon:hover { border-color: rgba(26,20,16,.36); }
+.lv4-ob-addon.on {
+  border-color: var(--paprika);
+  background: rgba(230,74,25,.04);
+}
+.lv4-ob-addon-icon {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(230,74,25,.12); color: var(--paprika);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.lv4-ob-addon-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.lv4-ob-addon-name {
+  font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--ink);
+}
+.lv4-ob-addon-desc {
+  font-size: 11px; color: var(--ink-soft);
+}
+.lv4-ob-addon-price {
+  flex: 0 0 auto;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  color: var(--paprika);
+}
+.lv4-ob-addon input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px; height: 18px;
+  accent-color: var(--paprika);
+}
+
+@media (max-width: 700px) {
+  .lv4-ob-plans { grid-template-columns: 1fr; }
+}

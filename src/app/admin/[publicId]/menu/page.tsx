@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -30,8 +30,18 @@ import {
   Layers,
   UtensilsCrossed,
   Info,
+  Search,
+  SearchX,
 } from "lucide-react";
 import { ProductFormSheet } from "@/components/admin/product-form-sheet";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Category, Product, SharedModifierGroup, SharedModifier } from "@/lib/types";
 
 interface SharedGroupWithModifiers extends SharedModifierGroup {
@@ -247,6 +257,8 @@ export default function MenuManagementPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [categoryIcon, setCategoryIcon] = useState<string | null>(null);
+  const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
+  const [uploadingCategoryImage, setUploadingCategoryImage] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
 
   // Category delete confirmation
@@ -256,6 +268,13 @@ export default function MenuManagementPage() {
   // Tabs
   type MenuTab = "articles" | "sections";
   const [activeTab, setActiveTab] = useState<MenuTab>("articles");
+
+  // Articles filter (search + category dropdown + availability)
+  const [search, setSearch] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
+  type AvailabilityFilter = "all" | "available" | "unavailable";
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<AvailabilityFilter>("all");
 
   // Shared sections
   const [sharedGroups, setSharedGroups] = useState<SharedGroupWithModifiers[]>([]);
@@ -656,6 +675,7 @@ export default function MenuManagementPage() {
     setEditingCategory(null);
     setCategoryName("");
     setCategoryIcon(null);
+    setCategoryImageUrl(null);
     setCategoryDialogOpen(true);
   };
 
@@ -663,7 +683,91 @@ export default function MenuManagementPage() {
     setEditingCategory(cat);
     setCategoryName(cat.name);
     setCategoryIcon(cat.icon);
+    setCategoryImageUrl(cat.image_url);
     setCategoryDialogOpen(true);
+  };
+
+  const uploadCategoryImage = async (file: File) => {
+    if (!editingCategory || !restaurantId) {
+      toast.error("Enregistrez d'abord la catégorie pour ajouter une image");
+      return;
+    }
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Format accepté : JPG, PNG ou WebP");
+      return;
+    }
+    const MAX_SIZE = 3 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("Image trop lourde (max 3 Mo)");
+      return;
+    }
+
+    setUploadingCategoryImage(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "jpg";
+    const filePath = `${restaurantId}/categories/${editingCategory.id}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(filePath, file, { contentType: file.type, upsert: true });
+
+    if (uploadError) {
+      toast.error(uploadError.message || "Erreur lors de l'upload");
+      setUploadingCategoryImage(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(filePath);
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const res = await fetch("/api/admin/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingCategory.id,
+        restaurant_id: restaurantId,
+        image_url: newUrl,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Erreur lors de l'enregistrement");
+      setUploadingCategoryImage(false);
+      return;
+    }
+    setCategoryImageUrl(newUrl);
+    setUploadingCategoryImage(false);
+    toast.success("Image ajoutée");
+    fetchMenu();
+  };
+
+  const removeCategoryImage = async () => {
+    if (!editingCategory || !restaurantId) return;
+    const supabase = createClient();
+    if (categoryImageUrl) {
+      const pathMatch = categoryImageUrl.split("/product-images/")[1]?.split("?")[0];
+      if (pathMatch) {
+        await supabase.storage.from("product-images").remove([pathMatch]);
+      }
+    }
+    const res = await fetch("/api/admin/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingCategory.id,
+        restaurant_id: restaurantId,
+        image_url: null,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setCategoryImageUrl(null);
+    toast.success("Image supprimée");
+    fetchMenu();
   };
 
   const saveCategory = async () => {
@@ -745,6 +849,52 @@ export default function MenuManagementPage() {
     fetchMenu();
   };
 
+  // ─── Derived data — must run before any early return to keep hook order stable ───
+  const totalProducts = categories.reduce((sum, c) => sum + (c.products?.length ?? 0), 0);
+  const filterActive =
+    search.trim() !== "" ||
+    filterCategoryId !== "all" ||
+    availabilityFilter !== "all";
+  const visibleCategories = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return categories
+      .filter((c) => filterCategoryId === "all" || c.id === filterCategoryId)
+      .map((c) => ({
+        ...c,
+        products: (c.products ?? []).filter((p) => {
+          if (
+            availabilityFilter === "available" && !p.is_available
+          )
+            return false;
+          if (
+            availabilityFilter === "unavailable" && p.is_available
+          )
+            return false;
+          if (q) {
+            return (
+              p.name.toLowerCase().includes(q) ||
+              (p.description ?? "").toLowerCase().includes(q)
+            );
+          }
+          return true;
+        }),
+      }))
+      .filter(
+        (c) =>
+          (!q && availabilityFilter === "all") ||
+          (c.products?.length ?? 0) > 0,
+      );
+  }, [categories, search, filterCategoryId, availabilityFilter]);
+  const filteredProductCount = visibleCategories.reduce(
+    (sum, c) => sum + (c.products?.length ?? 0),
+    0,
+  );
+  const resetFilters = () => {
+    setSearch("");
+    setFilterCategoryId("all");
+    setAvailabilityFilter("all");
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -754,93 +904,224 @@ export default function MenuManagementPage() {
   }
 
   return (
-    <div className="px-4 py-4 md:px-6">
+    <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-2xl">
-        {/* Tab navigation */}
-        <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
-          <button
-            onClick={() => setActiveTab("articles")}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === "articles"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <UtensilsCrossed className="mr-1.5 inline h-3.5 w-3.5" />
-            Articles
-          </button>
-          <button
-            onClick={() => setActiveTab("sections")}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === "sections"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Layers className="mr-1.5 inline h-3.5 w-3.5" />
-            Sections partagées
-          </button>
-        </div>
+        <AdminPageHeader
+          kicker="Carte"
+          icon={UtensilsCrossed}
+          title={activeTab === "articles" ? "Articles" : "Sections partagées"}
+          subtitle={
+            activeTab === "articles"
+              ? `${categories.length} catégorie${categories.length > 1 ? "s" : ""} · ${totalProducts} produit${totalProducts > 1 ? "s" : ""}`
+              : "Groupes d'options réutilisables, attachables à plusieurs articles."
+          }
+          actions={
+            activeTab === "articles" ? (
+              <Button variant="outline" size="sm" onClick={openNewCategory}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Catégorie
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={addSharedGroup}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Section
+              </Button>
+            )
+          }
+        >
+          {/* In-page tab toggle (lighter than the old top bar). */}
+          <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("articles")}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                activeTab === "articles"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <UtensilsCrossed className="h-3.5 w-3.5" />
+              Articles
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("sections")}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                activeTab === "sections"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Sections partagées
+            </button>
+          </div>
+        </AdminPageHeader>
 
         {/* === Articles tab === */}
         {activeTab === "articles" && (
           <>
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Articles</h2>
-            <Button variant="outline" size="sm" onClick={openNewCategory}>
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              Catégorie
-            </Button>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Organisez votre carte en catégories (ex: Plats, Boissons, Desserts) puis ajoutez vos produits dans chacune d&apos;elles.
-          </p>
-        </div>
-
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={categories.map((c) => c.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-8">
-              {categories.map((category) => (
-                <SortableCategorySection
-                  key={category.id}
-                  category={category}
-                  restaurantId={restaurantId!}
-                  onToggleVisibility={toggleCategoryVisibility}
-                  onEdit={openEditCategory}
-                  onDelete={confirmDeleteCategory}
-                  onAddProduct={openNewProduct}
-                  onEditProduct={openEditProduct}
-                  onToggleProductAvailability={toggleAvailability}
-                />
-              ))}
-
-              {categories.length === 0 && (
-                <div className="py-12 text-center">
-                  <UtensilsCrossed className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-                  <p className="mb-1 text-sm font-medium text-foreground">
-                    Commencez par créer une catégorie
-                  </p>
-                  <p className="mx-auto mb-4 max-w-xs text-xs text-muted-foreground">
-                    Les catégories permettent d&apos;organiser votre carte : Plats, Boissons, Desserts... Vous pourrez ensuite y ajouter vos produits.
-                  </p>
-                  <Button variant="outline" onClick={openNewCategory}>
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    Créer ma première catégorie
-                  </Button>
+            {categories.length > 0 && (
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher un article…"
+                    className="h-10 pl-9 pr-9"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      aria-label="Effacer la recherche"
+                      className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+                <Select
+                  value={filterCategoryId}
+                  onValueChange={(v) => setFilterCategoryId(v)}
+                >
+                  <SelectTrigger className="h-10 sm:w-56" aria-label="Filtrer par catégorie">
+                    <SelectValue placeholder="Toutes les catégories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les catégories</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.products?.length ?? 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
+            {categories.length > 0 && (
+              <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+                {(
+                  [
+                    { key: "all", label: "Tous" },
+                    { key: "available", label: "Disponibles" },
+                    { key: "unavailable", label: "Non disponibles" },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setAvailabilityFilter(key)}
+                    className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                      availabilityFilter === key
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {filterActive && categories.length > 0 && (
+              <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  {filteredProductCount} produit{filteredProductCount > 1 ? "s" : ""} ·{" "}
+                  {visibleCategories.length} catégorie{visibleCategories.length > 1 ? "s" : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            )}
+
+            {filterActive ? (
+              // No DnD when filtering — reordering a filtered subset would corrupt sort_order.
+              <div className="space-y-8">
+                {visibleCategories.map((category) => (
+                  <SortableCategorySection
+                    key={category.id}
+                    category={category}
+                    restaurantId={restaurantId!}
+                    onToggleVisibility={toggleCategoryVisibility}
+                    onEdit={openEditCategory}
+                    onDelete={confirmDeleteCategory}
+                    onAddProduct={openNewProduct}
+                    onEditProduct={openEditProduct}
+                    onToggleProductAvailability={toggleAvailability}
+                  />
+                ))}
+
+                {visibleCategories.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <SearchX className="h-5 w-5" />
+                    </div>
+                    <p className="mb-1 text-sm font-medium text-foreground">
+                      Aucun article ne correspond
+                    </p>
+                    <p className="mx-auto mb-4 max-w-xs text-xs text-muted-foreground">
+                      {search.trim()
+                        ? `Aucun résultat pour « ${search.trim()} »`
+                        : "Aucun article dans cette catégorie."}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
+                      Réinitialiser les filtres
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={categories.map((c) => c.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-8">
+                    {categories.map((category) => (
+                      <SortableCategorySection
+                        key={category.id}
+                        category={category}
+                        restaurantId={restaurantId!}
+                        onToggleVisibility={toggleCategoryVisibility}
+                        onEdit={openEditCategory}
+                        onDelete={confirmDeleteCategory}
+                        onAddProduct={openNewProduct}
+                        onEditProduct={openEditProduct}
+                        onToggleProductAvailability={toggleAvailability}
+                      />
+                    ))}
+
+                    {categories.length === 0 && (
+                      <div className="py-12 text-center">
+                        <UtensilsCrossed className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+                        <p className="mb-1 text-sm font-medium text-foreground">
+                          Commencez par créer une catégorie
+                        </p>
+                        <p className="mx-auto mb-4 max-w-xs text-xs text-muted-foreground">
+                          Les catégories permettent d&apos;organiser votre carte : Plats, Boissons, Desserts... Vous pourrez ensuite y ajouter vos produits.
+                        </p>
+                        <Button variant="outline" onClick={openNewCategory}>
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          Créer ma première catégorie
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </>
         )}
 
@@ -848,14 +1129,7 @@ export default function MenuManagementPage() {
         {activeTab === "sections" && (
           <>
             <div className="mb-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Sections partagées</h2>
-                <Button variant="outline" size="sm" onClick={addSharedGroup}>
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  Section
-                </Button>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Les sections sont des groupes d&apos;options réutilisables que vous pouvez attacher à plusieurs articles.
               </p>
             </div>
@@ -1177,6 +1451,58 @@ export default function MenuManagementPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Illustration</Label>
+              <p className="text-xs text-muted-foreground">
+                Utilisée pour le pavé de catégorie en mise en page « Grille ». JPG, PNG ou WebP, max 3 Mo.
+              </p>
+              {editingCategory ? (
+                <div className="relative inline-block pt-1">
+                  <label className="relative flex h-24 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted">
+                    {uploadingCategoryImage ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    ) : categoryImageUrl ? (
+                      <Image
+                        src={categoryImageUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="128px"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-5 w-5" />
+                        <span className="text-[10px] font-medium">Ajouter</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadCategoryImage(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {categoryImageUrl && (
+                    <button
+                      type="button"
+                      onClick={removeCategoryImage}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-foreground"
+                      aria-label="Retirer l'image"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  Créez la catégorie d&apos;abord, puis rouvrez-la pour ajouter une image.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

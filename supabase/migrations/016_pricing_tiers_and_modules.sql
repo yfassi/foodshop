@@ -2,7 +2,7 @@
 -- 016 - PRICING TIERS ALIGNMENT + NEW MODULES
 -- ============================================
 -- Aligns subscription_tier values with new pricing (plat / menu / carte),
--- adds module flags (stock, paiement fractionné), API keys table, floor plan,
+-- adds module flags (stock), API keys table, floor plan,
 -- and a restaurant_admins pivot for future multi-restaurant ownership.
 -- ============================================
 
@@ -33,7 +33,6 @@ ALTER TABLE public.restaurants
 ALTER TABLE public.restaurants
   ADD COLUMN IF NOT EXISTS stock_module_active BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS stock_enabled BOOLEAN NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS split_payment_enabled BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS floor_plan JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- floor_plan shape (Le Menu+):

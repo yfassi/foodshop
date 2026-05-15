@@ -6,13 +6,35 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatPrice } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import type { Restaurant } from "@/lib/types";
+import type { Restaurant, SubscriptionTier } from "@/lib/types";
+import {
+  getTierLabel,
+  getTierPrice,
+  normalizeTier,
+  TIER_ORDER,
+} from "@/lib/subscription";
 import {
   ArrowLeft,
   ExternalLink,
-  MapPin,
-  Phone,
   Mail,
   ShoppingBag,
   DollarSign,
@@ -21,11 +43,17 @@ import {
   Layers,
   Package,
   Clock,
-  CreditCard,
   Store,
   FileCheck,
   FileX,
   FileText,
+  Save,
+  Loader2,
+  KeyRound,
+  Pencil,
+  UserPlus,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 interface RestaurantDetail extends Restaurant {
@@ -50,6 +78,52 @@ const DAY_LABELS: Record<string, string> = {
   sunday: "Dimanche",
 };
 
+interface FormState {
+  name: string;
+  slug: string;
+  description: string;
+  address: string;
+  phone: string;
+  restaurant_type: string;
+  siret: string;
+  subscription_tier: SubscriptionTier;
+  is_active: boolean;
+  is_accepting_orders: boolean;
+  loyalty_enabled: boolean;
+  stock_module_active: boolean;
+  stock_enabled: boolean;
+  delivery_addon_active: boolean;
+  delivery_enabled: boolean;
+}
+
+function toForm(r: RestaurantDetail): FormState {
+  return {
+    name: r.name ?? "",
+    slug: r.slug ?? "",
+    description: r.description ?? "",
+    address: r.address ?? "",
+    phone: r.phone ?? "",
+    restaurant_type: r.restaurant_type ?? "",
+    siret: r.siret ?? "",
+    subscription_tier: normalizeTier(r.subscription_tier),
+    is_active: r.is_active,
+    is_accepting_orders: r.is_accepting_orders,
+    loyalty_enabled: r.loyalty_enabled,
+    stock_module_active: r.stock_module_active,
+    stock_enabled: r.stock_enabled,
+    delivery_addon_active: r.delivery_addon_active,
+    delivery_enabled: r.delivery_enabled,
+  };
+}
+
+function diff(a: FormState, b: FormState): Partial<FormState> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(a) as (keyof FormState)[]) {
+    if (a[k] !== b[k]) out[k] = b[k];
+  }
+  return out;
+}
+
 function MetricCard({
   icon: Icon,
   label,
@@ -72,39 +146,82 @@ function MetricCard({
 
 function Section({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        )}
+      </div>
       {children}
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <div className="flex items-start justify-between gap-2 py-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-medium">{value || "—"}</span>
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        {description && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
+
+type OwnerDialogMode =
+  | { kind: "closed" }
+  | { kind: "create" }
+  | { kind: "edit-email" }
+  | { kind: "reset-password" };
 
 export default function SuperAdminRestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [restaurant, setRestaurant] = useState<RestaurantDetail | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [ownerDialog, setOwnerDialog] = useState<OwnerDialogMode>({
+    kind: "closed",
+  });
+  const [ownerEmailInput, setOwnerEmailInput] = useState("");
+  const [ownerPasswordInput, setOwnerPasswordInput] = useState("");
+  const [ownerSubmitting, setOwnerSubmitting] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const fetchRestaurant = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/super-admin/restaurants/${id}`);
     if (res.ok) {
-      setRestaurant(await res.json());
+      const data: RestaurantDetail = await res.json();
+      setRestaurant(data);
+      setForm(toForm(data));
     }
     setLoading(false);
   }, [id]);
@@ -113,10 +230,18 @@ export default function SuperAdminRestaurantDetailPage() {
     fetchRestaurant();
   }, [fetchRestaurant]);
 
+  const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((f) => (f ? { ...f, [key]: value } : f));
+  };
+
   const updateVerification = async (verification_status: string) => {
     if (!restaurant) return;
     const prev = restaurant.verification_status;
-    setRestaurant({ ...restaurant, verification_status: verification_status as Restaurant["verification_status"] });
+    setRestaurant({
+      ...restaurant,
+      verification_status:
+        verification_status as Restaurant["verification_status"],
+    });
 
     const res = await fetch("/api/super-admin/restaurants", {
       method: "PATCH",
@@ -136,22 +261,113 @@ export default function SuperAdminRestaurantDetailPage() {
     }
   };
 
-  const toggleActive = async (is_active: boolean) => {
-    if (!restaurant) return;
-    setRestaurant({ ...restaurant, is_active });
+  const openOwnerDialog = (mode: OwnerDialogMode) => {
+    setOwnerEmailInput(
+      mode.kind === "edit-email" ? restaurant?.owner_email ?? "" : ""
+    );
+    setOwnerPasswordInput("");
+    setOwnerDialog(mode);
+  };
 
-    const res = await fetch("/api/super-admin/restaurants", {
-      method: "PATCH",
+  const closeOwnerDialog = () => {
+    if (ownerSubmitting) return;
+    setOwnerDialog({ kind: "closed" });
+    setOwnerEmailInput("");
+    setOwnerPasswordInput("");
+  };
+
+  const submitOwnerDialog = async () => {
+    if (!restaurant || ownerDialog.kind === "closed") return;
+
+    const url = `/api/super-admin/restaurants/${restaurant.id}/owner`;
+    let method: "POST" | "PATCH" = "PATCH";
+    let payload: Record<string, string> = {};
+
+    if (ownerDialog.kind === "create") {
+      method = "POST";
+      payload = { email: ownerEmailInput, password: ownerPasswordInput };
+    } else if (ownerDialog.kind === "edit-email") {
+      payload = { email: ownerEmailInput };
+    } else if (ownerDialog.kind === "reset-password") {
+      payload = { password: ownerPasswordInput };
+    }
+
+    setOwnerSubmitting(true);
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: restaurant.id, is_active }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
-      setRestaurant({ ...restaurant, is_active: !is_active });
-      toast.error("Erreur lors de la mise a jour");
-    } else {
-      toast.success(is_active ? "Restaurant active" : "Restaurant desactive");
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Erreur");
+      setOwnerSubmitting(false);
+      return;
     }
+
+    toast.success(
+      ownerDialog.kind === "create"
+        ? "Acces cree"
+        : ownerDialog.kind === "edit-email"
+          ? "Email mis a jour"
+          : "Mot de passe mis a jour"
+    );
+    setOwnerDialog({ kind: "closed" });
+    setOwnerEmailInput("");
+    setOwnerPasswordInput("");
+    setOwnerSubmitting(false);
+    await fetchRestaurant();
+  };
+
+  const submitDelete = async () => {
+    if (!restaurant) return;
+    if (deleteConfirm.trim() !== restaurant.name.trim()) {
+      toast.error("Le nom ne correspond pas");
+      return;
+    }
+    setDeleting(true);
+    const res = await fetch(
+      `/api/super-admin/restaurants/${restaurant.id}?confirm=${encodeURIComponent(restaurant.name)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Erreur lors de la suppression");
+      setDeleting(false);
+      return;
+    }
+    toast.success("Restaurant supprime");
+    router.push("/super-admin/restaurants");
+  };
+
+  const handleSave = async () => {
+    if (!restaurant || !form) return;
+    const original = toForm(restaurant);
+    const changes = diff(original, form);
+
+    if (Object.keys(changes).length === 0) {
+      toast.info("Aucune modification a enregistrer");
+      return;
+    }
+
+    setSaving(true);
+    const res = await fetch("/api/super-admin/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: restaurant.id, ...changes }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Erreur lors de la sauvegarde");
+      setSaving(false);
+      return;
+    }
+
+    toast.success("Modifications enregistrees");
+    await fetchRestaurant();
+    setSaving(false);
   };
 
   if (loading) {
@@ -162,7 +378,7 @@ export default function SuperAdminRestaurantDetailPage() {
     );
   }
 
-  if (!restaurant) {
+  if (!restaurant || !form) {
     return (
       <div className="px-4 py-6 md:px-6">
         <div className="mx-auto max-w-4xl">
@@ -180,18 +396,10 @@ export default function SuperAdminRestaurantDetailPage() {
     );
   }
 
-  const orderTypeLabels: Record<string, string> = {
-    dine_in: "Sur place",
-    takeaway: "A emporter",
-  };
-
-  const paymentLabels: Record<string, string> = {
-    online: "En ligne",
-    on_site: "Sur place",
-  };
+  const dirty = Object.keys(diff(toForm(restaurant), form)).length > 0;
 
   return (
-    <div className="px-4 py-6 md:px-6">
+    <div className="px-4 py-6 pb-32 md:px-6">
       <div className="mx-auto max-w-4xl space-y-4">
         {/* Back */}
         <button
@@ -219,15 +427,7 @@ export default function SuperAdminRestaurantDetailPage() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="truncate text-lg font-bold">
-                  {restaurant.name}
-                </h2>
-                <Switch
-                  checked={restaurant.is_active}
-                  onCheckedChange={toggleActive}
-                />
-              </div>
+              <h2 className="truncate text-lg font-bold">{restaurant.name}</h2>
               <a
                 href={`/restaurant/${restaurant.public_id}/order`}
                 target="_blank"
@@ -237,21 +437,16 @@ export default function SuperAdminRestaurantDetailPage() {
                 /restaurant/{restaurant.public_id}/order
                 <ExternalLink className="h-3 w-3" />
               </a>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                    restaurant.is_active
+                    form.is_active
                       ? "bg-emerald-50 text-emerald-700"
                       : "bg-red-50 text-red-700"
                   }`}
                 >
-                  {restaurant.is_active ? "Actif" : "Inactif"}
+                  {form.is_active ? "Actif" : "Inactif"}
                 </span>
-                {restaurant.is_accepting_orders && (
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                    Accepte les commandes
-                  </span>
-                )}
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                     restaurant.verification_status === "verified"
@@ -266,6 +461,10 @@ export default function SuperAdminRestaurantDetailPage() {
                     : restaurant.verification_status === "rejected"
                       ? "Refuse"
                       : "En attente de verification"}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                  {getTierLabel(form.subscription_tier)} —{" "}
+                  {getTierPrice(form.subscription_tier)}€/mois
                 </span>
               </div>
             </div>
@@ -306,166 +505,292 @@ export default function SuperAdminRestaurantDetailPage() {
           />
         </div>
 
-        {/* Proprietaire */}
-        <Section title="Proprietaire">
-          <div className="space-y-1 divide-y divide-border">
-            <InfoRow
-              label="Email"
-              value={
-                restaurant.owner_email ? (
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {restaurant.owner_email}
-                  </span>
-                ) : (
-                  "—"
-                )
-              }
-            />
-            <InfoRow
-              label="Date d'inscription"
-              value={new Date(restaurant.created_at).toLocaleDateString(
-                "fr-FR",
-                { day: "numeric", month: "long", year: "numeric" }
-              )}
-            />
-          </div>
-        </Section>
-
         {/* Verification */}
-        <Section title="Verification">
+        <Section
+          title="Verification KBIS"
+          description="Validez l'inscription a la reception du KBIS du restaurateur."
+        >
           <div className="space-y-3">
-            <div className="space-y-1 divide-y divide-border">
-              <InfoRow
-                label="Statut"
-                value={
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                      restaurant.verification_status === "verified"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : restaurant.verification_status === "rejected"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-amber-50 text-amber-700"
-                    }`}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Document</p>
+                {restaurant.verification_document_url ? (
+                  <a
+                    href={restaurant.verification_document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
                   >
-                    {restaurant.verification_status === "verified"
-                      ? "Verifie"
-                      : restaurant.verification_status === "rejected"
-                        ? "Refuse"
-                        : "En attente"}
-                  </span>
-                }
-              />
-              <InfoRow
-                label="Document"
-                value={
-                  restaurant.verification_document_url ? (
-                    <a
-                      href={restaurant.verification_document_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      <FileText className="h-3 w-3" />
-                      Voir le document
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    "Aucun document"
-                  )
-                }
-              />
-            </div>
-
-            {restaurant.verification_status !== "verified" && (
+                    <FileText className="h-3.5 w-3.5" />
+                    Voir le document
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucun document fourni</p>
+                )}
+              </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => updateVerification("verified")}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                >
-                  <FileCheck className="h-4 w-4" />
-                  Valider
-                </button>
+                {restaurant.verification_status !== "verified" && (
+                  <button
+                    onClick={() => updateVerification("verified")}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    Valider
+                  </button>
+                )}
                 {restaurant.verification_status !== "rejected" && (
                   <button
                     onClick={() => updateVerification("rejected")}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                    className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
                   >
                     <FileX className="h-4 w-4" />
                     Refuser
                   </button>
                 )}
+                {restaurant.verification_status !== "pending" && (
+                  <button
+                    onClick={() => updateVerification("pending")}
+                    className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    Remettre en attente
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </Section>
 
-        {/* Infos restaurant */}
-        <Section title="Informations">
-          <div className="space-y-1 divide-y divide-border">
-            {restaurant.description && (
-              <InfoRow label="Description" value={restaurant.description} />
-            )}
-            <InfoRow
-              label="Adresse"
-              value={
-                restaurant.address ? (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {restaurant.address}
-                  </span>
-                ) : null
-              }
+        {/* Abonnement */}
+        <Section
+          title="Abonnement"
+          description="Plan en cours et options du restaurant."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="tier">Plan</Label>
+              <Select
+                value={form.subscription_tier}
+                onValueChange={(v) =>
+                  updateField("subscription_tier", v as SubscriptionTier)
+                }
+              >
+                <SelectTrigger id="tier" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIER_ORDER.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {getTierLabel(t)} — {getTierPrice(t)}€/mois
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col justify-end gap-1">
+              <p className="text-xs text-muted-foreground">Stripe Connect</p>
+              <p className="text-sm font-medium">
+                {restaurant.stripe_onboarding_complete
+                  ? "Configure"
+                  : "Non configure"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 divide-y divide-border">
+            <ToggleRow
+              label="Restaurant actif"
+              description="Visible et accessible par les clients."
+              checked={form.is_active}
+              onChange={(v) => updateField("is_active", v)}
             />
-            <InfoRow
-              label="Telephone"
-              value={
-                restaurant.phone ? (
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {restaurant.phone}
-                  </span>
-                ) : null
-              }
+            <ToggleRow
+              label="Accepte les commandes"
+              description="Active la prise de commandes pendant les heures d'ouverture."
+              checked={form.is_accepting_orders}
+              onChange={(v) => updateField("is_accepting_orders", v)}
             />
-            <InfoRow label="Type" value={restaurant.restaurant_type} />
-            <InfoRow label="SIRET" value={restaurant.siret} />
-            <InfoRow
-              label="Types de commande"
-              value={
-                restaurant.order_types
-                  ?.map((t) => orderTypeLabels[t] || t)
-                  .join(", ") || "—"
-              }
-            />
-            <InfoRow
-              label="Paiements acceptes"
-              value={
-                restaurant.accepted_payment_methods
-                  ?.map((m) => paymentLabels[m] || m)
-                  .join(", ") || "—"
-              }
-            />
-            <InfoRow
-              label="Stripe"
-              value={
-                <span className="flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  {restaurant.stripe_onboarding_complete
-                    ? "Configure"
-                    : "Non configure"}
-                </span>
-              }
-            />
-            <InfoRow
+            <ToggleRow
               label="Fidelite"
-              value={restaurant.loyalty_enabled ? "Active" : "Desactive"}
+              checked={form.loyalty_enabled}
+              onChange={(v) => updateField("loyalty_enabled", v)}
+            />
+            <ToggleRow
+              label="Module stock — souscrit"
+              checked={form.stock_module_active}
+              onChange={(v) => updateField("stock_module_active", v)}
+            />
+            <ToggleRow
+              label="Module stock — active"
+              checked={form.stock_enabled}
+              onChange={(v) => updateField("stock_enabled", v)}
+            />
+            <ToggleRow
+              label="Livraison — souscrit"
+              checked={form.delivery_addon_active}
+              onChange={(v) => updateField("delivery_addon_active", v)}
+            />
+            <ToggleRow
+              label="Livraison — activee"
+              checked={form.delivery_enabled}
+              onChange={(v) => updateField("delivery_enabled", v)}
             />
           </div>
         </Section>
 
-        {/* Horaires */}
-        <Section title="Horaires d'ouverture">
+        {/* Infos editables */}
+        <Section title="Informations">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label htmlFor="name">Nom du restaurant</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => updateField("name", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="slug">Slug (URL)</Label>
+              <Input
+                id="slug"
+                value={form.slug}
+                onChange={(e) => updateField("slug", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Telephone</Label>
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="address">Adresse</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => updateField("address", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="restaurant_type">Type de cuisine</Label>
+              <Input
+                id="restaurant_type"
+                value={form.restaurant_type}
+                onChange={(e) =>
+                  updateField("restaurant_type", e.target.value)
+                }
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="siret">SIRET</Label>
+              <Input
+                id="siret"
+                value={form.siret}
+                onChange={(e) => updateField("siret", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="description">Description</Label>
+              <textarea
+                id="description"
+                value={form.description}
+                onChange={(e) => updateField("description", e.target.value)}
+                rows={3}
+                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 mt-1.5 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+              />
+            </div>
+          </div>
+        </Section>
+
+        {/* Acces / Proprietaire */}
+        <Section
+          title="Acces"
+          description="Email et mot de passe utilises par le restaurateur pour se connecter."
+        >
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Email</span>
+              <span className="text-right text-sm font-medium">
+                {restaurant.owner_email ? (
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {restaurant.owner_email}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Aucun acces</span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                Date d&apos;inscription
+              </span>
+              <span className="text-right text-sm font-medium">
+                {new Date(restaurant.created_at).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {restaurant.owner_email ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "edit-email" })}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Modifier l&apos;email
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "reset-password" })}
+                  >
+                    <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                    Reinitialiser le mot de passe
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openOwnerDialog({ kind: "create" })}
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                    Remplacer l&apos;acces
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => openOwnerDialog({ kind: "create" })}
+                >
+                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                  Creer un acces
+                </Button>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        {/* Horaires (read-only) */}
+        <Section
+          title="Horaires d'ouverture"
+          description="Le restaurateur les modifie depuis son espace admin."
+        >
           <div className="space-y-1 divide-y divide-border">
             {Object.entries(DAY_LABELS).map(([key, label]) => {
               const hours = restaurant.opening_hours?.[key];
@@ -473,17 +798,16 @@ export default function SuperAdminRestaurantDetailPage() {
               if (hours) {
                 if (Array.isArray(hours)) {
                   display = hours
-                    .map(
-                      (h: { open: string; close: string }) =>
-                        `${h.open} - ${h.close}`
-                    )
+                    .map((h) => `${h.open} - ${h.close}`)
                     .join(", ");
                 } else if (
                   typeof hours === "object" &&
+                  hours !== null &&
                   "open" in hours &&
                   "close" in hours
                 ) {
-                  display = `${(hours as { open: string; close: string }).open} - ${(hours as { open: string; close: string }).close}`;
+                  const single = hours as { open: string; close: string };
+                  display = `${single.open} - ${single.close}`;
                 }
               }
               return (
@@ -508,10 +832,204 @@ export default function SuperAdminRestaurantDetailPage() {
           target="_blank"
           className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card p-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          Ouvrir le dashboard admin
+          Ouvrir le dashboard admin de ce restaurant
           <ExternalLink className="h-4 w-4" />
         </Link>
+
+        {/* Danger zone */}
+        <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 dark:border-red-900/40 dark:bg-red-950/20">
+          <div className="mb-3 flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <div>
+              <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
+                Zone dangereuse
+              </h3>
+              <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">
+                La suppression est definitive. Toutes les commandes, categories,
+                produits et donnees liees seront effaces.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              setDeleteConfirm("");
+              setDeleteOpen(true);
+            }}
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Supprimer ce restaurant
+          </Button>
+        </div>
       </div>
+
+      {/* Owner dialog */}
+      <Dialog
+        open={ownerDialog.kind !== "closed"}
+        onOpenChange={(open) => {
+          if (!open) closeOwnerDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {ownerDialog.kind === "create"
+                ? restaurant.owner_email
+                  ? "Remplacer l'acces"
+                  : "Creer un acces"
+                : ownerDialog.kind === "edit-email"
+                  ? "Modifier l'email"
+                  : "Reinitialiser le mot de passe"}
+            </DialogTitle>
+            <DialogDescription>
+              {ownerDialog.kind === "create"
+                ? "Un nouvel utilisateur sera cree et associe comme proprietaire."
+                : ownerDialog.kind === "edit-email"
+                  ? "L'email de connexion sera mis a jour pour ce restaurant."
+                  : "Le mot de passe sera ecrase. Notez-le avant de fermer."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {(ownerDialog.kind === "create" ||
+              ownerDialog.kind === "edit-email") && (
+              <div>
+                <Label htmlFor="owner-email">Email</Label>
+                <Input
+                  id="owner-email"
+                  type="email"
+                  autoComplete="off"
+                  value={ownerEmailInput}
+                  onChange={(e) => setOwnerEmailInput(e.target.value)}
+                  placeholder="restaurateur@exemple.fr"
+                  className="mt-1.5"
+                />
+              </div>
+            )}
+            {(ownerDialog.kind === "create" ||
+              ownerDialog.kind === "reset-password") && (
+              <div>
+                <Label htmlFor="owner-password">Mot de passe</Label>
+                <Input
+                  id="owner-password"
+                  type="text"
+                  autoComplete="off"
+                  value={ownerPasswordInput}
+                  onChange={(e) => setOwnerPasswordInput(e.target.value)}
+                  placeholder="Au moins 8 caracteres"
+                  className="mt-1.5 font-mono"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Visible une fois — communiquez-le au restaurateur.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={closeOwnerDialog}
+              disabled={ownerSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button onClick={submitOwnerDialog} disabled={ownerSubmitting}>
+              {ownerSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Valider"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete dialog */}
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer ce restaurant ?</DialogTitle>
+            <DialogDescription>
+              Action irreversible. Toutes les donnees liees seront effacees
+              (commandes, produits, categories, fidelite, livraison, etc.).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="delete-confirm">
+              Tapez <span className="font-mono font-semibold">{restaurant.name}</span> pour confirmer
+            </Label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="mt-1.5"
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitDelete}
+              disabled={
+                deleting || deleteConfirm.trim() !== restaurant.name.trim()
+              }
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Supprimer definitivement
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sticky save bar */}
+      {dirty && (
+        <div className="fixed inset-x-0 bottom-16 z-40 px-4 md:bottom-6 md:left-auto md:right-6 md:max-w-md">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-lg">
+            <p className="text-sm font-medium">
+              Modifications non enregistrees
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setForm(toForm(restaurant))}
+                disabled={saving}
+              >
+                Annuler
+              </Button>
+              <Button onClick={handleSave} disabled={saving} size="sm">
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Save className="mr-1 h-4 w-4" />
+                    Enregistrer
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

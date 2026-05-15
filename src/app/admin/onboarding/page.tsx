@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { Suspense, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
@@ -19,7 +20,17 @@ import {
   FileCheck,
   Upload,
   FileText,
+  Bike,
+  Package,
 } from "lucide-react";
+import {
+  PLANS,
+  PLAN_ORDER,
+  ADDONS,
+  annualNote,
+  type AddonId,
+  type PlanId,
+} from "@/lib/plans";
 import {
   Dialog,
   DialogContent,
@@ -47,9 +58,11 @@ const ALL_STEPS = [
   { label: "Horaires" },
   { label: "Configuration" },
   { label: "Vérification" },
+  { label: "Plan" },
   { label: "Compte" },
 ];
-const ACCOUNT_STEP_INDEX = 5;
+const PLAN_STEP_INDEX = 5;
+const ACCOUNT_STEP_INDEX = 6;
 
 const ACCEPTED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
@@ -97,6 +110,16 @@ const DEFAULT_HOURS: HoursState = {
 /* ─── Component ─── */
 
 export default function OnboardingPage() {
+  // useSearchParams() inside the page requires a Suspense boundary so Next can
+  // statically prerender the shell while the search params resolve client-side.
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageInner />
+    </Suspense>
+  );
+}
+
+function OnboardingPageInner() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [animClass, setAnimClass] = useState("");
@@ -113,6 +136,8 @@ export default function OnboardingPage() {
     });
   }, []);
 
+  // Existing-session users (adding another restaurant) skip the Compte step
+  // but still pick a plan for the new resto.
   const STEPS = useMemo(
     () => (hasSession ? ALL_STEPS.slice(0, ACCOUNT_STEP_INDEX) : ALL_STEPS),
     [hasSession]
@@ -148,7 +173,20 @@ export default function OnboardingPage() {
   const [verificationDocName, setVerificationDocName] = useState("");
   const docInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Step 6 — Account
+  // Step 6 — Plan
+  const searchParams = useSearchParams();
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>(() => {
+    const planParam = searchParams?.get("plan") as PlanId | null;
+    return planParam && PLAN_ORDER.includes(planParam) ? planParam : "pro";
+  });
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">(
+    () =>
+      searchParams?.get("billing") === "annual" ? "annual" : "monthly",
+  );
+  const [livraisonAddon, setLivraisonAddon] = useState(false);
+  const [stockAddon, setStockAddon] = useState(false);
+
+  // Step 7 — Account
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -173,6 +211,8 @@ export default function OnboardingPage() {
         // owners adding another restaurant skip this requirement.
         return hasSession ? true : !!verificationDoc;
       case 5:
+        return PLAN_ORDER.includes(selectedPlan);
+      case 6:
         return (
           email.trim().length > 0 &&
           password.length >= 6 &&
@@ -223,6 +263,10 @@ export default function OnboardingPage() {
     if (cardEnabled) accepted_payment_methods.push("online");
 
     try {
+      const addons: AddonId[] = [];
+      if (livraisonAddon) addons.push("livraison");
+      if (stockAddon) addons.push("stock");
+
       const payload: Record<string, unknown> = {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -233,6 +277,9 @@ export default function OnboardingPage() {
         order_types,
         accepted_payment_methods,
         queue_enabled: queueEnabled,
+        subscription_tier: selectedPlan,
+        billing_period: billingPeriod,
+        addons,
       };
       if (!hasSession) {
         payload.email = email.trim();
@@ -295,9 +342,15 @@ export default function OnboardingPage() {
       };
       frame();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Erreur lors de la création"
-      );
+      const fullMessage =
+        err instanceof Error ? err.message : "Erreur lors de la création";
+      const [title, ...rest] = fullMessage.split(": ");
+      const description = rest.join(": ").trim();
+      toast.error(title || "Erreur lors de la création", {
+        description: description || undefined,
+        duration: 30000,
+        closeButton: true,
+      });
       setSubmitting(false);
     }
   };
@@ -1059,8 +1112,147 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ─── Step 6: Account ─── */}
+            {/* ─── Step 6: Plan ─── */}
             {step === 5 && (
+              <div className="lv4-ob-step-anim">
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-h-kicker">★ VOTRE FORMULE</div>
+                  <h2 className="lv4-ob-h">
+                    Choisissez votre <em>plan</em>.<span className="lv4-ob-h-dot" />
+                  </h2>
+                  <p className="lv4-ob-h-sub">
+                    Annulable à tout moment, 14 jours d&apos;essai sur le plan Pro.
+                  </p>
+                </div>
+
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-billing">
+                    <button
+                      type="button"
+                      className={`lv4-ob-billing-opt${billingPeriod === "monthly" ? " on" : ""}`}
+                      onClick={() => setBillingPeriod("monthly")}
+                    >
+                      Mensuel
+                    </button>
+                    <button
+                      type="button"
+                      className={`lv4-ob-billing-opt${billingPeriod === "annual" ? " on" : ""}`}
+                      onClick={() => setBillingPeriod("annual")}
+                    >
+                      Annuel · −2 mois
+                    </button>
+                  </div>
+                </div>
+
+                <div className="lv4-ob-section">
+                  <div className="lv4-ob-plans">
+                    {PLAN_ORDER.map((id) => {
+                      const plan = PLANS[id];
+                      const price =
+                        billingPeriod === "annual"
+                          ? plan.annualPrice
+                          : plan.monthlyPrice;
+                      const note =
+                        billingPeriod === "annual" ? annualNote(plan) : "";
+                      const isSelected = selectedPlan === id;
+                      const isGroup = id === "groupe";
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setSelectedPlan(id)}
+                          className={`lv4-ob-plan${isSelected ? " on" : ""}${
+                            plan.featured ? " featured" : ""
+                          }${isGroup ? " group" : ""}`}
+                        >
+                          {plan.featured && (
+                            <span className="lv4-ob-plan-stamp">★ POPULAIRE</span>
+                          )}
+                          <div className="lv4-ob-plan-name">{plan.name}</div>
+                          <div className="lv4-ob-plan-tagline">
+                            {plan.tagline}
+                          </div>
+                          <div className="lv4-ob-plan-price">
+                            <span className="num">{price}</span>
+                            <span className="cur">€</span>
+                            <span className="per">/ mois</span>
+                          </div>
+                          {note && (
+                            <div className="lv4-ob-plan-note">{note}</div>
+                          )}
+                          {isGroup && (
+                            <div className="lv4-ob-plan-note">
+                              Contactez-nous après création pour configurer votre
+                              groupe.
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="lv4-ob-section">
+                  <span className="lv4-ob-label">Modules complémentaires</span>
+                  <p className="lv4-ob-hint">
+                    Optionnel — activable ou désactivable à tout moment.
+                  </p>
+                  <div className="lv4-ob-addons">
+                    <label
+                      className={`lv4-ob-addon${livraisonAddon ? " on" : ""}`}
+                    >
+                      <span className="lv4-ob-addon-icon">
+                        <Bike className="h-4 w-4" />
+                      </span>
+                      <span className="lv4-ob-addon-body">
+                        <span className="lv4-ob-addon-name">
+                          Module {ADDONS.livraison.name}
+                        </span>
+                        <span className="lv4-ob-addon-desc">
+                          {ADDONS.livraison.description}
+                        </span>
+                      </span>
+                      <span className="lv4-ob-addon-price">
+                        +{ADDONS.livraison.monthlyPrice}€/mois
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={livraisonAddon}
+                        onChange={(e) => setLivraisonAddon(e.target.checked)}
+                      />
+                    </label>
+                    <label className={`lv4-ob-addon${stockAddon ? " on" : ""}`}>
+                      <span className="lv4-ob-addon-icon">
+                        <Package className="h-4 w-4" />
+                      </span>
+                      <span className="lv4-ob-addon-body">
+                        <span className="lv4-ob-addon-name">
+                          Module {ADDONS.stock.name}
+                        </span>
+                        <span className="lv4-ob-addon-desc">
+                          {ADDONS.stock.description}
+                        </span>
+                      </span>
+                      <span className="lv4-ob-addon-price">
+                        +{ADDONS.stock.monthlyPrice}€/mois
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={stockAddon}
+                        onChange={(e) => setStockAddon(e.target.checked)}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <p className="lv4-ob-hint-foot">
+                  ★ FACTURATION CONFIGURABLE DEPUIS LES RÉGLAGES APRÈS CRÉATION
+                </p>
+              </div>
+            )}
+
+            {/* ─── Step 7: Account ─── */}
+            {step === 6 && (
               <div className="lv4-ob-step-anim">
                 <div className="lv4-ob-section">
                   <div className="lv4-ob-h-kicker">★ DERNIÈRE ÉTAPE</div>

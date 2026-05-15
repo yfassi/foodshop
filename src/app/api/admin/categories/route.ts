@@ -24,7 +24,7 @@ async function verifyAccess(restaurantId: string) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, icon, restaurant_id, sort_order } = body;
+    const { name, icon, image_url, restaurant_id, sort_order } = body;
 
     if (!name || !restaurant_id) {
       return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
@@ -39,9 +39,18 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
+    const insertPayload: Record<string, unknown> = {
+      name,
+      icon: icon || null,
+      restaurant_id,
+      sort_order: sort_order ?? 0,
+    };
+    if (typeof image_url === "string" && image_url) {
+      insertPayload.image_url = image_url;
+    }
     const { data, error } = await supabase
       .from("categories")
-      .insert({ name, icon: icon || null, restaurant_id, sort_order: sort_order ?? 0 })
+      .insert(insertPayload)
       .select()
       .single();
 
@@ -59,7 +68,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, restaurant_id, name, icon, sort_order, is_visible } = body;
+    const { id, restaurant_id, name, icon, image_url, sort_order, is_visible } = body;
 
     if (!id || !restaurant_id) {
       return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
@@ -77,6 +86,7 @@ export async function PUT(request: Request) {
     const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name;
     if (icon !== undefined) updates.icon = icon;
+    if (image_url !== undefined) updates.image_url = image_url;
     if (sort_order !== undefined) updates.sort_order = sort_order;
     if (is_visible !== undefined) updates.is_visible = is_visible;
 

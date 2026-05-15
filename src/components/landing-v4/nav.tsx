@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 
-type ActiveLink = "produit" | "livraison" | "stock" | "tarifs" | "demo" | null;
+type ActiveLink = "produit" | "livraison" | "stock" | "tarifs" | null;
 
 export function LandingNav({ active = null }: { active?: ActiveLink }) {
   const [scrolled, setScrolled] = useState(false);
@@ -39,7 +39,6 @@ export function LandingNav({ active = null }: { active?: ActiveLink }) {
         <Link href="/livraison" className={active === "livraison" ? "active" : undefined}>Livraison</Link>
         <Link href="/stock" className={active === "stock" ? "active" : undefined}>Stock</Link>
         <Link href="/#pricing" className={active === "tarifs" ? "active" : undefined}>Tarifs</Link>
-        <Link href="/admin/chez-momo?demo=true" className={active === "demo" ? "active" : undefined}>Démo</Link>
       </nav>
       <div className="nav-cta">
         <Link href="/admin/login" className="btn-ghost">Se connecter</Link>
@@ -71,7 +70,6 @@ export function LandingNav({ active = null }: { active?: ActiveLink }) {
             <Link href="/livraison" onClick={close} className={active === "livraison" ? "active" : undefined}>Livraison</Link>
             <Link href="/stock" onClick={close} className={active === "stock" ? "active" : undefined}>Stock</Link>
             <Link href="/#pricing" onClick={close} className={active === "tarifs" ? "active" : undefined}>Tarifs</Link>
-            <Link href="/admin/chez-momo?demo=true" onClick={close} className={active === "demo" ? "active" : undefined}>Démo</Link>
             <hr />
             <Link href="/admin/login" onClick={close} className="nav-mobile-login">Se connecter</Link>
           </div>

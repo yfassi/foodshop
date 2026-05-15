@@ -48,16 +48,18 @@ export default async function RestaurantLayout({
   if (!restaurant) notFound();
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl bg-background shadow-sm lg:my-6 lg:rounded-2xl lg:border lg:border-border lg:shadow-lg lg:shadow-black/[0.03]">
-      <RestaurantHeader restaurant={restaurant} />
-      <ClosedBanner
-        isAcceptingOrders={restaurant.is_accepting_orders}
-        openingHours={restaurant.opening_hours as Record<string, unknown> | null}
-      />
-      <div className="pb-24">{children}</div>
-      <footer className="border-t border-border py-4 text-center text-[10px] text-muted-foreground/50">
-        Propulsé par TaapR — Tous droits réservés
-      </footer>
+    <div className="min-h-screen bg-[#F5EBDB]">
+      <div className="mx-auto min-h-screen max-w-3xl bg-[#F5EBDB] shadow-sm lg:my-6 lg:min-h-0 lg:rounded-2xl lg:border lg:border-[#E6D9C2] lg:shadow-lg lg:shadow-black/[0.04]">
+        <RestaurantHeader restaurant={restaurant} />
+        <ClosedBanner
+          isAcceptingOrders={restaurant.is_accepting_orders}
+          openingHours={restaurant.opening_hours as Record<string, unknown> | null}
+        />
+        <div className="pb-24">{children}</div>
+        <footer className="border-t border-[#E6D9C2] py-4 text-center text-[10px] text-[#a89e94]">
+          Propulsé par TaapR — Tous droits réservés
+        </footer>
+      </div>
     </div>
   );
 }

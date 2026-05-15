@@ -21,6 +21,7 @@ import {
   Moon,
   CalendarIcon,
   ChevronDown,
+  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -36,14 +37,14 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { TypographyH2, TypographyH3, TypographyH4, TypographyMuted } from "@/components/ui/typography";
+import { TypographyH3, TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { ExportCsvButton } from "@/components/admin/export-csv-button";
-import { canUseExportCsv } from "@/lib/subscription";
-import type { SubscriptionTier } from "@/lib/types";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { FeatureGate } from "@/components/upsell/feature-gate";
 
 /* ─── Period presets ─── */
 const PERIOD_PRESETS: { key: Period; label: string; group: "quick" | "relative" | "rolling" }[] = [
@@ -103,7 +104,6 @@ export default function DashboardPage() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantTier, setRestaurantTier] = useState<SubscriptionTier>("plat");
 
   // Effective date range
   const dateRange = useMemo(() => {
@@ -124,7 +124,7 @@ export default function DashboardPage() {
 
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id, subscription_tier")
+        .select("id")
         .eq("public_id", params.publicId)
         .single();
 
@@ -134,7 +134,6 @@ export default function DashboardPage() {
       }
 
       setRestaurantId(restaurant.id);
-      setRestaurantTier((restaurant.subscription_tier ?? "plat") as SubscriptionTier);
 
       const { data } = await supabase
         .from("orders")
@@ -323,19 +322,23 @@ export default function DashboardPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TypographyH2>Tableau de bord</TypographyH2>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {restaurantId && canUseExportCsv(restaurantTier) && (
-              <ExportCsvButton
-                restaurantId={restaurantId}
-                type="orders"
-                label="Exporter"
-              />
-            )}
-          {/* ─── Date filter ─── */}
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <AdminPageHeader
+          kicker="Pilotage"
+          icon={BarChart3}
+          title="Tableau de bord"
+          subtitle={`${getPeriodLabel(period, customRange)} · ${metrics.totalOrders} commandes · ${formatPrice(metrics.revenue)}`}
+          actions={
+            <>
+              {restaurantId && (
+                <FeatureGate feature="csvExport" fallback="modal-on-click">
+                  <ExportCsvButton
+                    restaurantId={restaurantId}
+                    type="orders"
+                    label="Exporter"
+                  />
+                </FeatureGate>
+              )}
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -426,8 +429,9 @@ export default function DashboardPage() {
               </div>
             </PopoverContent>
           </Popover>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* ─── Metric cards ─── */}
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

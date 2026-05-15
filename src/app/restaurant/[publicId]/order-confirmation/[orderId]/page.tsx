@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripeForDemo } from "@/lib/stripe/demo";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 import type { Order, Driver } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { OrderStatusTracker } from "./order-status-tracker";
@@ -40,6 +41,9 @@ export default async function OrderConfirmationPage({
           })
           .eq("id", order.id);
         order.paid = true;
+        // Fallback for a delayed Stripe webhook — idempotent, so no double print.
+        // Awaited (not fire-and-forget) since this RSC may freeze after the response.
+        await enqueueOrderPrintJobs(order.id);
       }
     } catch {
       // webhook fallback

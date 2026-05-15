@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 
 /**
  * Mark an on-site order as paid (counter / "Encaisser" action).
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
 
     // Fire-and-forget email (idempotent — won't double-send if already done)
     void sendOrderConfirmationEmail({ orderId: order_id });
+    // Fire-and-forget print jobs (idempotent)
+    void enqueueOrderPrintJobs(order_id);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

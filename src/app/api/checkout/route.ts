@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { stripeLive, stripeTest } from "@/lib/stripe/client";
+import { stripeLive, stripeTest, buildStatementDescriptorSuffix } from "@/lib/stripe/client";
 import { isDemoCustomerEmail, MISSING_TEST_KEYS_ERROR } from "@/lib/stripe/demo";
 import { isCurrentlyOpen } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/push";
 import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 import { formatPrice } from "@/lib/format";
 import { matchZone } from "@/lib/delivery";
 import type {
@@ -35,6 +36,8 @@ interface CheckoutBody {
   queue_session_id?: string;
   delivery_address?: DeliveryAddress;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function notifyAdmins(
   restaurantId: string,
@@ -91,6 +94,11 @@ export async function POST(request: Request) {
       queue_session_id,
       delivery_address,
     } = body;
+
+    const sanitizedEmail =
+      customer_email && EMAIL_RE.test(customer_email.trim())
+        ? customer_email.trim().toLowerCase().slice(0, 254)
+        : null;
 
     // Validate input
     if (!restaurant_public_id || !items?.length) {
@@ -159,7 +167,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select(
-        "id, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
+        "id, name, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
       )
       .eq("public_id", restaurant_public_id)
       .single();
@@ -442,9 +450,9 @@ export async function POST(request: Request) {
     // Build customer info
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
+    const recipientEmail = sanitizedEmail || customerEmail;
+    if (recipientEmail) customerInfo.email = recipientEmail;
     if (order_notes) customerInfo.notes = order_notes;
-    const resolvedEmail = (customer_email?.trim() || customerEmail || "").toLowerCase();
-    if (resolvedEmail) customerInfo.email = resolvedEmail;
 
     // Generate display order number
     const orderPrefix = payment_method === "on_site" ? "CPT" : "CB";
@@ -550,6 +558,8 @@ export async function POST(request: Request) {
         notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
         // Fire-and-forget customer confirmation email (idempotent)
         void sendOrderConfirmationEmail({ orderId: order.id });
+        // Fire-and-forget print jobs (idempotent)
+        void enqueueOrderPrintJobs(order.id);
         return NextResponse.json({ order_id: order.id });
       }
 
@@ -566,19 +576,26 @@ export async function POST(request: Request) {
         );
       }
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        request.headers.get("origin") ||
+        new URL(request.url).origin;
+
+      const restaurantName = restaurant.name as string;
+      const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
 
       const session = await stripeClient.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         locale: "fr",
+        ...(recipientEmail && { customer_email: recipientEmail }),
         line_items: [
           {
             price_data: {
               currency: "eur",
               product_data: {
-                name: `Commande ${displayOrderNumber} (complément)`,
-                description: `Total ${(totalPrice / 100).toFixed(2)} € - Solde déduit ${(walletAmount / 100).toFixed(2)} €`,
+                name: `Commande ${displayOrderNumber} chez ${restaurantName} (complément)`,
+                description: `Commande chez ${restaurantName} · Total ${(totalPrice / 100).toFixed(2)} € — Solde déduit ${(walletAmount / 100).toFixed(2)} €`,
               },
               unit_amount: remainder,
             },
@@ -589,9 +606,12 @@ export async function POST(request: Request) {
           ? {}
           : {
               payment_intent_data: {
+                description: `Commande chez ${restaurantName} · ${displayOrderNumber} (complément solde)`,
                 transfer_data: {
                   destination: restaurant.stripe_account_id!,
                 },
+                ...(recipientEmail && { receipt_email: recipientEmail }),
+                ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
               },
             }),
         metadata: {
@@ -660,25 +680,41 @@ export async function POST(request: Request) {
           .eq("status", "active");
       }
       notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
+      // Fire-and-forget customer confirmation email for on-site orders
+      void sendOrderConfirmationEmail({ orderId: order.id });
       return NextResponse.json({ order_id: order.id });
     }
 
     // If online payment, create Stripe Checkout Session
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.headers.get("origin") ||
+      new URL(request.url).origin;
 
-    const stripeLineItems = orderItems.map((item) => ({
-      price_data: {
-        currency: "eur",
-        product_data: {
-          name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
-          description:
-            item.modifiers.map((m) => m.modifier_name).join(", ") || undefined,
+    const restaurantName = restaurant.name as string;
+    const merchantPrefix = `Commande chez ${restaurantName}`;
+
+    const stripeLineItems = orderItems.map((item) => {
+      const modifiersText = item.modifiers
+        .map((m) => m.modifier_name)
+        .filter(Boolean)
+        .join(", ");
+      const description = modifiersText
+        ? `${merchantPrefix} · ${modifiersText}`
+        : merchantPrefix;
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: item.is_menu ? `${item.product_name} (Menu)` : item.product_name,
+            description,
+          },
+          unit_amount:
+            item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
         },
-        unit_amount:
-          item.unit_price + item.modifiers.reduce((s, m) => s + m.price_extra, 0),
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     if (deliveryFee > 0) {
       stripeLineItems.push({
@@ -686,7 +722,7 @@ export async function POST(request: Request) {
           currency: "eur",
           product_data: {
             name: "Frais de livraison",
-            description: undefined,
+            description: merchantPrefix,
           },
           unit_amount: deliveryFee,
         },
@@ -694,18 +730,24 @@ export async function POST(request: Request) {
       });
     }
 
+    const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
+
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
+      ...(recipientEmail && { customer_email: recipientEmail }),
       line_items: stripeLineItems,
       ...(isDemo
         ? {}
         : {
             payment_intent_data: {
+              description: `${merchantPrefix} · ${displayOrderNumber}`,
               transfer_data: {
                 destination: restaurant.stripe_account_id!,
               },
+              ...(recipientEmail && { receipt_email: recipientEmail }),
+              ...(statementSuffix && { statement_descriptor_suffix: statementSuffix }),
             },
           }),
       metadata: {

@@ -45,9 +45,9 @@ export async function GET(req: Request) {
   if (!resto || resto.owner_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "menu")) {
+  if (!tierAtLeast(resto.subscription_tier as SubscriptionTier, "pro")) {
     return NextResponse.json(
-      { error: "Export disponible dès Le Menu" },
+      { error: "Export disponible dès le plan Pro" },
       { status: 403 },
     );
   }
@@ -65,7 +65,10 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false })
       .limit(5000);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("Admin export orders error:", error);
+      return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    }
 
     type OrderRow = {
       id: string;
@@ -134,7 +137,10 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false })
     .limit(5000);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Admin export wallets error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 
   type WalletRow = {
     id: string;

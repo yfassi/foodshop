@@ -3,12 +3,47 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { BarChart3, Store, LogOut, Shield, FlaskConical } from "lucide-react";
+import {
+  BarChart3,
+  Store,
+  CreditCard,
+  Users,
+  LogOut,
+  Shield,
+  FlaskConical,
+} from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/super-admin", label: "Tableau de bord", icon: BarChart3 },
-  { href: "/super-admin/restaurants", label: "Restaurants", icon: Store },
-  { href: "/super-admin/demo-customers", label: "Démo", icon: FlaskConical },
+  {
+    href: "/super-admin",
+    label: "Tableau de bord",
+    shortLabel: "Stats",
+    icon: BarChart3,
+  },
+  {
+    href: "/super-admin/restaurants",
+    label: "Restaurants",
+    shortLabel: "Restos",
+    icon: Store,
+  },
+  {
+    href: "/super-admin/subscriptions",
+    label: "Abonnements",
+    shortLabel: "Plans",
+    icon: CreditCard,
+  },
+  {
+    href: "/super-admin/users",
+    label: "Utilisateurs",
+    shortLabel: "Users",
+    icon: Users,
+  },
+  {
+    href: "/super-admin/demo-customers",
+    label: "Démo",
+    shortLabel: "Démo",
+    icon: FlaskConical,
+  },
 ];
 
 export function SuperAdminNav({ email }: { email: string }) {
@@ -78,7 +113,7 @@ export function SuperAdminNav({ email }: { email: string }) {
             }`}
           >
             <item.icon className="h-5 w-5" />
-            {item.label}
+            <span className="truncate">{item.shortLabel}</span>
           </Link>
         ))}
       </nav>

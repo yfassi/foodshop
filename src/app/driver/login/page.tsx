@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Bike, Loader2 } from "lucide-react";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function DriverLoginPage() {
   const router = useRouter();
@@ -66,69 +66,90 @@ export default function DriverLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Bike className="h-6 w-6" />
-          </div>
-          <h1 className="text-xl font-bold">Espace livreur</h1>
-          <p className="text-sm text-muted-foreground">
-            {step === "phone"
-              ? "Connectez-vous avec votre numéro de téléphone"
-              : "Entrez le code reçu par SMS"}
-          </p>
+    <AuthShell
+      kicker="★ ESPACE LIVREUR"
+      title={
+        <>
+          {step === "phone" ? (
+            <>
+              Bonsoir, <em>connectez-vous.</em>
+              <span className="dot" />
+            </>
+          ) : (
+            <>
+              Code <em>SMS.</em>
+              <span className="dot" />
+            </>
+          )}
+        </>
+      }
+      subtitle={
+        step === "phone"
+          ? "Entrez votre numéro pour recevoir un code par SMS."
+          : "Entrez le code reçu sur votre téléphone."
+      }
+    >
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--paprika)]/10 text-[var(--paprika)]">
+          <Bike className="h-5 w-5" />
         </div>
-
-        {step === "phone" ? (
-          <form onSubmit={sendOtp} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Téléphone</Label>
-              <Input
-                type="tel"
-                placeholder="+33612345678"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Recevoir le code"
-              )}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={verifyOtp} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Code SMS</Label>
-              <Input
-                inputMode="numeric"
-                placeholder="123456"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Valider"
-              )}
-            </Button>
-            <button
-              type="button"
-              onClick={() => setStep("phone")}
-              className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
-            >
-              Changer de numéro
-            </button>
-          </form>
-        )}
+        <div className="font-[family-name:var(--font-dm-mono)] text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">
+          Connexion par SMS
+        </div>
       </div>
-    </div>
+
+      {step === "phone" ? (
+        <form onSubmit={sendOtp} className="space-y-4">
+          <div>
+            <Label htmlFor="phone">Téléphone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+33612345678"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoFocus
+              className="mt-1.5 h-12"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="auth-primary">
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>Recevoir le code <span className="arrow">→</span></>
+            )}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={verifyOtp} className="space-y-4">
+          <div>
+            <Label htmlFor="otp-code">Code SMS</Label>
+            <Input
+              id="otp-code"
+              inputMode="numeric"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              className="mt-1.5 h-12 text-center font-[family-name:var(--font-dm-mono)] tracking-[0.4em]"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="auth-primary">
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>Valider <span className="arrow">→</span></>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep("phone")}
+            className="auth-quiet"
+          >
+            Changer de numéro
+          </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

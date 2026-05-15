@@ -4,12 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { AnimatedBackground } from "@/components/animated-background";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -71,101 +70,80 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
-      <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 shadow-xl shadow-black/[0.04] backdrop-blur-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
-            T
-          </div>
-          <h1 className="text-xl font-bold tracking-tight">
-            Espace Restaurateur
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Connectez-vous à votre compte</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="contact@restaurant.fr"
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="password" className="text-sm font-medium">
-              Mot de passe
-            </Label>
-            <div className="relative mt-1.5">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-                className="h-12 pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-muted-foreground transition-colors active:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-xl font-semibold"
-          >
-            {loading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              "Connexion"
-            )}
-          </Button>
-        </form>
-
-        <button
-          type="button"
-          onClick={handleResetPassword}
-          disabled={loading || resetSent}
-          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-        >
-          {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
-        </button>
-
-        <p className="mt-4 text-center text-sm text-muted-foreground">
+    <AuthShell
+      kicker="★ ESPACE RESTAURATEUR"
+      title={
+        <>
+          Bonsoir, <em>connectez-vous.</em>
+          <span className="dot" />
+        </>
+      }
+      subtitle="Pilotez votre service depuis votre dashboard Taapr."
+      footer={
+        <>
           Pas encore de compte ?{" "}
-          <Link
-            href="/admin/signup"
-            className="font-medium text-primary hover:underline"
-          >
-            Créer mon restaurant
+          <Link href="/admin/signup" className="as-link">
+            Créer mon restaurant →
           </Link>
-        </p>
-
-        <div className="mt-4 border-t border-border pt-4">
-          <Link
-            href="/admin/chez-momo?demo=true"
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-accent text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/80"
-          >
-            Entrer en mode démo
-          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="contact@restaurant.fr"
+            required
+            className="mt-1.5 h-12"
+          />
         </div>
+
+        <div>
+          <Label htmlFor="password">Mot de passe</Label>
+          <div className="relative mt-1.5">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              className="h-12 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--ink-mute)] transition-colors hover:text-[var(--paprika)]"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" disabled={loading} className="auth-primary">
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Connexion <span className="arrow">→</span></>}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        onClick={handleResetPassword}
+        disabled={loading || resetSent}
+        className="auth-quiet mt-3"
+      >
+        {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+      </button>
+
+      <div className="auth-divider">
+        <Link href="/admin/chez-momo?demo=true" className="auth-secondary">
+          Entrer en mode démo
+        </Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }

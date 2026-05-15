@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Shield } from "lucide-react";
-import { AnimatedBackground } from "@/components/animated-background";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
@@ -67,68 +66,68 @@ export default function SuperAdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4">
-      <AnimatedBackground />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-xl font-bold">Super Admin</h1>
+    <AuthShell
+      kicker="★ SUPER ADMIN"
+      title={
+        <>
+          Accès <em>protégé.</em>
+          <span className="dot" />
+        </>
+      }
+      subtitle="Cette zone est réservée à l'équipe Taapr."
+    >
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--paprika)]/10 text-[var(--paprika)]">
+          <Shield className="h-5 w-5" />
+        </div>
+        <div className="font-[family-name:var(--font-dm-mono)] text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">
+          Authentification renforcée
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@taapr.fr"
+            required
+            className="mt-1.5 h-12"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@taapr.fr"
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
+        <div>
+          <Label htmlFor="password">Mot de passe</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="mt-1.5 h-12"
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="password" className="text-sm font-medium">
-              Mot de passe
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1.5 h-12"
-            />
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-xl font-semibold"
-          >
-            {loading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              "Connexion"
-            )}
-          </Button>
-        </form>
-
-        <button
-          type="button"
-          onClick={handleResetPassword}
-          disabled={loading || resetSent}
-          className="mt-3 flex h-11 w-full items-center justify-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-        >
-          {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+        <button type="submit" disabled={loading} className="auth-primary">
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>Connexion <span className="arrow">→</span></>
+          )}
         </button>
-      </div>
-    </div>
+      </form>
+
+      <button
+        type="button"
+        onClick={handleResetPassword}
+        disabled={loading || resetSent}
+        className="auth-quiet mt-3"
+      >
+        {resetSent ? "Lien envoyé, vérifiez vos emails" : "Mot de passe oublié ?"}
+      </button>
+    </AuthShell>
   );
 }

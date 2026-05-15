@@ -7,7 +7,9 @@ import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Wallet, FlaskConical } from "lucide-react";
+import { CreditCard, Banknote, Wallet, FlaskConical, Plus, Printer } from "lucide-react";
+import { AddItemsSheet } from "@/components/admin/counter-order/add-items-sheet";
+import { useParams } from "next/navigation";
 
 function DemoBadge({ size = "sm" }: { size?: "sm" | "lg" }) {
   return (
@@ -33,7 +35,15 @@ interface OrderCardProps {
 export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   const config = ORDER_STATUS_CONFIG[order.status];
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showAddItems, setShowAddItems] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const params = useParams<{ publicId: string }>();
+  const publicId = params?.publicId ?? "";
+
+  // Counter orders are flagged via the CPT- prefix on the display number;
+  // they're the only kind we let the operator append items to.
+  const isCounterOrder = (order.display_order_number ?? "").startsWith("CPT");
+  const canAddItems = order.status === "new" && isCounterOrder && publicId;
 
   useEffect(() => {
     if (!showStatusPicker) return;
@@ -76,6 +86,24 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
     }
   };
 
+  const printReceipt = async () => {
+    try {
+      const res = await fetch("/api/print/job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id, job_type: "receipt" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Erreur lors de l'impression");
+      } else {
+        toast.success("Reçu envoyé à l'impression");
+      }
+    } catch {
+      toast.error("Erreur lors de l'impression");
+    }
+  };
+
   const isUnpaidOnSite = !order.paid && order.payment_method === "on_site";
 
   const displayNumber =
@@ -99,11 +127,23 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
               </p>
               {order.is_demo && <DemoBadge size="lg" />}
             </div>
-            {orderTypeLabel && (
-              <span className="mt-1 inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {orderTypeLabel}
-              </span>
+            {order.customer_info?.name && (
+              <p className="mt-1 text-sm font-semibold text-foreground/80">
+                {order.customer_info.name}
+              </p>
             )}
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {orderTypeLabel && (
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {orderTypeLabel}
+                </span>
+              )}
+              {order.pager_number && (
+                <span className="rounded-md bg-foreground px-2 py-0.5 text-xs font-bold text-background">
+                  Bipper N°{order.pager_number}
+                </span>
+              )}
+            </div>
           </div>
           <div className="relative" ref={pickerRef}>
             <button onClick={() => setShowStatusPicker((v) => !v)} aria-label="Changer le statut">
@@ -135,14 +175,29 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
           </p>
         )}
 
-        {/* Items — big and prominent */}
+        {/* Items — big and prominent. Late additions get a green left
+            border + an "Ajouté" badge so the kitchen sees them as a delta. */}
         <div className="mb-4 space-y-2">
           {order.items.map((item, i) => (
-            <div key={i}>
-              <p className="text-lg font-bold">
-                {item.quantity}x {item.product_name}
+            <div
+              key={i}
+              className={
+                item.added_at
+                  ? "rounded-md border-l-4 border-emerald-500 bg-emerald-50 px-2 py-1.5"
+                  : ""
+              }
+            >
+              <p className="flex flex-wrap items-center gap-2 text-lg font-bold">
+                <span>
+                  {item.quantity}x {item.product_name}
+                </span>
                 {item.is_menu && (
-                  <span className="ml-1 text-sm font-semibold text-primary">(Menu)</span>
+                  <span className="text-sm font-semibold text-primary">(Menu)</span>
+                )}
+                {item.added_at && (
+                  <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Ajouté
+                  </span>
                 )}
               </p>
               {item.modifiers.length > 0 && (
@@ -191,9 +246,21 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
     <div className={`rounded-xl p-4 ${config.bgClass}`}>
       {/* Header */}
       <div className="mb-2 flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-2xl font-bold">{displayNumber}</p>
-          {order.is_demo && <DemoBadge />}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-2xl font-bold">{displayNumber}</p>
+            {order.is_demo && <DemoBadge />}
+          </div>
+          {order.customer_info?.name && (
+            <p className="mt-0.5 truncate text-sm font-medium text-foreground/80">
+              {order.customer_info.name}
+            </p>
+          )}
+          {order.pager_number && (
+            <span className="mt-1 inline-block rounded-md bg-foreground px-2 py-0.5 text-xs font-bold text-background">
+              Bipper N°{order.pager_number}
+            </span>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="relative" ref={pickerRef}>
@@ -258,7 +325,8 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         Total : {formatPrice(order.total_price)}
       </p>
 
-      {/* Action button */}
+      {/* Action buttons — Encaisser → primary; Étape suivante → primary;
+          Ajouter (counter, status=new) → secondary inline */}
       {isUnpaidOnSite ? (
         <Button
           onClick={markAsPaid}
@@ -267,15 +335,51 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         >
           Encaisser
         </Button>
-      ) : config.nextStatus ? (
-        <Button
-          onClick={() => updateStatus(config.nextStatus!)}
-          className="h-12 w-full rounded-xl font-semibold"
-          size="lg"
-        >
-          {config.nextLabel}
-        </Button>
-      ) : null}
+      ) : (
+        <div className="flex gap-2">
+          {config.nextStatus && (
+            <Button
+              onClick={() => updateStatus(config.nextStatus!)}
+              className="h-12 flex-1 rounded-xl font-semibold"
+              size="lg"
+            >
+              {config.nextLabel}
+            </Button>
+          )}
+          {canAddItems && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddItems(true)}
+              className="h-12 rounded-xl font-semibold"
+              size="lg"
+              title="Ajouter des articles à cette commande"
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Ajouter
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Print receipt — available regardless of payment status */}
+      <button
+        type="button"
+        onClick={printReceipt}
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Printer className="h-3.5 w-3.5" />
+        Imprimer le reçu
+      </button>
+
+      {showAddItems && (
+        <AddItemsSheet
+          open={showAddItems}
+          onClose={() => setShowAddItems(false)}
+          publicId={publicId}
+          order={order}
+        />
+      )}
     </div>
   );
 }

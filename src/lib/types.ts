@@ -3,7 +3,7 @@
 export type AcceptedPaymentMethod = "online" | "on_site";
 export type PaymentSource = "direct" | "wallet";
 export type OrderType = "dine_in" | "takeaway" | "delivery";
-export type SubscriptionTier = "plat" | "menu" | "carte";
+export type SubscriptionTier = "essentiel" | "pro" | "groupe";
 
 export type DeliveryStatus =
   | "pending"
@@ -113,6 +113,67 @@ export interface RestaurantAdmin {
   created_at: string;
 }
 
+// ============================================
+// PRINTING (cloud-pull thermal printers)
+// ============================================
+
+export type PrinterKind = "epson_sdp" | "star_cloudprnt" | "usb_thermal";
+
+// Client-facing shape: deliberately omits token_hash (server-only secret).
+// usb_vendor_id/usb_product_id are only set after a usb_thermal printer has
+// been paired through navigator.usb.requestDevice() — they let the cuisine
+// page filter navigator.usb.getDevices() to silently reconnect on reload.
+export interface Printer {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  kind: PrinterKind;
+  token_prefix: string;
+  auto_print_kitchen: boolean;
+  auto_print_receipt: boolean;
+  is_active: boolean;
+  last_seen_at: string | null;
+  usb_vendor_id: number | null;
+  usb_product_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrintJobType = "kitchen" | "receipt" | "test";
+export type PrintJobSource = "auto" | "manual";
+export type PrintJobStatus = "pending" | "printing" | "done" | "error";
+
+// payload_xml is set for Epson SDP / Star CloudPRNT jobs; payload_escpos is
+// set for USB jobs (base64-encoded BYTEA when round-tripped through PostgREST).
+// Exactly one is non-null at the DB level — enforced by the CHECK constraint
+// in migration 030.
+export interface PrintJob {
+  id: string;
+  restaurant_id: string;
+  printer_id: string;
+  order_id: string | null;
+  job_type: PrintJobType;
+  source: PrintJobSource;
+  status: PrintJobStatus;
+  payload_xml: string | null;
+  payload_escpos: string | null;
+  attempts: number;
+  error_message: string | null;
+  claimed_at: string | null;
+  printed_at: string | null;
+  created_at: string;
+}
+
+export interface RestaurantSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  twitter?: string;
+  youtube?: string;
+  linkedin?: string;
+  website?: string;
+}
+
 export interface Restaurant {
   id: string;
   public_id: string;
@@ -124,12 +185,15 @@ export interface Restaurant {
   logo_url: string | null;
   address: string | null;
   phone: string | null;
+  email: string | null;
+  social_links: RestaurantSocialLinks;
   opening_hours: Record<string, { open: string; close: string }[]>;
   is_accepting_orders: boolean;
   is_active: boolean;
   owner_id: string | null;
   stripe_account_id: string | null;
   stripe_onboarding_complete: boolean;
+  stripe_customer_id: string | null;
   accepted_payment_methods: AcceptedPaymentMethod[];
   order_types: OrderType[];
   loyalty_enabled: boolean;
@@ -146,11 +210,16 @@ export interface Restaurant {
   delivery_config: DeliveryConfig;
   stock_module_active: boolean;
   stock_enabled: boolean;
-  split_payment_enabled: boolean;
+  stock_config: StockConfig;
+  stock_stripe_subscription_id: string | null;
+  stock_subscription_status: string | null;
   floor_plan: FloorPlan;
+  menu_layout: MenuLayout;
   created_at: string;
   updated_at: string;
 }
+
+export type MenuLayout = "linear" | "category_grid";
 
 export type QueueTicketStatus = "waiting" | "active" | "completed" | "expired";
 
@@ -174,6 +243,7 @@ export interface Category {
   name: string;
   description: string | null;
   icon: string | null;
+  image_url: string | null;
   restaurant_id: string;
   sort_order: number;
   is_visible: boolean;
@@ -243,6 +313,13 @@ export interface OrderItem {
   line_total: number;
   is_menu?: boolean;
   menu_supplement?: number;
+  /**
+   * ISO timestamp set when an item is appended to a counter order after
+   * its initial creation (see PATCH /api/admin/orders/counter/[orderId]).
+   * Items missing this field were part of the original order. Kitchen-side
+   * uses this to surface late additions as a delta.
+   */
+  added_at?: string;
 }
 
 export interface Order {
@@ -273,6 +350,7 @@ export interface Order {
   delivered_at: string | null;
   delivery_tip: number;
   delivery_distance_m: number | null;
+  pager_number: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -346,6 +424,105 @@ export interface WalletTransaction {
   description: string | null;
   order_id: string | null;
   stripe_session_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+// ============================================
+// STOCK MODULE
+// ============================================
+
+export type IngredientUnit = "kg" | "g" | "l" | "ml" | "piece";
+
+export interface StockConfig {
+  default_low_threshold_pct?: number;
+  alert_hour_local?: number;
+  alert_push_enabled?: boolean;
+}
+
+export interface Supplier {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ingredient {
+  id: string;
+  restaurant_id: string;
+  supplier_id: string | null;
+  name: string;
+  category: string | null;
+  unit: IngredientUnit;
+  current_qty: number;
+  low_threshold: number;
+  cost_per_unit_cents: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Recipe {
+  id: string;
+  product_id: string;
+  restaurant_id: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeItem {
+  id: string;
+  recipe_id: string;
+  ingredient_id: string;
+  quantity: number;
+  created_at: string;
+}
+
+export type StockMovementReason =
+  | "scan_in"
+  | "order_consumption"
+  | "manual_adjust"
+  | "loss"
+  | "opening";
+
+export interface StockMovement {
+  id: string;
+  restaurant_id: string;
+  ingredient_id: string;
+  delta: number;
+  reason: StockMovementReason;
+  order_id: string | null;
+  delivery_scan_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type DeliveryScanStatus = "pending" | "validated" | "discarded";
+
+export interface ParsedScanLine {
+  name: string;
+  qty: number;
+  unit: IngredientUnit | null;
+  price_cents: number | null;
+  ingredient_id?: string | null;
+}
+
+export interface DeliveryScan {
+  id: string;
+  restaurant_id: string;
+  supplier_id: string | null;
+  image_url: string | null;
+  ocr_raw: string | null;
+  parsed_items: ParsedScanLine[];
+  status: DeliveryScanStatus;
+  total_cents: number | null;
+  scan_date: string;
+  validated_at: string | null;
   created_by: string | null;
   created_at: string;
 }

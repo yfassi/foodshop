@@ -3,6 +3,7 @@ import { stripeLive, stripeTest } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/push";
 import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
+import { enqueueOrderPrintJobs } from "@/lib/print/enqueue";
 import { formatPrice } from "@/lib/format";
 import Stripe from "stripe";
 
@@ -56,7 +57,24 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const sessionType = session.metadata?.type;
 
-    if (sessionType === "wallet_topup") {
+    if (sessionType === "stock_subscription") {
+      const restaurantId = session.metadata?.restaurant_id;
+      const subscriptionId =
+        typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription?.id;
+      if (restaurantId && subscriptionId) {
+        await supabase
+          .from("restaurants")
+          .update({
+            stock_module_active: true,
+            stock_enabled: true,
+            stock_stripe_subscription_id: subscriptionId,
+            stock_subscription_status: "active",
+          })
+          .eq("id", restaurantId);
+      }
+    } else if (sessionType === "wallet_topup") {
       // Handle wallet top-up
       const userId = session.metadata?.user_id;
       const restaurantId = session.metadata?.restaurant_id;
@@ -116,6 +134,25 @@ export async function POST(request: Request) {
             p_stripe_session_id: session.id,
             ...(description && { p_description: description }),
           });
+
+          // Look up the freshly-created transaction row by stripe_session_id
+          // (set inside credit_wallet_balance) so we can fire the receipt
+          // email idempotently. Failure to send must not fail the webhook.
+          try {
+            const { data: tx } = await supabase
+              .from("wallet_transactions")
+              .select("id")
+              .eq("stripe_session_id", session.id)
+              .single<{ id: string }>();
+            if (tx) {
+              const { sendWalletTopupEmail } = await import(
+                "@/lib/email/send-wallet-topup"
+              );
+              await sendWalletTopupEmail({ transactionId: tx.id });
+            }
+          } catch (emailErr) {
+            console.error("[webhook] wallet topup email error:", emailErr);
+          }
         }
       }
     } else {
@@ -124,9 +161,14 @@ export async function POST(request: Request) {
       if (orderId) {
         const { data: order } = await supabase
           .from("orders")
-          .select("id, display_order_number, order_number, total_price, restaurant_id")
+          .select("id, display_order_number, order_number, total_price, restaurant_id, paid")
           .eq("id", orderId)
           .single();
+
+        // Idempotency: Stripe retries on 5xx — skip side-effects if already paid.
+        if (order?.paid) {
+          return NextResponse.json({ received: true });
+        }
 
         await supabase
           .from("orders")
@@ -138,6 +180,9 @@ export async function POST(request: Request) {
 
         // Send customer confirmation email (idempotent — safe on webhook retry)
         void sendOrderConfirmationEmail({ orderId });
+
+        // Queue print jobs (idempotent — safe on webhook retry)
+        void enqueueOrderPrintJobs(orderId);
 
         // Send push notification to admin
         if (order) {
@@ -200,6 +245,31 @@ export async function POST(request: Request) {
         .from("orders")
         .update({ status: "cancelled" })
         .eq("id", orderId);
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const sub = event.data.object as Stripe.Subscription;
+    if (sub.metadata?.type === "stock_subscription") {
+      const restaurantId = sub.metadata?.restaurant_id;
+      if (restaurantId) {
+        const isCanceled =
+          event.type === "customer.subscription.deleted" ||
+          sub.status === "canceled" ||
+          sub.status === "unpaid" ||
+          sub.status === "incomplete_expired";
+        await supabase
+          .from("restaurants")
+          .update({
+            stock_subscription_status: sub.status,
+            stock_module_active: !isCanceled,
+            ...(isCanceled ? { stock_enabled: false } : {}),
+          })
+          .eq("id", restaurantId);
+      }
     }
   }
 

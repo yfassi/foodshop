@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { generatePublicId } from "@/lib/public-id";
+
+const ALLOWED_VERIFICATION_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+const VERIFICATION_MAX_BYTES = 5 * 1024 * 1024;
+const VERIFICATION_EXT_BY_MIME: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 interface OnboardingBody {
   name: string;
@@ -18,7 +32,15 @@ interface OnboardingBody {
   password?: string;
   queue_enabled?: boolean;
   queue_max_concurrent?: number;
+  subscription_tier?: "essentiel" | "pro" | "groupe";
+  /** Optional add-ons selected during onboarding. Activates the corresponding
+   *  module flags. The user later confirms billing via Stripe Customer Portal. */
+  addons?: ("livraison" | "stock")[];
+  billing_period?: "monthly" | "annual";
 }
+
+const VALID_TIERS = new Set(["essentiel", "pro", "groupe"]);
+const VALID_ADDONS = new Set(["livraison", "stock"]);
 
 function toSlug(name: string) {
   return name
@@ -40,7 +62,17 @@ export async function POST(request: Request) {
     const body = JSON.parse(formData.get("data") as string) as OnboardingBody;
     const verificationFile = formData.get("verification_document") as File | null;
 
-    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent } = body;
+    const { name, description, restaurant_type, address, phone, opening_hours, order_types, accepted_payment_methods, logo_url, email, password, queue_enabled, queue_max_concurrent, subscription_tier, addons, billing_period } = body;
+
+    const tier =
+      subscription_tier && VALID_TIERS.has(subscription_tier)
+        ? subscription_tier
+        : "essentiel";
+    const safeAddons = Array.isArray(addons)
+      ? addons.filter((a) => VALID_ADDONS.has(a))
+      : [];
+    const wantsLivraison = safeAddons.includes("livraison");
+    const wantsStock = safeAddons.includes("stock");
 
     if (!name) {
       return NextResponse.json(
@@ -66,18 +98,14 @@ export async function POST(request: Request) {
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
       });
 
       if (userError) {
-        if (userError.message?.includes("already been registered")) {
-          return NextResponse.json(
-            { error: "Un compte existe déjà avec cet email" },
-            { status: 409 }
-          );
-        }
         console.error("Signup error:", userError);
-        return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Erreur lors de la création du compte" },
+          { status: 400 }
+        );
       }
 
       ownerId = userData.user.id;
@@ -116,8 +144,22 @@ export async function POST(request: Request) {
     // Upload verification document if provided
     let verification_document_url: string | null = null;
     if (verificationFile && verificationFile.size > 0) {
-      const ext = verificationFile.name.split(".").pop() || "pdf";
-      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      if (!ALLOWED_VERIFICATION_MIME.has(verificationFile.type)) {
+        return NextResponse.json(
+          { error: "Format invalide (PDF, JPG, PNG ou WebP requis)" },
+          { status: 400 }
+        );
+      }
+
+      if (verificationFile.size > VERIFICATION_MAX_BYTES) {
+        return NextResponse.json(
+          { error: "Document trop volumineux (5 MB max)" },
+          { status: 400 }
+        );
+      }
+
+      const ext = VERIFICATION_EXT_BY_MIME[verificationFile.type];
+      const filePath = `${randomUUID()}.${ext}`;
       const buffer = Buffer.from(await verificationFile.arrayBuffer());
 
       const { error: uploadError } = await supabase.storage
@@ -134,10 +176,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const { data: urlData } = supabase.storage
-        .from("verification-documents")
-        .getPublicUrl(filePath);
-      verification_document_url = urlData.publicUrl;
+      verification_document_url = filePath;
     }
 
     // Slug = readable name + unguessable short ID. Retry on the astronomically
@@ -172,14 +211,39 @@ export async function POST(request: Request) {
       is_accepting_orders: true,
       verification_status: "pending",
       verification_document_url,
+      subscription_tier: tier,
+      delivery_addon_active: wantsLivraison,
+      delivery_enabled: wantsLivraison,
+      stock_module_active: wantsStock,
+      stock_enabled: wantsStock,
       ...(queue_enabled != null && { queue_enabled }),
       ...(queue_max_concurrent != null && { queue_max_concurrent }),
     });
 
+    // billing_period is captured for future Stripe Checkout integration but is
+    // not persisted yet — restaurants currently set up billing post-onboarding
+    // via the Stripe Customer Portal. Remove this line once the plan-checkout
+    // flow lands.
+    void billing_period;
+
     if (error) {
       console.error("Onboarding insert error:", error);
+      const parts = [
+        error.message,
+        error.code ? `code=${error.code}` : null,
+        error.details ? `details=${error.details}` : null,
+        error.hint ? `hint=${error.hint}` : null,
+      ].filter(Boolean);
       return NextResponse.json(
-        { error: `Erreur lors de la création du restaurant: ${error.message}` },
+        {
+          error: `Erreur lors de la création du restaurant: ${parts.join(" · ")}`,
+          debug: {
+            code: error.code ?? null,
+            message: error.message ?? null,
+            details: error.details ?? null,
+            hint: error.hint ?? null,
+          },
+        },
         { status: 500 }
       );
     }
@@ -187,6 +251,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ slug, public_id });
   } catch (err) {
     console.error("Onboarding error:", err);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : null;
+    return NextResponse.json(
+      {
+        error: `Erreur serveur: ${message}`,
+        debug: { message, stack },
+      },
+      { status: 500 }
+    );
   }
 }

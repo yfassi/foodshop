@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -22,9 +21,14 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setReady(true);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event) => {
-        if (event === "PASSWORD_RECOVERY") {
+        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
           setReady(true);
         }
       }
@@ -62,29 +66,40 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-sm px-4 py-8 text-center">
-        <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-sm text-muted-foreground">
-          Vérification du lien en cours...
-        </p>
-      </div>
+      <AuthShell
+        kicker="★ MOT DE PASSE"
+        title={
+          <>
+            Vérification <em>en cours…</em>
+          </>
+        }
+        subtitle="On confirme votre lien de réinitialisation."
+        showStamp={false}
+        brandHref={null}
+      >
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--paprika)]" />
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-8">
-      <Link
-        href={`/restaurant/${publicId}/login`}
-        className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Retour
-      </Link>
-
-      <h2 className="mb-6 text-xl font-bold">Nouveau mot de passe</h2>
-
+    <AuthShell
+      kicker="★ NOUVEAU MOT DE PASSE"
+      title={
+        <>
+          On <em>réinitialise.</em>
+          <span className="dot" />
+        </>
+      }
+      subtitle="Choisissez un nouveau mot de passe pour votre compte."
+      backHref={`/restaurant/${publicId}/login`}
+      backLabel="Retour à la connexion"
+      brandHref={null}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="password">Nouveau mot de passe</Label>
           <Input
             id="password"
@@ -93,11 +108,11 @@ export default function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Min. 6 caractères"
             required
-            className="h-12"
+            className="mt-1.5 h-12"
           />
         </div>
 
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
           <Input
             id="confirmPassword"
@@ -106,19 +121,22 @@ export default function ResetPasswordPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Répéter le mot de passe"
             required
-            className="h-12"
+            className="mt-1.5 h-12"
           />
         </div>
 
-        <Button
+        <button
           type="submit"
           disabled={loading || !password || !confirmPassword}
-          className="h-12 w-full font-semibold"
+          className="auth-primary"
         >
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Réinitialiser le mot de passe
-        </Button>
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>Réinitialiser <span className="arrow">→</span></>
+          )}
+        </button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

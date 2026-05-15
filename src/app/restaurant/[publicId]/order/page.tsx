@@ -203,6 +203,7 @@ export default async function MenuPage({
       orderTypes={restaurant.order_types as ("dine_in" | "takeaway")[]}
       loyaltyEnabled={restaurant.loyalty_enabled}
       queueEnabled={restaurant.queue_enabled ?? false}
+      menuLayout={restaurant.menu_layout === "category_grid" ? "category_grid" : "linear"}
     />
   );
 }
