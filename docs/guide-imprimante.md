@@ -1,19 +1,17 @@
 # Imprimante à tickets — Guide d'installation
 
-Ce guide explique comment connecter votre imprimante à tickets WiFi à TaapR.
-Une fois configurée, **les tickets s'impriment tout seuls** à chaque nouvelle
-commande payée.
+Ce guide explique comment connecter une imprimante à tickets à TaapR. Une fois
+configurée, **les tickets s'impriment tout seuls** à chaque nouvelle commande
+payée.
+
+TaapR supporte deux options. Choisissez selon votre budget et votre matériel :
+
+| Option | Modèles | Prix indicatif | Installation | Avantage |
+|---|---|---|---|---|
+| **WiFi (Epson)** | Epson TM-m30III | ~280–350 € | 10 min, aucun ordi | Imprime sans poste, branchez et oubliez |
+| **USB (ESC/POS)** | Xprinter XP-T80A · Epson TM-T20III · Star TSP143IIIU | ~70 € / 150 € / 200 € | 5 min, sur l'écran cuisine | 2 à 4 fois moins cher |
 
 Comptez environ 10 minutes. Aucune compétence technique nécessaire.
-
----
-
-## Ce qu'il vous faut
-
-- Une **imprimante Epson TM-m30III** (modèle WiFi)
-- Le **réseau WiFi** de votre établissement (nom + mot de passe)
-- Un téléphone, une tablette ou un ordinateur pour accéder à TaapR
-- Du papier thermique 80 mm (rouleau standard)
 
 ---
 
@@ -128,5 +126,95 @@ comptoir) et régler chacune indépendamment.
 **L'imprimante était en ligne puis ne répond plus**
 - Coupure WiFi ou imprimante éteinte : les tickets en attente s'impriment
   automatiquement dès qu'elle revient en ligne.
+
+Si le problème persiste, contactez le support TaapR.
+
+---
+
+# Option économique — Imprimante USB
+
+Si vous voulez équiper votre établissement pour moins cher, vous pouvez
+brancher une **imprimante thermique USB ESC/POS** sur l'ordinateur ou la
+tablette qui sert d'**écran cuisine**. C'est l'écran cuisine, ouvert dans
+Chrome, qui pilote l'imprimante.
+
+## Modèles compatibles
+
+Toutes les imprimantes thermiques 80 mm qui parlent **ESC/POS USB**
+fonctionnent. Trois modèles que nous avons documentés :
+
+| Modèle | Prix indicatif | Notes |
+|---|---|---|
+| **Xprinter XP-T80A** | ~70 € | Option la moins chère, large diffusion en POS, fiable pour le prix |
+| **Epson TM-T20III USB** | ~150 € | Bon compromis fiabilité / prix, garantie 2 ans, drivers irréprochables |
+| **Star TSP143IIIU** | ~200 € | Référence POS, autocutter rapide, robustesse haut de gamme |
+
+Tous : papier thermique **80 mm**, autocutter, USB.
+
+## Prérequis
+
+- Un **ordinateur ou une tablette** qui restera allumé pendant le service avec
+  l'écran cuisine ouvert.
+- **Chrome ou Edge** (Safari n'est pas supporté — WebUSB est une API Chromium).
+- L'écran cuisine TaapR ouvert sur `https://www.taapr.fr/admin/<votre-resto>`.
+
+## Étape 1 — Brancher l'imprimante
+
+1. Branchez l'imprimante sur le secteur, mettez du papier 80 mm, fermez le
+   capot.
+2. Branchez le câble USB sur l'ordinateur / tablette qui affiche l'écran
+   cuisine.
+3. Allumez l'imprimante.
+
+## Étape 2 — Créer l'imprimante dans TaapR
+
+1. Ouvrez **Réglages → Matériel**.
+2. Cliquez **« Nouvelle imprimante »**, choisissez le type **« USB (ESC/POS) »**,
+   donnez-lui un nom (« Cuisine » par exemple), puis **Créer**.
+3. Une carte d'imprimante apparaît, marquée **non appairée**.
+
+## Étape 3 — Appairer l'imprimante avec Chrome
+
+1. Sur la carte de l'imprimante, cliquez **« Appairer l'imprimante USB »**.
+2. Chrome affiche une fenêtre listant les périphériques USB détectés. Choisissez
+   votre imprimante, puis **« Se connecter »**.
+3. Le badge passe en **« Appairée »**.
+
+## Étape 4 — Ouvrir l'écran cuisine
+
+1. Sur le même ordinateur / tablette, ouvrez l'écran **Commandes** (page
+   d'accueil de l'admin TaapR).
+2. Un petit indicateur **« Stations USB · 1/1 en ligne »** apparaît en bas à
+   droite : l'imprimante est prête.
+3. Faites un **« Imprimer un test »** depuis Réglages → Matériel pour vérifier
+   qu'un ticket sort bien.
+
+> **Important :** l'imprimante n'imprime que tant que l'onglet **Commandes**
+> est ouvert sur ce poste. Si vous fermez l'onglet ou éteignez l'ordinateur,
+> les tickets s'accumulent et s'impriment dès le retour en ligne.
+
+## En cas de problème (USB)
+
+**« Imprimante USB introuvable » dans le bandeau en bas**
+- Vérifiez que le câble est bien branché et que l'imprimante est allumée.
+- Rechargez la page. Si le problème persiste, retournez dans Réglages →
+  Matériel et cliquez **« Réappairer »**.
+
+**Rien ne s'imprime**
+- Vérifiez que l'onglet Commandes est ouvert sur le poste branché à
+  l'imprimante.
+- Vérifiez le bandeau « Stations USB » en bas à droite : un message en orange
+  indique pourquoi.
+- Dans Chrome, ouvrez `chrome://device-log` pour voir les éventuelles erreurs
+  USB.
+
+**« Jeton manquant sur ce poste »**
+- Le jeton est stocké sur le navigateur du poste qui a créé l'imprimante. Si
+  vous changez de poste, ré-appairez l'imprimante depuis Réglages → Matériel
+  sur le nouveau poste (le bouton **« Réappairer »** régénère ce qu'il faut).
+
+**Caractères bizarres (é, €) imprimés en `?`**
+- Tous les modèles documentés supportent l'encodage CP858 (utilisé par TaapR).
+  Si un caractère sort incorrectement, contactez le support.
 
 Si le problème persiste, contactez le support TaapR.

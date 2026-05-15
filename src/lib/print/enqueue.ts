@@ -8,17 +8,61 @@
 // fail because of printing. Models src/lib/email/send-order-confirmation.ts.
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Order } from "@/lib/types";
+import type { Order, PrinterKind } from "@/lib/types";
+import { bytesToPgHex } from "./bytea";
 import {
+  renderCustomerReceiptEscpos,
   renderCustomerReceiptXml,
+  renderKitchenTicketEscpos,
   renderKitchenTicketXml,
   type ReceiptRestaurant,
 } from "./render-receipt";
 
 interface AutoPrinter {
   id: string;
+  kind: PrinterKind;
   auto_print_kitchen: boolean;
   auto_print_receipt: boolean;
+}
+
+interface JobRow {
+  restaurant_id: string;
+  printer_id: string;
+  order_id: string;
+  job_type: "kitchen" | "receipt";
+  source: "auto";
+  payload_xml: string | null;
+  payload_escpos: string | null;
+}
+
+function buildJob(
+  printer: AutoPrinter,
+  order: Order,
+  restaurant: ReceiptRestaurant,
+  jobType: "kitchen" | "receipt",
+): JobRow {
+  const isUsb = printer.kind === "usb_thermal";
+  const xml = isUsb
+    ? null
+    : jobType === "kitchen"
+      ? renderKitchenTicketXml(order, restaurant)
+      : renderCustomerReceiptXml(order, restaurant);
+  const escpos = isUsb
+    ? bytesToPgHex(
+        jobType === "kitchen"
+          ? renderKitchenTicketEscpos(order, restaurant)
+          : renderCustomerReceiptEscpos(order, restaurant),
+      )
+    : null;
+  return {
+    restaurant_id: order.restaurant_id,
+    printer_id: printer.id,
+    order_id: order.id,
+    job_type: jobType,
+    source: "auto",
+    payload_xml: xml,
+    payload_escpos: escpos,
+  };
 }
 
 export async function enqueueOrderPrintJobs(orderId: string): Promise<void> {
@@ -38,7 +82,7 @@ export async function enqueueOrderPrintJobs(orderId: string): Promise<void> {
 
     const { data: printers, error: printersErr } = await supabase
       .from("printers")
-      .select("id, auto_print_kitchen, auto_print_receipt")
+      .select("id, kind, auto_print_kitchen, auto_print_receipt")
       .eq("restaurant_id", order.restaurant_id)
       .eq("is_active", true)
       .returns<AutoPrinter[]>();
@@ -61,36 +105,13 @@ export async function enqueueOrderPrintJobs(orderId: string): Promise<void> {
       return;
     }
 
-    type JobRow = {
-      restaurant_id: string;
-      printer_id: string;
-      order_id: string;
-      job_type: "kitchen" | "receipt";
-      source: "auto";
-      payload_xml: string;
-    };
     const rows: JobRow[] = [];
-
     for (const printer of printers) {
       if (printer.auto_print_kitchen) {
-        rows.push({
-          restaurant_id: order.restaurant_id,
-          printer_id: printer.id,
-          order_id: order.id,
-          job_type: "kitchen",
-          source: "auto",
-          payload_xml: renderKitchenTicketXml(order, restaurant),
-        });
+        rows.push(buildJob(printer, order, restaurant, "kitchen"));
       }
       if (printer.auto_print_receipt) {
-        rows.push({
-          restaurant_id: order.restaurant_id,
-          printer_id: printer.id,
-          order_id: order.id,
-          job_type: "receipt",
-          source: "auto",
-          payload_xml: renderCustomerReceiptXml(order, restaurant),
-        });
+        rows.push(buildJob(printer, order, restaurant, "receipt"));
       }
     }
 

@@ -10,7 +10,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.taapr.fr";
 
 // Columns safe to expose — never includes token_hash.
 const PUBLIC_COLUMNS =
-  "id, restaurant_id, name, kind, token_prefix, auto_print_kitchen, auto_print_receipt, is_active, last_seen_at, created_at, updated_at";
+  "id, restaurant_id, name, kind, token_prefix, auto_print_kitchen, auto_print_receipt, is_active, last_seen_at, usb_vendor_id, usb_product_id, created_at, updated_at";
+
+const VALID_KINDS = ["epson_sdp", "star_cloudprnt", "usb_thermal"] as const;
+type PrinterKind = (typeof VALID_KINDS)[number];
 
 async function getRestaurantForUser(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -74,11 +77,21 @@ export async function POST(req: Request) {
   const tokenPrefix = fullToken.slice(0, 12);
   const tokenHash = crypto.createHash("sha256").update(fullToken).digest("hex");
 
+  // kind defaults to 'epson_sdp' (the original WiFi flow). A WebUSB printer is
+  // created with kind='usb_thermal' so the cuisine page picks it up and the
+  // poll URL becomes irrelevant (USB jobs are fetched via /api/print/web-poll).
+  const kind: PrinterKind = (VALID_KINDS as readonly string[]).includes(
+    body.kind,
+  )
+    ? (body.kind as PrinterKind)
+    : "epson_sdp";
+
   const { data, error } = await supabase
     .from("printers")
     .insert({
       restaurant_id: body.restaurant_id,
       name: String(body.name).trim().slice(0, 80),
+      kind,
       token_prefix: tokenPrefix,
       token_hash: tokenHash,
     })
@@ -90,7 +103,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 
-  // Return the full token + poll URL once; never again.
+  // Return the full token + poll URL once; never again. For usb_thermal the
+  // token is what the cuisine page stores in localStorage to authenticate
+  // /api/print/web-poll requests, so it's returned the same way.
   return NextResponse.json({
     printer: data,
     full_token: fullToken,
@@ -110,7 +125,9 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Only these fields are editable; everything else (token, restaurant) is fixed.
+  // Only these fields are editable; everything else (token, kind, restaurant)
+  // is fixed at creation. The USB IDs are write-once-after-pairing — the
+  // cuisine page PATCHes them after navigator.usb.requestDevice() succeeds.
   const updates: Record<string, unknown> = {};
   if (typeof body.name === "string") updates.name = body.name.trim().slice(0, 80);
   if (typeof body.auto_print_kitchen === "boolean")
@@ -118,6 +135,22 @@ export async function PATCH(req: Request) {
   if (typeof body.auto_print_receipt === "boolean")
     updates.auto_print_receipt = body.auto_print_receipt;
   if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
+  if (
+    typeof body.usb_vendor_id === "number" &&
+    Number.isInteger(body.usb_vendor_id) &&
+    body.usb_vendor_id >= 0 &&
+    body.usb_vendor_id <= 0xffff
+  ) {
+    updates.usb_vendor_id = body.usb_vendor_id;
+  }
+  if (
+    typeof body.usb_product_id === "number" &&
+    Number.isInteger(body.usb_product_id) &&
+    body.usb_product_id >= 0 &&
+    body.usb_product_id <= 0xffff
+  ) {
+    updates.usb_product_id = body.usb_product_id;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Rien à mettre à jour" }, { status: 400 });

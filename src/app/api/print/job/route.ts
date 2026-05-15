@@ -6,15 +6,19 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Order } from "@/lib/types";
+import type { Order, PrinterKind } from "@/lib/types";
+import { bytesToPgHex } from "@/lib/print/bytea";
 import {
+  renderCustomerReceiptEscpos,
   renderCustomerReceiptXml,
+  renderKitchenTicketEscpos,
   renderKitchenTicketXml,
   type ReceiptRestaurant,
 } from "@/lib/print/render-receipt";
 
 interface PrinterRouting {
   id: string;
+  kind: PrinterKind;
   auto_print_kitchen: boolean;
   auto_print_receipt: boolean;
 }
@@ -71,7 +75,7 @@ export async function POST(req: Request) {
   // never prints nowhere.
   const { data: printers } = await admin
     .from("printers")
-    .select("id, auto_print_kitchen, auto_print_receipt")
+    .select("id, kind, auto_print_kitchen, auto_print_receipt")
     .eq("restaurant_id", restaurant.id)
     .eq("is_active", true)
     .returns<PrinterRouting[]>();
@@ -86,25 +90,49 @@ export async function POST(req: Request) {
   );
   const targets = matching.length > 0 ? matching : printers;
 
-  // --- render once, queue for each target printer ---
+  // --- render once per transport (XML vs ESC/POS), queue for each printer ---
+  // Both payloads are computed lazily so a kitchen with only WiFi printers
+  // never builds ESC/POS bytes (and vice versa).
   const receiptRestaurant: ReceiptRestaurant = {
     name: restaurant.name,
     address: restaurant.address,
     phone: restaurant.phone,
   };
-  const payloadXml =
-    jobType === "kitchen"
-      ? renderKitchenTicketXml(order, receiptRestaurant)
-      : renderCustomerReceiptXml(order, receiptRestaurant);
 
-  const rows = targets.map((p) => ({
-    restaurant_id: restaurant.id,
-    printer_id: p.id,
-    order_id: order.id,
-    job_type: jobType,
-    source: "manual" as const,
-    payload_xml: payloadXml,
-  }));
+  let payloadXml: string | null = null;
+  let payloadEscposHex: string | null = null;
+  const ensureXml = () => {
+    if (payloadXml === null) {
+      payloadXml =
+        jobType === "kitchen"
+          ? renderKitchenTicketXml(order, receiptRestaurant)
+          : renderCustomerReceiptXml(order, receiptRestaurant);
+    }
+    return payloadXml;
+  };
+  const ensureEscpos = () => {
+    if (payloadEscposHex === null) {
+      const bytes =
+        jobType === "kitchen"
+          ? renderKitchenTicketEscpos(order, receiptRestaurant)
+          : renderCustomerReceiptEscpos(order, receiptRestaurant);
+      payloadEscposHex = bytesToPgHex(bytes);
+    }
+    return payloadEscposHex;
+  };
+
+  const rows = targets.map((p) => {
+    const isUsb = p.kind === "usb_thermal";
+    return {
+      restaurant_id: restaurant.id,
+      printer_id: p.id,
+      order_id: order.id,
+      job_type: jobType,
+      source: "manual" as const,
+      payload_xml: isUsb ? null : ensureXml(),
+      payload_escpos: isUsb ? ensureEscpos() : null,
+    };
+  });
 
   const { error: insertErr } = await admin.from("print_jobs").insert(rows);
   if (insertErr) {

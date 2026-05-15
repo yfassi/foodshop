@@ -5,7 +5,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { renderTestTicketXml } from "@/lib/print/render-receipt";
+import { bytesToPgHex } from "@/lib/print/bytea";
+import {
+  renderTestTicketEscpos,
+  renderTestTicketXml,
+} from "@/lib/print/render-receipt";
+import type { PrinterKind } from "@/lib/types";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -25,9 +30,14 @@ export async function POST(req: Request) {
 
   const { data: printer } = await supabase
     .from("printers")
-    .select("id, restaurant_id, is_active")
+    .select("id, restaurant_id, is_active, kind")
     .eq("id", printerId)
-    .single<{ id: string; restaurant_id: string; is_active: boolean }>();
+    .single<{
+      id: string;
+      restaurant_id: string;
+      is_active: boolean;
+      kind: PrinterKind;
+    }>();
   if (!printer) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -41,6 +51,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Restaurant introuvable" }, { status: 404 });
   }
 
+  const isUsb = printer.kind === "usb_thermal";
   // print_jobs has no client INSERT policy — write through the service role.
   const admin = createAdminClient();
   const { error } = await admin.from("print_jobs").insert({
@@ -49,7 +60,10 @@ export async function POST(req: Request) {
     order_id: null,
     job_type: "test",
     source: "manual",
-    payload_xml: renderTestTicketXml(restaurant),
+    payload_xml: isUsb ? null : renderTestTicketXml(restaurant),
+    payload_escpos: isUsb
+      ? bytesToPgHex(renderTestTicketEscpos(restaurant))
+      : null,
   });
 
   if (error) {

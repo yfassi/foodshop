@@ -9,6 +9,7 @@ import type { Order, OrderView } from "@/lib/types";
 import { useNewOrderAlert } from "@/components/orders/new-order-alert";
 import { CounterView, KitchenView } from "@/components/orders/order-views";
 import { CounterOrderSheet } from "@/components/admin/counter-order-sheet";
+import { UsbPrintStation } from "@/components/admin/usb-print-station";
 import {
   PartyPopper,
   ArrowRight,
@@ -269,6 +270,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="px-4 py-6 md:px-6">
+      {/* WebUSB bridge for kind='usb_thermal' printers. Renders nothing when
+          the restaurant has no USB printer or the browser lacks WebUSB. */}
+      {restaurantId && <UsbPrintStation restaurantId={restaurantId} />}
+
       {showWelcome && (
         <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
           <PartyPopper className="mx-auto mb-3 h-10 w-10 text-primary" />

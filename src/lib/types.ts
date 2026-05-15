@@ -117,9 +117,12 @@ export interface RestaurantAdmin {
 // PRINTING (cloud-pull thermal printers)
 // ============================================
 
-export type PrinterKind = "epson_sdp" | "star_cloudprnt";
+export type PrinterKind = "epson_sdp" | "star_cloudprnt" | "usb_thermal";
 
 // Client-facing shape: deliberately omits token_hash (server-only secret).
+// usb_vendor_id/usb_product_id are only set after a usb_thermal printer has
+// been paired through navigator.usb.requestDevice() — they let the cuisine
+// page filter navigator.usb.getDevices() to silently reconnect on reload.
 export interface Printer {
   id: string;
   restaurant_id: string;
@@ -130,6 +133,8 @@ export interface Printer {
   auto_print_receipt: boolean;
   is_active: boolean;
   last_seen_at: string | null;
+  usb_vendor_id: number | null;
+  usb_product_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +143,10 @@ export type PrintJobType = "kitchen" | "receipt" | "test";
 export type PrintJobSource = "auto" | "manual";
 export type PrintJobStatus = "pending" | "printing" | "done" | "error";
 
+// payload_xml is set for Epson SDP / Star CloudPRNT jobs; payload_escpos is
+// set for USB jobs (base64-encoded BYTEA when round-tripped through PostgREST).
+// Exactly one is non-null at the DB level — enforced by the CHECK constraint
+// in migration 030.
 export interface PrintJob {
   id: string;
   restaurant_id: string;
@@ -146,7 +155,8 @@ export interface PrintJob {
   job_type: PrintJobType;
   source: PrintJobSource;
   status: PrintJobStatus;
-  payload_xml: string;
+  payload_xml: string | null;
+  payload_escpos: string | null;
   attempts: number;
   error_message: string | null;
   claimed_at: string | null;
