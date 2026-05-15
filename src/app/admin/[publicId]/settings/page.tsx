@@ -227,6 +227,7 @@ export default function SettingsPage() {
     "delivery",
     "stock",
     "floor",
+    "materiel",
     "api",
     "account",
   ];
