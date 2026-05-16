@@ -67,13 +67,13 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   { icon: Store, label: "Établissement", href: "/reglages/etablissement" },
   { icon: CreditCard, label: "Paiement", href: "/settings?tab=payment" },
   { icon: Gift, label: "Fidélité", href: "/reglages/fidelite" },
-  { icon: Wallet, label: "Solde", href: "/settings?tab=wallet" },
-  { icon: Users, label: "File d'attente", href: "/settings?tab=queue" },
+  { icon: Wallet, label: "Solde", href: "/reglages/solde" },
+  { icon: Users, label: "File d'attente", href: "/reglages/file-attente" },
   { icon: Bike, label: "Livraison", href: "/settings?tab=delivery" },
   { icon: Package, label: "Stock", href: "/settings?tab=stock" },
-  { icon: LayoutGrid, label: "Plan de salle", href: "/settings?tab=floor" },
-  { icon: Printer, label: "Matériel", href: "/settings?tab=materiel" },
-  { icon: Key, label: "API", href: "/settings?tab=api" },
+  { icon: LayoutGrid, label: "Plan de salle", href: "/reglages/plan-de-salle" },
+  { icon: Printer, label: "Matériel", href: "/reglages/materiel" },
+  { icon: Key, label: "API", href: "/reglages/api" },
   { icon: User, label: "Compte", href: "/settings?tab=account" },
 ];
 
