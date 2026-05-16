@@ -52,6 +52,57 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FeatureGate } from "@/components/upsell/feature-gate";
 import { UserPreferences } from "@/components/admin/user-preferences";
+import { Breadcrumbs, type BreadcrumbItem } from "@/components/admin/ui/breadcrumbs";
+
+// Labels métier pour les segments de path admin. Étendre quand de nouvelles
+// sections apparaissent.
+const ROUTE_LABELS: Record<string, string> = {
+  commandes: "Commandes",
+  comptoir: "Comptoir",
+  cuisine: "Cuisine",
+  historique: "Historique",
+  articles: "Articles",
+  "options-de-menu": "Options de menu",
+  dashboard: "Tableau de bord",
+  clients: "Clients",
+  reglages: "Réglages",
+  etablissement: "Établissement",
+  fidelite: "Fidélité",
+  paiement: "Paiement",
+  solde: "Solde",
+  "file-attente": "File d'attente",
+  livraison: "Livraison",
+  "plan-de-salle": "Plan de salle",
+  materiel: "Matériel",
+  api: "API",
+  compte: "Compte",
+  delivery: "Livraison",
+  stock: "Stock",
+  ingredients: "Ingrédients",
+  movements: "Mouvements",
+  recipes: "Recettes",
+  scan: "Scanner un ticket",
+  suppliers: "Fournisseurs",
+  activation: "Activation",
+  settings: "Réglages",
+};
+
+function deriveBreadcrumbs(pathname: string | null, publicId: string): BreadcrumbItem[] {
+  if (!pathname) return [];
+  const base = `/admin/${publicId}`;
+  if (!pathname.startsWith(base)) return [];
+  const rest = pathname.slice(base.length).replace(/^\/|\/$/g, "");
+  if (!rest) return [];
+  const segments = rest.split("/").filter(Boolean);
+  // Une seule section ⇒ pas de breadcrumb (la sidebar suffit).
+  if (segments.length < 2) return [];
+  return segments.map((seg, i) => {
+    const isLast = i === segments.length - 1;
+    const label = ROUTE_LABELS[seg] ?? seg;
+    const href = isLast ? undefined : `${base}/${segments.slice(0, i + 1).join("/")}`;
+    return { label, href };
+  });
+}
 
 type SettingsSection = {
   icon: React.ComponentType<{ className?: string }>;
@@ -180,6 +231,7 @@ export function AdminShell({
     `/admin/${publicId}/commandes`,
   ];
   const fullWidth = FULLWIDTH_PREFIXES.some((p) => pathname?.startsWith(p));
+  const breadcrumbs = deriveBreadcrumbs(pathname, publicId);
   const NAV_ITEMS = (() => {
     const items = [...BASE_NAV_ITEMS];
     // Insert before "Réglages" (last item).
@@ -604,6 +656,9 @@ export function AdminShell({
             <div className="pb-24 md:pb-0">{children}</div>
           ) : (
             <div className="mx-auto max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-8">
+              {breadcrumbs.length > 0 && (
+                <Breadcrumbs items={breadcrumbs} className="mb-4" />
+              )}
               {children}
             </div>
           )}

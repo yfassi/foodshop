@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import type { Order, OrderStatus, OrderView } from "@/lib/types";
 import { formatPrice, formatTime } from "@/lib/format";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { OrderStatusBadge } from "./order-status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Wallet, FlaskConical, Plus, Printer } from "lucide-react";
+import { CreditCard, Banknote, Wallet, FlaskConical, Plus, Printer, Loader2 } from "lucide-react";
 import { AddItemsSheet } from "@/components/admin/counter-order/add-items-sheet";
+import { ElapsedBadge } from "@/components/admin/ui/elapsed-badge";
+import { useElapsedMinutes } from "@/lib/hooks/use-elapsed";
 import { useParams } from "next/navigation";
 
 function DemoBadge({ size = "sm" }: { size?: "sm" | "lg" }) {
@@ -36,9 +38,12 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
   const config = ORDER_STATUS_CONFIG[order.status];
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAddItems, setShowAddItems] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const pickerRef = useRef<HTMLDivElement>(null);
   const params = useParams<{ publicId: string }>();
   const publicId = params?.publicId ?? "";
+
+  const elapsedMin = useElapsedMinutes(order.created_at);
 
   // Counter orders are flagged via the CPT- prefix on the display number;
   // they're the only kind we let the operator append items to.
@@ -56,34 +61,38 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showStatusPicker]);
 
-  const updateStatus = async (newStatus: OrderStatus) => {
-    try {
-      const res = await fetch("/api/orders/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: order.id, status: newStatus }),
-      });
-      if (!res.ok) {
+  const updateStatus = (newStatus: OrderStatus) => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/orders/update-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: order.id, status: newStatus }),
+        });
+        if (!res.ok) {
+          toast.error("Erreur lors de la mise à jour");
+        }
+      } catch {
         toast.error("Erreur lors de la mise à jour");
       }
-    } catch {
-      toast.error("Erreur lors de la mise à jour");
-    }
+    });
   };
 
-  const markAsPaid = async () => {
-    try {
-      const res = await fetch("/api/orders/mark-paid", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: order.id }),
-      });
-      if (!res.ok) {
+  const markAsPaid = () => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/orders/mark-paid", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: order.id }),
+        });
+        if (!res.ok) {
+          toast.error("Erreur lors de l'encaissement");
+        }
+      } catch {
         toast.error("Erreur lors de l'encaissement");
       }
-    } catch {
-      toast.error("Erreur lors de l'encaissement");
-    }
+    });
   };
 
   const printReceipt = async () => {
@@ -213,10 +222,15 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
         {config.nextStatus && config.nextStatus !== "done" && (
           <Button
             onClick={() => updateStatus(config.nextStatus!)}
+            disabled={isPending}
             className="h-14 w-full rounded-xl text-base font-bold"
             size="lg"
           >
-            {config.nextLabel}
+            {isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              config.nextLabel
+            )}
           </Button>
         )}
       </div>
@@ -247,9 +261,10 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       {/* Header */}
       <div className="mb-2 flex items-start justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="text-2xl font-bold">{displayNumber}</p>
             {order.is_demo && <DemoBadge />}
+            {order.created_at && <ElapsedBadge minutes={elapsedMin} />}
           </div>
           {order.customer_info?.name && (
             <p className="mt-0.5 truncate text-sm font-medium text-foreground/80">
@@ -330,20 +345,30 @@ export function OrderCard({ order, view = "comptoir" }: OrderCardProps) {
       {isUnpaidOnSite ? (
         <Button
           onClick={markAsPaid}
+          disabled={isPending}
           className="h-12 w-full rounded-xl bg-blue-600 font-semibold hover:bg-blue-700"
           size="lg"
         >
-          Encaisser
+          {isPending ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>Encaisser — {formatPrice(order.total_price)}</>
+          )}
         </Button>
       ) : (
         <div className="flex gap-2">
           {config.nextStatus && (
             <Button
               onClick={() => updateStatus(config.nextStatus!)}
+              disabled={isPending}
               className="h-12 flex-1 rounded-xl font-semibold"
               size="lg"
             >
-              {config.nextLabel}
+              {isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                config.nextLabel
+              )}
             </Button>
           )}
           {canAddItems && (
