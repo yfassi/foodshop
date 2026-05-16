@@ -111,7 +111,7 @@ export function MovementsClient({
   };
 
   return (
-    <div className="space-y-6 px-4 py-6 md:px-8">
+    <div className="space-y-6">
       <Link
         href={`/admin/${publicId}/stock`}
         className="-ml-1 inline-flex h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
