@@ -65,18 +65,29 @@ export default async function CustomerAccountPage({
   // Fetch orders for this restaurant
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, display_order_number, items, status, total_price, payment_method, order_type, payment_source, paid, wallet_amount_used, created_at")
+    .select("id, display_order_number, items, status, total_price, payment_method, order_type, payment_source, paid, wallet_amount_used, loyalty_discount_amount, loyalty_points_used, created_at")
     .eq("restaurant_id", restaurant.id)
     .eq("customer_user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Calculate loyalty points from paid orders
+  // Loyalty points: an order that *uses* a loyalty discount earns 0 points;
+  // otherwise 1pt / 1€ paid. Past redemptions also burn their tier cost.
+  // Cancelled orders don't count.
   const paidOrders = (orders ?? []).filter((o) => o.paid && o.status !== "cancelled");
-  const totalPoints = paidOrders.reduce(
-    (sum, o) => sum + Math.floor(o.total_price / 100),
+  const earnedPoints = paidOrders.reduce(
+    (sum, o) =>
+      sum +
+      ((o.loyalty_points_used ?? 0) > 0
+        ? 0
+        : Math.floor(o.total_price / 100)),
     0
   );
+  const usedPoints = paidOrders.reduce(
+    (sum, o) => sum + (o.loyalty_points_used ?? 0),
+    0
+  );
+  const totalPoints = Math.max(0, earnedPoints - usedPoints);
 
   return (
     <AccountPage

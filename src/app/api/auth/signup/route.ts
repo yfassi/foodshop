@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     if (password.length < 6) {
-      return NextResponse.json({ error: "Le mot de passe doit contenir au moins 6 caracteres" }, { status: 400 });
+      return NextResponse.json({ error: "Le mot de passe doit contenir au moins 6 caractères" }, { status: 400 });
     }
 
     const supabase = createAdminClient();

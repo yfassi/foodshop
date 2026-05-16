@@ -35,7 +35,16 @@ interface CheckoutBody {
   order_notes?: string;
   queue_session_id?: string;
   delivery_address?: DeliveryAddress;
+  loyalty_reward?: { tier_id: string };
 }
+
+type LoyaltyTierConfig = {
+  id: string;
+  points: number;
+  reward_type?: string;
+  discount_amount?: number;
+  label?: string;
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -93,6 +102,7 @@ export async function POST(request: Request) {
       order_notes,
       queue_session_id,
       delivery_address,
+      loyalty_reward,
     } = body;
 
     const sanitizedEmail =
@@ -103,7 +113,7 @@ export async function POST(request: Request) {
     // Validate input
     if (!restaurant_public_id || !items?.length) {
       return NextResponse.json(
-        { error: "Donnees manquantes" },
+        { error: "Données manquantes" },
         { status: 400 }
       );
     }
@@ -152,7 +162,7 @@ export async function POST(request: Request) {
 
     if (payment_source === "wallet" && !customerUserId) {
       return NextResponse.json(
-        { error: "Vous devez etre connecte pour payer avec le solde" },
+        { error: "Vous devez être connecté pour payer avec le solde" },
         { status: 401 }
       );
     }
@@ -167,7 +177,7 @@ export async function POST(request: Request) {
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select(
-        "id, name, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config"
+        "id, name, is_accepting_orders, opening_hours, stripe_account_id, stripe_onboarding_complete, order_types, queue_enabled, delivery_addon_active, delivery_enabled, delivery_config, loyalty_enabled, loyalty_tiers"
       )
       .eq("public_id", restaurant_public_id)
       .single();
@@ -447,6 +457,78 @@ export async function POST(request: Request) {
       totalPrice += deliveryFee;
     }
 
+    // Loyalty discount: applies as a direct rebate on the current bill.
+    // Customer must be logged in, restaurant must have loyalty on, tier must
+    // exist and the user must have enough net points (earned - already-burned).
+    let loyaltyTierId: string | null = null;
+    let loyaltyDiscountAmount = 0;
+    let loyaltyPointsUsed = 0;
+    if (loyalty_reward?.tier_id) {
+      if (!customerUserId) {
+        return NextResponse.json(
+          { error: "Vous devez être connecté pour utiliser un bonus fidélité" },
+          { status: 401 }
+        );
+      }
+      if (!restaurant.loyalty_enabled) {
+        return NextResponse.json(
+          { error: "Le programme fidélité n'est pas actif" },
+          { status: 400 }
+        );
+      }
+      const tiers = (restaurant.loyalty_tiers as LoyaltyTierConfig[]) ?? [];
+      const tier = tiers.find((t) => t.id === loyalty_reward.tier_id);
+      if (
+        !tier ||
+        tier.reward_type !== "discount" ||
+        !tier.discount_amount ||
+        tier.discount_amount <= 0 ||
+        !tier.points ||
+        tier.points <= 0
+      ) {
+        return NextResponse.json(
+          { error: "Bonus fidélité introuvable" },
+          { status: 400 }
+        );
+      }
+
+      const { data: priorOrders } = await supabase
+        .from("orders")
+        .select("total_price, status, loyalty_discount_amount, loyalty_points_used")
+        .eq("restaurant_id", restaurant.id)
+        .eq("customer_user_id", customerUserId)
+        .eq("paid", true);
+
+      const activePriorOrders = (priorOrders ?? []).filter(
+        (o) => o.status !== "cancelled"
+      );
+      // An order that burned a discount earns 0 points on itself.
+      const earned = activePriorOrders.reduce(
+        (sum, o) =>
+          sum +
+          ((o.loyalty_points_used ?? 0) > 0
+            ? 0
+            : Math.floor(o.total_price / 100)),
+        0
+      );
+      const used = activePriorOrders.reduce(
+        (sum, o) => sum + (o.loyalty_points_used ?? 0),
+        0
+      );
+      const available = Math.max(0, earned - used);
+      if (available < tier.points) {
+        return NextResponse.json(
+          { error: "Points insuffisants pour ce bonus" },
+          { status: 400 }
+        );
+      }
+
+      loyaltyTierId = tier.id;
+      loyaltyDiscountAmount = Math.min(tier.discount_amount, totalPrice);
+      loyaltyPointsUsed = tier.points;
+      totalPrice = Math.max(0, totalPrice - loyaltyDiscountAmount);
+    }
+
     // Build customer info
     const customerInfo: Record<string, string> = {};
     if (customer_name) customerInfo.name = customer_name;
@@ -507,6 +589,11 @@ export async function POST(request: Request) {
           paid: isFullWallet,
           wallet_amount_used: walletAmount,
           is_demo: isDemo,
+          ...(loyaltyTierId && {
+            loyalty_tier_id: loyaltyTierId,
+            loyalty_discount_amount: loyaltyDiscountAmount,
+            loyalty_points_used: loyaltyPointsUsed,
+          }),
           ...(resolvedOrderType === "delivery" && {
             delivery_status: "pending",
             delivery_address: sanitizedDeliveryAddress,
@@ -521,7 +608,7 @@ export async function POST(request: Request) {
       if (orderError || !order) {
         console.error("Order creation error:", orderError);
         return NextResponse.json(
-          { error: "Erreur lors de la creation de la commande" },
+          { error: "Erreur lors de la création de la commande" },
           { status: 500 }
         );
       }
@@ -634,6 +721,8 @@ export async function POST(request: Request) {
     }
 
     // Create order in database (direct payment)
+    const onlineFullyDiscounted =
+      payment_method === "online" && totalPrice === 0 && loyaltyTierId;
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -647,8 +736,14 @@ export async function POST(request: Request) {
         payment_source: "direct",
         display_order_number: displayOrderNumber,
         ...(customerUserId && { customer_user_id: customerUserId }),
-        paid: false,
+        // A 100% loyalty-covered online order has nothing left to charge.
+        paid: !!onlineFullyDiscounted,
         is_demo: isDemo,
+        ...(loyaltyTierId && {
+          loyalty_tier_id: loyaltyTierId,
+          loyalty_discount_amount: loyaltyDiscountAmount,
+          loyalty_points_used: loyaltyPointsUsed,
+        }),
         ...(resolvedOrderType === "delivery" && {
           delivery_status: "pending",
           delivery_address: sanitizedDeliveryAddress,
@@ -663,13 +758,14 @@ export async function POST(request: Request) {
     if (orderError || !order) {
       console.error("Order creation error:", orderError);
       return NextResponse.json(
-        { error: "Erreur lors de la creation de la commande" },
+        { error: "Erreur lors de la création de la commande" },
         { status: 500 }
       );
     }
 
-    // If on_site payment, return order ID directly
-    if (payment_method === "on_site") {
+    // If on_site payment OR a 100% loyalty-discounted online order,
+    // skip Stripe and return the order ID directly.
+    if (payment_method === "on_site" || onlineFullyDiscounted) {
       // Complete queue ticket
       if (restaurant.queue_enabled && queue_session_id) {
         await supabase
@@ -680,8 +776,11 @@ export async function POST(request: Request) {
           .eq("status", "active");
       }
       notifyAdmins(restaurant.id, restaurant_public_id, displayOrderNumber, totalPrice);
-      // Fire-and-forget customer confirmation email for on-site orders
+      // Fire-and-forget customer confirmation email
       void sendOrderConfirmationEmail({ orderId: order.id });
+      if (onlineFullyDiscounted) {
+        void enqueueOrderPrintJobs(order.id);
+      }
       return NextResponse.json({ order_id: order.id });
     }
 
@@ -732,12 +831,27 @@ export async function POST(request: Request) {
 
     const statementSuffix = buildStatementDescriptorSuffix(restaurantName);
 
+    // Loyalty discount → one-shot Stripe coupon attached to this session.
+    // With destination charges, the transfer to the connected account
+    // reflects the discounted amount automatically.
+    let loyaltyCouponId: string | null = null;
+    if (loyaltyDiscountAmount > 0) {
+      const coupon = await stripeClient.coupons.create({
+        amount_off: loyaltyDiscountAmount,
+        currency: "eur",
+        duration: "once",
+        name: `Bonus fidélité · ${displayOrderNumber}`,
+      });
+      loyaltyCouponId = coupon.id;
+    }
+
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       locale: "fr",
       ...(recipientEmail && { customer_email: recipientEmail }),
       line_items: stripeLineItems,
+      ...(loyaltyCouponId && { discounts: [{ coupon: loyaltyCouponId }] }),
       ...(isDemo
         ? {}
         : {

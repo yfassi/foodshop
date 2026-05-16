@@ -78,9 +78,9 @@ export default function SuperAdminRestaurantsPage() {
       setRestaurants((prev) =>
         prev.map((r) => (r.id === id ? { ...r, is_active: !is_active } : r))
       );
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
     } else {
-      toast.success(is_active ? "Restaurant active" : "Restaurant desactive");
+      toast.success(is_active ? "Restaurant activé" : "Restaurant désactivé");
     }
   };
 
@@ -207,9 +207,9 @@ export default function SuperAdminRestaurantsPage() {
                         }`}
                       >
                         {r.verification_status === "verified"
-                          ? "Verifie"
+                          ? "Vérifié"
                           : r.verification_status === "rejected"
-                            ? "Refuse"
+                            ? "Refusé"
                             : "En attente"}
                       </span>
                     </div>
@@ -221,7 +221,7 @@ export default function SuperAdminRestaurantsPage() {
                   href={`/super-admin/restaurants/${r.id}`}
                   className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  Voir les details
+                  Voir les détails
                   <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>

@@ -294,6 +294,8 @@ export function AccountPage({
   const addCartItem = useCartStore((s) => s.addItem);
   const removeCartItem = useCartStore((s) => s.removeItem);
   const setCartRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
+  const loyaltyReward = useCartStore((s) => s.loyaltyReward);
+  const setLoyaltyReward = useCartStore((s) => s.setLoyaltyReward);
 
   const findRewardLine = (tier: LoyaltyTier) =>
     tier.product_id
@@ -302,26 +304,50 @@ export function AccountPage({
         )
       : undefined;
 
+  const isDiscountActive = (tier: LoyaltyTier) =>
+    tier.reward_type === "discount" && loyaltyReward?.tier_id === tier.id;
+
   const handleClaimReward = (tier: LoyaltyTier) => {
-    if (tier.reward_type !== "free_product" || !tier.product_id) return;
-    const productName = tier.product_name ?? tier.label ?? "Article offert";
-    const existing = findRewardLine(tier);
-    if (existing) {
-      removeCartItem(existing.id);
-      toast(`${productName} retiré de votre panier`);
+    if (tier.reward_type === "discount") {
+      if (!tier.discount_amount || tier.discount_amount <= 0) return;
+      if (isDiscountActive(tier)) {
+        setLoyaltyReward(null);
+        toast(`${tier.label || "Réduction"} retirée du panier`);
+        return;
+      }
+      setCartRestaurantPublicId(publicId);
+      setLoyaltyReward({
+        tier_id: tier.id,
+        points: tier.points,
+        discount_amount: tier.discount_amount,
+        label: tier.label || `${(tier.discount_amount / 100).toFixed(2)} € offerts`,
+      });
+      toast.success(
+        `${tier.label || "Réduction"} appliquée à votre prochaine commande`
+      );
       return;
     }
-    setCartRestaurantPublicId(publicId);
-    addCartItem({
-      product_id: tier.product_id,
-      product_name: `${productName} (offert)`,
-      base_price: 0,
-      quantity: 1,
-      modifiers: [],
-      is_menu: false,
-      menu_supplement: 0,
-    });
-    toast.success(`${productName} ajouté gratuitement à votre commande`);
+
+    if (tier.reward_type === "free_product" && tier.product_id) {
+      const productName = tier.product_name ?? tier.label ?? "Article offert";
+      const existing = findRewardLine(tier);
+      if (existing) {
+        removeCartItem(existing.id);
+        toast(`${productName} retiré de votre panier`);
+        return;
+      }
+      setCartRestaurantPublicId(publicId);
+      addCartItem({
+        product_id: tier.product_id,
+        product_name: `${productName} (offert)`,
+        base_price: 0,
+        quantity: 1,
+        modifiers: [],
+        is_menu: false,
+        menu_supplement: 0,
+      });
+      toast.success(`${productName} ajouté gratuitement à votre commande`);
+    }
   };
 
   return (
@@ -485,8 +511,16 @@ export function AccountPage({
                 const unlocked = totalPoints >= tier.points;
                 const isFreeProduct =
                   tier.reward_type === "free_product" && !!tier.product_id;
-                const claimable = unlocked && isFreeProduct;
-                const inCart = !!findRewardLine(tier);
+                const isDiscount =
+                  tier.reward_type === "discount" &&
+                  !!tier.discount_amount &&
+                  tier.discount_amount > 0;
+                const claimable = unlocked && (isFreeProduct || isDiscount);
+                const inCart = isFreeProduct
+                  ? !!findRewardLine(tier)
+                  : isDiscount
+                    ? isDiscountActive(tier)
+                    : false;
                 const ptsLeft = tier.points - totalPoints;
                 const title =
                   tier.label ||
@@ -561,9 +595,13 @@ export function AccountPage({
                         {!unlocked
                           ? `Encore ${ptsLeft} pts à gagner`
                           : inCart
-                          ? "Dans votre panier · touchez pour retirer"
+                          ? isDiscount
+                            ? "Appliquée à votre prochaine commande · touchez pour retirer"
+                            : "Dans votre panier · touchez pour retirer"
                           : claimable
-                          ? "Touchez pour l'ajouter à votre commande"
+                          ? isDiscount
+                            ? "Touchez pour l'appliquer à votre prochaine commande"
+                            : "Touchez pour l'ajouter à votre commande"
                           : `${tier.points} pts · débloqué`}
                       </p>
                       {!unlocked && (
@@ -589,7 +627,9 @@ export function AccountPage({
                             : "bg-[#1c1410] text-white"
                         }`}
                       >
-                        {inCart ? "Ajouté" : "Ajouter"}
+                        {isDiscount
+                          ? inCart ? "Appliquée" : "Appliquer"
+                          : inCart ? "Ajouté" : "Ajouter"}
                       </span>
                     )}
                   </Wrapper>

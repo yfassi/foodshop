@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
     if (!restaurant_public_id || !amount || amount <= 0) {
       return NextResponse.json(
-        { error: "Donnees manquantes" },
+        { error: "Données manquantes" },
         { status: 400 }
       );
     }
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     const adminSupabase = createAdminClient();
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       .single();
 
     if (!restaurant || restaurant.owner_id !== user.id) {
-      return NextResponse.json({ error: "Non autorise" }, { status: 403 });
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
 
     let walletId: string;
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
           .single();
         if (walletError || !newWallet) {
           return NextResponse.json(
-            { error: "Erreur lors de la creation du portefeuille" },
+            { error: "Erreur lors de la création du portefeuille" },
             { status: 500 }
           );
         }
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         p_wallet_id: walletId,
         p_amount: amount,
         p_type: "topup_admin",
-        p_description: description || "Credit manuel par le restaurant",
+        p_description: description || "Crédit manuel par le restaurant",
         p_created_by: user.id,
       }
     );

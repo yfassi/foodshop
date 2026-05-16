@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user || !isSuperAdmin(user.email)) {
-    return NextResponse.json({ error: "Non autorise" }, { status: 403 });
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -85,14 +85,14 @@ export async function PATCH(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user || !isSuperAdmin(user.email)) {
-    return NextResponse.json({ error: "Non autorise" }, { status: 403 });
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
   const body = await request.json();
   const { id } = body;
 
   if (!id) {
-    return NextResponse.json({ error: "Donnees invalides" }, { status: 400 });
+    return NextResponse.json({ error: "Données invalides" }, { status: 400 });
   }
 
   const update: Record<string, unknown> = {};
@@ -144,7 +144,7 @@ export async function PATCH(request: Request) {
   }
 
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ error: "Donnees invalides" }, { status: 400 });
+    return NextResponse.json({ error: "Données invalides" }, { status: 400 });
   }
 
   const admin = createAdminClient();

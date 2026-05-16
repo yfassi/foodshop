@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { Label } from "@/components/ui/label";
-import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
+import type { AcceptedPaymentMethod, CartItem, CustomerProfile, LoyaltyTier, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, FlaskConical, ChevronRight, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, Sparkles, Check, FlaskConical, ChevronRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { DeliveryAddressPicker } from "./delivery-address-picker";
 
@@ -27,6 +27,8 @@ export function CheckoutForm({
   customerProfile,
   walletBalance,
   loyaltyEnabled,
+  loyaltyTiers = [],
+  totalPoints = 0,
   restaurantCoords,
   isDemo = false,
   defaultEmail,
@@ -38,6 +40,8 @@ export function CheckoutForm({
   customerProfile: CustomerProfile | null;
   walletBalance: number;
   loyaltyEnabled?: boolean;
+  loyaltyTiers?: LoyaltyTier[];
+  totalPoints?: number;
   restaurantCoords?: { lat: number; lng: number } | null;
   isDemo?: boolean;
   defaultEmail?: string;
@@ -45,11 +49,16 @@ export function CheckoutForm({
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
+  const addCartItem = useCartStore((s) => s.addItem);
+  const removeCartItem = useCartStore((s) => s.removeItem);
+  const setCartRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
   const storedOrderType = useCartStore((s) => s.orderType);
   const setStoredOrderType = useCartStore((s) => s.setOrderType);
   const deliveryAddress = useCartStore((s) => s.deliveryAddress);
   const deliveryFee = useCartStore((s) => s.deliveryFee);
   const deliveryMinOrder = useCartStore((s) => s.deliveryMinOrder);
+  const loyaltyReward = useCartStore((s) => s.loyaltyReward);
+  const setLoyaltyReward = useCartStore((s) => s.setLoyaltyReward);
 
   const showOnSite = acceptedPaymentMethods.includes("on_site");
   const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
@@ -139,6 +148,9 @@ export function CheckoutForm({
           payment_source: paymentSource,
           customer_email: customerEmail.trim() || undefined,
           queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
+          ...(activeReward
+            ? { loyalty_reward: { tier_id: activeReward.tier_id } }
+            : {}),
           ...(orderType === "delivery" && deliveryAddress
             ? { delivery_address: deliveryAddress }
             : {}),
@@ -168,7 +180,21 @@ export function CheckoutForm({
 
   const itemsTotal = totalPrice();
   const applicableDeliveryFee = orderType === "delivery" ? deliveryFee : 0;
-  const total = itemsTotal + applicableDeliveryFee;
+  const grossTotal = itemsTotal + applicableDeliveryFee;
+  // Loyalty discount: only apply if the cached tier is still eligible.
+  const activeReward =
+    loyaltyReward &&
+    customerProfile &&
+    totalPoints >= loyaltyReward.points &&
+    loyaltyTiers.some(
+      (t) => t.id === loyaltyReward.tier_id && t.reward_type === "discount"
+    )
+      ? loyaltyReward
+      : null;
+  const discountApplied = activeReward
+    ? Math.min(activeReward.discount_amount, grossTotal)
+    : 0;
+  const total = Math.max(0, grossTotal - discountApplied);
   const isWalletSelected = paymentSource === "wallet";
   const walletCoversAll = walletBalance >= total;
   const remainder = total - walletBalance;
@@ -223,6 +249,16 @@ export function CheckoutForm({
               <span className="text-[#68625e]">Frais de livraison</span>
               <span className="font-mono font-medium text-[#1c1410]">
                 {formatPrice(applicableDeliveryFee)}
+              </span>
+            </div>
+          )}
+          {discountApplied > 0 && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-[#d7352d]">
+                Bonus fidélité · {activeReward?.label ?? "Réduction"}
+              </span>
+              <span className="font-mono font-medium text-[#d7352d]">
+                −{formatPrice(discountApplied)}
               </span>
             </div>
           )}
@@ -295,68 +331,93 @@ export function CheckoutForm({
         </p>
       )}
 
-      {/* Loyalty banner — kit: fdf9f3 bg, tomato red border when active */}
+      {/* Loyalty — kit: tomato red border + claimable bonuses */}
       {loyaltyEnabled && (
-        customerProfile ? (
-          <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d7352d] bg-[#fdf9f3] p-3.5">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d7352d] text-white">
-              <Gift className="h-4 w-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-bold text-[#1c1410]">
-                Cette commande vous rapporte{" "}
-                <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
-              </p>
-              <p className="text-[11px] text-[#68625e]">A ajouter a votre cagnotte fidelite</p>
-            </div>
-          </div>
-        ) : (
-          <Link
-            href={`/restaurant/${publicId}/login`}
-            className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
-          >
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">
-              <Gift className="h-4 w-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-bold text-[#1c1410]">
-                Connectez-vous pour cumuler des points
-              </p>
-              <p className="text-[11px] text-[#68625e]">+1 pt par tranche de 1 €</p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#a89e94]" />
-          </Link>
-        )
+        <LoyaltySection
+          customerProfile={customerProfile}
+          totalPoints={totalPoints}
+          earningPoints={activeReward ? 0 : Math.floor(total / 100)}
+          tiers={loyaltyTiers}
+          items={items}
+          activeRewardTierId={activeReward?.tier_id ?? null}
+          publicId={publicId}
+          onClaim={(tier) => {
+            if (tier.reward_type === "discount") {
+              if (!tier.discount_amount || tier.discount_amount <= 0) return;
+              if (loyaltyReward?.tier_id === tier.id) {
+                setLoyaltyReward(null);
+                toast(`${tier.label || "Réduction"} retirée`);
+                return;
+              }
+              setCartRestaurantPublicId(publicId);
+              setLoyaltyReward({
+                tier_id: tier.id,
+                points: tier.points,
+                discount_amount: tier.discount_amount,
+                label:
+                  tier.label ||
+                  `${(tier.discount_amount / 100).toFixed(2)} € offerts`,
+              });
+              toast.success(`${tier.label || "Réduction"} appliquée à votre commande`);
+              return;
+            }
+
+            if (tier.reward_type === "free_product" && tier.product_id) {
+              const productName = tier.product_name ?? tier.label ?? "Article offert";
+              const existing = items.find(
+                (it) => it.product_id === tier.product_id && it.base_price === 0
+              );
+              if (existing) {
+                removeCartItem(existing.id);
+                toast(`${productName} retiré de votre panier`);
+                return;
+              }
+              setCartRestaurantPublicId(publicId);
+              addCartItem({
+                product_id: tier.product_id,
+                product_name: `🎁 ${productName} (offert)`,
+                base_price: 0,
+                quantity: 1,
+                modifiers: [],
+                is_menu: false,
+                menu_supplement: 0,
+              });
+              toast.success(`${productName} ajouté gratuitement à votre commande`);
+            }
+          }}
+        />
       )}
 
-      {/* Email — optional, for the order confirmation receipt */}
-      <div>
-        <Label
-          htmlFor="customer_email"
-          className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
-        >
-          Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
-        </Label>
-        <input
-          id="customer_email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="vous@exemple.fr"
-          value={customerEmail}
-          onChange={(e) => {
-            setCustomerEmail(e.target.value);
-            if (emailError) setEmailError(null);
-          }}
-          onBlur={() => setEmailError(validateEmail(customerEmail))}
-          className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
-            emailError ? "border-destructive" : "border-border"
-          }`}
-        />
-        {emailError && (
-          <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
-        )}
-      </div>
+      {/* Email — only ask if we don't already have one for the receipt */}
+      {!defaultEmail && (
+        <div>
+          <Label
+            htmlFor="customer_email"
+            className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+          >
+            Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
+          </Label>
+          <input
+            id="customer_email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="vous@exemple.fr"
+            value={customerEmail}
+            onChange={(e) => {
+              setCustomerEmail(e.target.value);
+              if (emailError) setEmailError(null);
+            }}
+            onBlur={() => setEmailError(validateEmail(customerEmail))}
+            className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
+              emailError ? "border-destructive" : "border-border"
+            }`}
+          />
+          {emailError && (
+            <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
+          )}
+        </div>
+      )}
 
       {/* Payment method */}
       <div>
@@ -459,32 +520,6 @@ export function CheckoutForm({
         </div>
       </div>
 
-      {/* Email for guests paying online (receipt + order number) */}
-      {needsEmail && (
-        <div>
-          <Label
-            htmlFor="customer-email"
-            className="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#68625e]"
-          >
-            Email
-          </Label>
-          <input
-            id="customer-email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            value={customerEmail}
-            onChange={(e) => setCustomerEmail(e.target.value)}
-            placeholder="vous@email.com"
-            className="block h-12 w-full rounded-[12px] border-[1.5px] border-[#dbd7d2] bg-white px-4 text-[15px] font-medium text-[#1c1410] outline-none transition-colors placeholder:text-[#a89e94] focus:border-[#1c1410] focus:shadow-[0_0_0_3px_#1c14101a]"
-          />
-          <p className="mt-1.5 text-[12px] text-[#68625e]">
-            Pour recevoir votre reçu et le numéro de commande.
-          </p>
-        </div>
-      )}
-
       {/* Partial wallet info */}
       {isWalletSelected && !walletCoversAll && (
         <div className="flex items-start gap-3 rounded-[12px] border border-[#d8e3f4] bg-[#d8e3f4]/40 px-4 py-3">
@@ -540,5 +575,163 @@ export function CheckoutForm({
         </p>
       )}
     </form>
+  );
+}
+
+function LoyaltySection({
+  customerProfile,
+  totalPoints,
+  earningPoints,
+  tiers,
+  items,
+  activeRewardTierId,
+  publicId,
+  onClaim,
+}: {
+  customerProfile: CustomerProfile | null;
+  totalPoints: number;
+  earningPoints: number;
+  tiers: LoyaltyTier[];
+  items: CartItem[];
+  activeRewardTierId: string | null;
+  publicId: string;
+  onClaim: (tier: LoyaltyTier) => void;
+}) {
+  if (!customerProfile) {
+    return (
+      <Link
+        href={`/restaurant/${publicId}/login`}
+        className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
+      >
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">
+          <Gift className="h-4 w-4" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[13px] font-bold text-[#1c1410]">
+            Connectez-vous pour cumuler des points
+          </p>
+          <p className="text-[11px] text-[#68625e]">+1 pt par tranche de 1 €</p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-[#a89e94]" />
+      </Link>
+    );
+  }
+
+  const sortedTiers = [...tiers].sort((a, b) => a.points - b.points);
+  const unlocked = sortedTiers.filter((t) => totalPoints >= t.points);
+  const claimableTiers = unlocked.filter(
+    (t) =>
+      (t.reward_type === "free_product" && !!t.product_id) ||
+      (t.reward_type === "discount" && !!t.discount_amount && t.discount_amount > 0)
+  );
+  const nextTier = sortedTiers.find((t) => t.points > totalPoints);
+
+  const isClaimed = (tier: LoyaltyTier) => {
+    if (tier.reward_type === "free_product" && tier.product_id) {
+      return items.some(
+        (it) => it.product_id === tier.product_id && it.base_price === 0
+      );
+    }
+    if (tier.reward_type === "discount") {
+      return activeRewardTierId === tier.id;
+    }
+    return false;
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {/* Points header */}
+      <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d7352d] bg-[#fdf9f3] p-3.5">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d7352d] text-white">
+          <Gift className="h-4 w-4" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[13px] font-bold text-[#1c1410]">
+            Vous avez <span className="font-mono">{totalPoints} pts</span>
+            {nextTier && (
+              <span className="font-normal text-[#68625e]">
+                {" "}
+                · encore {nextTier.points - totalPoints} pts pour{" "}
+                {nextTier.label || nextTier.product_name || "votre récompense"}
+              </span>
+            )}
+          </p>
+          <p className="text-[11px] text-[#68625e]">
+            {earningPoints > 0 ? (
+              <>
+                Cette commande vous rapportera{" "}
+                <span className="font-mono font-semibold">+{earningPoints} pts</span>
+              </>
+            ) : (
+              <>Bonus utilisé · pas de points cumulés sur cette commande</>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Claimable bonuses */}
+      {claimableTiers.length > 0 && (
+        <div className="rounded-[14px] border-[1.5px] border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-3">
+          <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
+            <Sparkles className="h-3 w-3" />
+            {claimableTiers.length > 1
+              ? `${claimableTiers.length} bonus disponibles`
+              : "1 bonus disponible"}
+          </p>
+          <div className="space-y-1.5">
+            {claimableTiers.map((tier) => {
+              const claimed = isClaimed(tier);
+              const title =
+                tier.label || tier.product_name || "Article offert";
+              return (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => onClaim(tier)}
+                  className={`flex w-full items-center gap-2.5 rounded-[12px] border-[1.5px] px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                    claimed
+                      ? "border-emerald-300 bg-emerald-50"
+                      : "border-amber-200 bg-white"
+                  }`}
+                >
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+                      claimed
+                        ? "bg-emerald-500 text-white"
+                        : "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+                    }`}
+                  >
+                    {claimed ? (
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    ) : (
+                      <Gift className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-bold text-[#1c1410]">
+                      {title}
+                    </p>
+                    <p className="text-[11px] text-[#68625e]">
+                      {claimed
+                        ? "Ajouté · touchez pour retirer"
+                        : `${tier.points} pts · activer le bonus`}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      claimed
+                        ? "bg-emerald-500 text-white"
+                        : "bg-[#1c1410] text-white"
+                    }`}
+                  >
+                    {claimed ? "Activé" : "Activer"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

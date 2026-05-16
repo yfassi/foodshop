@@ -9,6 +9,16 @@ import type {
   OrderType,
 } from "@/lib/types";
 
+// Loyalty discount applied to the current cart. Free-product rewards keep
+// going through the existing items[] path (base_price === 0); only discount
+// tiers live here.
+export interface CartLoyaltyReward {
+  tier_id: string;
+  points: number;
+  discount_amount: number;
+  label: string;
+}
+
 function computeLineTotal(
   basePrice: number,
   modifiers: CartItemModifier[],
@@ -54,6 +64,8 @@ interface CartState {
   clearDelivery: () => void;
   clearCart: () => void;
   setRestaurantPublicId: (publicId: string) => void;
+  loyaltyReward: CartLoyaltyReward | null;
+  setLoyaltyReward: (reward: CartLoyaltyReward | null) => void;
   totalPrice: () => number;
   totalItems: () => number;
 }
@@ -71,6 +83,9 @@ export const useCartStore = create<CartState>()(
       deliveryZoneId: null,
       deliveryMinOrder: 0,
       deliveryDistanceM: null,
+      loyaltyReward: null,
+
+      setLoyaltyReward: (reward) => set({ loyaltyReward: reward }),
 
       addItem: (item) => {
         const lineTotal = computeLineTotal(
@@ -158,6 +173,7 @@ export const useCartStore = create<CartState>()(
           deliveryZoneId: null,
           deliveryMinOrder: 0,
           deliveryDistanceM: null,
+          loyaltyReward: null,
         }),
 
       setRestaurantPublicId: (publicId) => {
@@ -174,6 +190,7 @@ export const useCartStore = create<CartState>()(
             deliveryZoneId: null,
             deliveryMinOrder: 0,
             deliveryDistanceM: null,
+            loyaltyReward: null,
           });
         } else {
           set({ restaurantPublicId: publicId });

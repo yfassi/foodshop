@@ -251,12 +251,12 @@ export default function SuperAdminRestaurantDetailPage() {
 
     if (!res.ok) {
       setRestaurant({ ...restaurant, verification_status: prev });
-      toast.error("Erreur lors de la mise a jour");
+      toast.error("Erreur lors de la mise à jour");
     } else {
       toast.success(
         verification_status === "verified"
-          ? "Restaurant verifie"
-          : "Verification refusee"
+          ? "Restaurant vérifié"
+          : "Vérification refusée"
       );
     }
   };
@@ -308,10 +308,10 @@ export default function SuperAdminRestaurantDetailPage() {
 
     toast.success(
       ownerDialog.kind === "create"
-        ? "Acces cree"
+        ? "Accès créé"
         : ownerDialog.kind === "edit-email"
-          ? "Email mis a jour"
-          : "Mot de passe mis a jour"
+          ? "Email mis à jour"
+          : "Mot de passe mis à jour"
     );
     setOwnerDialog({ kind: "closed" });
     setOwnerEmailInput("");
@@ -457,10 +457,10 @@ export default function SuperAdminRestaurantDetailPage() {
                   }`}
                 >
                   {restaurant.verification_status === "verified"
-                    ? "Verifie"
+                    ? "Vérifié"
                     : restaurant.verification_status === "rejected"
-                      ? "Refuse"
-                      : "En attente de verification"}
+                      ? "Refusé"
+                      : "En attente de vérification"}
                 </span>
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                   {getTierLabel(form.subscription_tier)} —{" "}
@@ -490,12 +490,12 @@ export default function SuperAdminRestaurantDetailPage() {
           />
           <MetricCard
             icon={XCircle}
-            label="Annulees"
+            label="Annulées"
             value={String(restaurant.stats.cancelled_orders)}
           />
           <MetricCard
             icon={Layers}
-            label="Categories"
+            label="Catégories"
             value={String(restaurant.stats.category_count)}
           />
           <MetricCard
@@ -507,8 +507,8 @@ export default function SuperAdminRestaurantDetailPage() {
 
         {/* Verification */}
         <Section
-          title="Verification KBIS"
-          description="Validez l'inscription a la reception du KBIS du restaurateur."
+          title="Vérification KBIS"
+          description="Validez l'inscription à la réception du KBIS du restaurateur."
         >
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
@@ -591,8 +591,8 @@ export default function SuperAdminRestaurantDetailPage() {
               <p className="text-xs text-muted-foreground">Stripe Connect</p>
               <p className="text-sm font-medium">
                 {restaurant.stripe_onboarding_complete
-                  ? "Configure"
-                  : "Non configure"}
+                  ? "Configuré"
+                  : "Non configuré"}
               </p>
             </div>
           </div>
@@ -610,7 +610,7 @@ export default function SuperAdminRestaurantDetailPage() {
               onChange={(v) => updateField("is_accepting_orders", v)}
             />
             <ToggleRow
-              label="Fidelite"
+              label="Fidélité"
               checked={form.loyalty_enabled}
               onChange={(v) => updateField("loyalty_enabled", v)}
             />
@@ -659,7 +659,7 @@ export default function SuperAdminRestaurantDetailPage() {
               />
             </div>
             <div>
-              <Label htmlFor="phone">Telephone</Label>
+              <Label htmlFor="phone">Téléphone</Label>
               <Input
                 id="phone"
                 value={form.phone}
@@ -709,10 +709,10 @@ export default function SuperAdminRestaurantDetailPage() {
           </div>
         </Section>
 
-        {/* Acces / Proprietaire */}
+        {/* Accès / Propriétaire */}
         <Section
-          title="Acces"
-          description="Email et mot de passe utilises par le restaurateur pour se connecter."
+          title="Accès"
+          description="Email et mot de passe utilisés par le restaurateur pour se connecter."
         >
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-2">
@@ -724,7 +724,7 @@ export default function SuperAdminRestaurantDetailPage() {
                     {restaurant.owner_email}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">Aucun acces</span>
+                  <span className="text-muted-foreground">Aucun accès</span>
                 )}
               </span>
             </div>
@@ -760,7 +760,7 @@ export default function SuperAdminRestaurantDetailPage() {
                     onClick={() => openOwnerDialog({ kind: "reset-password" })}
                   >
                     <KeyRound className="mr-1.5 h-3.5 w-3.5" />
-                    Reinitialiser le mot de passe
+                    Réinitialiser le mot de passe
                   </Button>
                   <Button
                     type="button"
@@ -769,7 +769,7 @@ export default function SuperAdminRestaurantDetailPage() {
                     onClick={() => openOwnerDialog({ kind: "create" })}
                   >
                     <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                    Remplacer l&apos;acces
+                    Remplacer l&apos;accès
                   </Button>
                 </>
               ) : (
@@ -779,7 +779,7 @@ export default function SuperAdminRestaurantDetailPage() {
                   onClick={() => openOwnerDialog({ kind: "create" })}
                 >
                   <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                  Creer un acces
+                  Créer un accès
                 </Button>
               )}
             </div>
@@ -794,7 +794,7 @@ export default function SuperAdminRestaurantDetailPage() {
           <div className="space-y-1 divide-y divide-border">
             {Object.entries(DAY_LABELS).map(([key, label]) => {
               const hours = restaurant.opening_hours?.[key];
-              let display = "Ferme";
+              let display = "Fermé";
               if (hours) {
                 if (Array.isArray(hours)) {
                   display = hours
@@ -845,8 +845,8 @@ export default function SuperAdminRestaurantDetailPage() {
                 Zone dangereuse
               </h3>
               <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">
-                La suppression est definitive. Toutes les commandes, categories,
-                produits et donnees liees seront effaces.
+                La suppression est définitive. Toutes les commandes, catégories,
+                produits et données liées seront effacés.
               </p>
             </div>
           </div>
@@ -877,18 +877,18 @@ export default function SuperAdminRestaurantDetailPage() {
             <DialogTitle>
               {ownerDialog.kind === "create"
                 ? restaurant.owner_email
-                  ? "Remplacer l'acces"
-                  : "Creer un acces"
+                  ? "Remplacer l'accès"
+                  : "Créer un accès"
                 : ownerDialog.kind === "edit-email"
                   ? "Modifier l'email"
-                  : "Reinitialiser le mot de passe"}
+                  : "Réinitialiser le mot de passe"}
             </DialogTitle>
             <DialogDescription>
               {ownerDialog.kind === "create"
-                ? "Un nouvel utilisateur sera cree et associe comme proprietaire."
+                ? "Un nouvel utilisateur sera créé et associé comme propriétaire."
                 : ownerDialog.kind === "edit-email"
-                  ? "L'email de connexion sera mis a jour pour ce restaurant."
-                  : "Le mot de passe sera ecrase. Notez-le avant de fermer."}
+                  ? "L'email de connexion sera mis à jour pour ce restaurant."
+                  : "Le mot de passe sera écrasé. Notez-le avant de fermer."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
