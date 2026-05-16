@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     // Validate input
     if (!restaurant_public_id || !items?.length) {
       return NextResponse.json(
-        { error: "Donnees manquantes" },
+        { error: "Données manquantes" },
         { status: 400 }
       );
     }
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 
     if (payment_source === "wallet" && !customerUserId) {
       return NextResponse.json(
-        { error: "Vous devez etre connecte pour payer avec le solde" },
+        { error: "Vous devez être connecté pour payer avec le solde" },
         { status: 401 }
       );
     }
@@ -521,7 +521,7 @@ export async function POST(request: Request) {
       if (orderError || !order) {
         console.error("Order creation error:", orderError);
         return NextResponse.json(
-          { error: "Erreur lors de la creation de la commande" },
+          { error: "Erreur lors de la création de la commande" },
           { status: 500 }
         );
       }
@@ -663,7 +663,7 @@ export async function POST(request: Request) {
     if (orderError || !order) {
       console.error("Order creation error:", orderError);
       return NextResponse.json(
-        { error: "Erreur lors de la creation de la commande" },
+        { error: "Erreur lors de la création de la commande" },
         { status: 500 }
       );
     }

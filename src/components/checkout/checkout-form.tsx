@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/format";
 import { Label } from "@/components/ui/label";
-import type { AcceptedPaymentMethod, CustomerProfile, OrderType } from "@/lib/types";
+import type { AcceptedPaymentMethod, CartItem, CustomerProfile, LoyaltyTier, OrderType } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, FlaskConical, ChevronRight, type LucideIcon } from "lucide-react";
+import { Loader2, CreditCard, Banknote, Wallet, UtensilsCrossed, ShoppingBag, Bike, Gift, Sparkles, Check, FlaskConical, ChevronRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { DeliveryAddressPicker } from "./delivery-address-picker";
 
@@ -27,6 +27,8 @@ export function CheckoutForm({
   customerProfile,
   walletBalance,
   loyaltyEnabled,
+  loyaltyTiers = [],
+  totalPoints = 0,
   restaurantCoords,
   isDemo = false,
   defaultEmail,
@@ -38,6 +40,8 @@ export function CheckoutForm({
   customerProfile: CustomerProfile | null;
   walletBalance: number;
   loyaltyEnabled?: boolean;
+  loyaltyTiers?: LoyaltyTier[];
+  totalPoints?: number;
   restaurantCoords?: { lat: number; lng: number } | null;
   isDemo?: boolean;
   defaultEmail?: string;
@@ -45,6 +49,9 @@ export function CheckoutForm({
   const items = useCartStore((s) => s.items);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const clearCart = useCartStore((s) => s.clearCart);
+  const addCartItem = useCartStore((s) => s.addItem);
+  const removeCartItem = useCartStore((s) => s.removeItem);
+  const setCartRestaurantPublicId = useCartStore((s) => s.setRestaurantPublicId);
   const storedOrderType = useCartStore((s) => s.orderType);
   const setStoredOrderType = useCartStore((s) => s.setOrderType);
   const deliveryAddress = useCartStore((s) => s.deliveryAddress);
@@ -295,38 +302,39 @@ export function CheckoutForm({
         </p>
       )}
 
-      {/* Loyalty banner — kit: fdf9f3 bg, tomato red border when active */}
+      {/* Loyalty — kit: tomato red border + claimable bonuses */}
       {loyaltyEnabled && (
-        customerProfile ? (
-          <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d7352d] bg-[#fdf9f3] p-3.5">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d7352d] text-white">
-              <Gift className="h-4 w-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-bold text-[#1c1410]">
-                Cette commande vous rapporte{" "}
-                <span className="font-mono">{Math.floor(totalPrice() / 100)} pts</span>
-              </p>
-              <p className="text-[11px] text-[#68625e]">A ajouter a votre cagnotte fidelite</p>
-            </div>
-          </div>
-        ) : (
-          <Link
-            href={`/restaurant/${publicId}/login`}
-            className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
-          >
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">
-              <Gift className="h-4 w-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-bold text-[#1c1410]">
-                Connectez-vous pour cumuler des points
-              </p>
-              <p className="text-[11px] text-[#68625e]">+1 pt par tranche de 1 €</p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#a89e94]" />
-          </Link>
-        )
+        <LoyaltySection
+          customerProfile={customerProfile}
+          totalPoints={totalPoints}
+          earningPoints={Math.floor(totalPrice() / 100)}
+          tiers={loyaltyTiers}
+          items={items}
+          publicId={publicId}
+          onClaim={(tier) => {
+            if (tier.reward_type !== "free_product" || !tier.product_id) return;
+            const productName = tier.product_name ?? tier.label ?? "Article offert";
+            const existing = items.find(
+              (it) => it.product_id === tier.product_id && it.base_price === 0
+            );
+            if (existing) {
+              removeCartItem(existing.id);
+              toast(`${productName} retiré de votre panier`);
+              return;
+            }
+            setCartRestaurantPublicId(publicId);
+            addCartItem({
+              product_id: tier.product_id,
+              product_name: `🎁 ${productName} (offert)`,
+              base_price: 0,
+              quantity: 1,
+              modifiers: [],
+              is_menu: false,
+              menu_supplement: 0,
+            });
+            toast.success(`${productName} ajouté gratuitement à votre commande`);
+          }}
+        />
       )}
 
       {/* Email — optional, for the order confirmation receipt */}
@@ -540,5 +548,148 @@ export function CheckoutForm({
         </p>
       )}
     </form>
+  );
+}
+
+function LoyaltySection({
+  customerProfile,
+  totalPoints,
+  earningPoints,
+  tiers,
+  items,
+  publicId,
+  onClaim,
+}: {
+  customerProfile: CustomerProfile | null;
+  totalPoints: number;
+  earningPoints: number;
+  tiers: LoyaltyTier[];
+  items: CartItem[];
+  publicId: string;
+  onClaim: (tier: LoyaltyTier) => void;
+}) {
+  if (!customerProfile) {
+    return (
+      <Link
+        href={`/restaurant/${publicId}/login`}
+        className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#dbd7d2] bg-white p-3.5 transition-colors active:bg-[#fdf9f3]"
+      >
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#008138] text-white">
+          <Gift className="h-4 w-4" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[13px] font-bold text-[#1c1410]">
+            Connectez-vous pour cumuler des points
+          </p>
+          <p className="text-[11px] text-[#68625e]">+1 pt par tranche de 1 €</p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-[#a89e94]" />
+      </Link>
+    );
+  }
+
+  const sortedTiers = [...tiers].sort((a, b) => a.points - b.points);
+  const unlocked = sortedTiers.filter((t) => totalPoints >= t.points);
+  const claimableTiers = unlocked.filter(
+    (t) => t.reward_type === "free_product" && !!t.product_id
+  );
+  const nextTier = sortedTiers.find((t) => t.points > totalPoints);
+
+  const findClaimed = (tier: LoyaltyTier) =>
+    tier.product_id
+      ? items.find(
+          (it) => it.product_id === tier.product_id && it.base_price === 0
+        )
+      : undefined;
+
+  return (
+    <div className="space-y-2.5">
+      {/* Points header */}
+      <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-[#d7352d] bg-[#fdf9f3] p-3.5">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d7352d] text-white">
+          <Gift className="h-4 w-4" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[13px] font-bold text-[#1c1410]">
+            Vous avez <span className="font-mono">{totalPoints} pts</span>
+            {nextTier && (
+              <span className="font-normal text-[#68625e]">
+                {" "}
+                · encore {nextTier.points - totalPoints} pts pour{" "}
+                {nextTier.label || nextTier.product_name || "votre récompense"}
+              </span>
+            )}
+          </p>
+          <p className="text-[11px] text-[#68625e]">
+            Cette commande vous rapportera{" "}
+            <span className="font-mono font-semibold">+{earningPoints} pts</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Claimable bonuses */}
+      {claimableTiers.length > 0 && (
+        <div className="rounded-[14px] border-[1.5px] border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-3">
+          <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
+            <Sparkles className="h-3 w-3" />
+            {claimableTiers.length > 1
+              ? `${claimableTiers.length} bonus disponibles`
+              : "1 bonus disponible"}
+          </p>
+          <div className="space-y-1.5">
+            {claimableTiers.map((tier) => {
+              const claimed = !!findClaimed(tier);
+              const title =
+                tier.label || tier.product_name || "Article offert";
+              return (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => onClaim(tier)}
+                  className={`flex w-full items-center gap-2.5 rounded-[12px] border-[1.5px] px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                    claimed
+                      ? "border-emerald-300 bg-emerald-50"
+                      : "border-amber-200 bg-white"
+                  }`}
+                >
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+                      claimed
+                        ? "bg-emerald-500 text-white"
+                        : "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+                    }`}
+                  >
+                    {claimed ? (
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    ) : (
+                      <Gift className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-bold text-[#1c1410]">
+                      {title}
+                    </p>
+                    <p className="text-[11px] text-[#68625e]">
+                      {claimed
+                        ? "Ajouté · touchez pour retirer"
+                        : `${tier.points} pts · activer le bonus`}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      claimed
+                        ? "bg-emerald-500 text-white"
+                        : "bg-[#1c1410] text-white"
+                    }`}
+                  >
+                    {claimed ? "Activé" : "Activer"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

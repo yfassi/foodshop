@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentlyOpen } from "@/lib/constants";
-import type { AcceptedPaymentMethod, CustomerProfile, DeliveryConfig, OrderType, CategoryWithProducts, Category, Product, Modifier } from "@/lib/types";
+import type { AcceptedPaymentMethod, CustomerProfile, DeliveryConfig, LoyaltyTier, OrderType, CategoryWithProducts, Category, Product, Modifier } from "@/lib/types";
 import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +23,8 @@ export default function CheckoutPage() {
   const [orderTypes, setOrderTypes] = useState<OrderType[]>(["dine_in", "takeaway"]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTier[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
   const [restaurantCoords, setRestaurantCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,7 @@ export default function CheckoutPage() {
             : types.filter((t) => t !== "delivery");
         setOrderTypes(filteredTypes as OrderType[]);
         setLoyaltyEnabled(restaurant.loyalty_enabled === true);
+        setLoyaltyTiers((restaurant.loyalty_tiers as LoyaltyTier[]) ?? []);
         const deliveryConfig = (restaurant.delivery_config || {}) as DeliveryConfig;
         if (deliveryConfig.coords) {
           setRestaurantCoords({
@@ -132,6 +135,21 @@ export default function CheckoutPage() {
           if (wallet) {
             setWalletBalance(wallet.balance);
           }
+
+          // Compute loyalty points from paid orders
+          const { data: paidOrders } = await supabase
+            .from("orders")
+            .select("total_price, status, paid")
+            .eq("restaurant_id", restaurant.id)
+            .eq("customer_user_id", user.id)
+            .eq("paid", true);
+
+          if (paidOrders) {
+            const pts = paidOrders
+              .filter((o) => o.status !== "cancelled")
+              .reduce((sum, o) => sum + Math.floor(o.total_price / 100), 0);
+            setTotalPoints(pts);
+          }
         }
       }
 
@@ -183,6 +201,8 @@ export default function CheckoutPage() {
           customerProfile={customerProfile}
           walletBalance={walletBalance}
           loyaltyEnabled={loyaltyEnabled}
+          loyaltyTiers={loyaltyTiers}
+          totalPoints={totalPoints}
           restaurantCoords={restaurantCoords}
           isDemo={isDemo}
           defaultEmail={authEmail}
