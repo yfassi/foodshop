@@ -139,6 +139,7 @@ function Field({
   label,
   icon,
   hint,
+  error,
   className,
   children,
 }: {
@@ -146,6 +147,7 @@ function Field({
   label: string;
   icon?: React.ReactNode;
   hint?: string;
+  error?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -159,9 +161,11 @@ function Field({
         {label}
       </Label>
       {children}
-      {hint && (
+      {error ? (
+        <p className="text-[11px] text-destructive">{error}</p>
+      ) : hint ? (
         <p className="text-[11px] text-muted-foreground">{hint}</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -263,10 +267,15 @@ function HoursRow({
   };
 
   return (
-    <div className="grid grid-cols-[110px_1fr] items-start gap-3 border-b border-2-tk py-3 last:border-b-0 sm:grid-cols-[110px_1fr_70px] sm:items-center">
-      <div className="flex items-center gap-2">
-        <Switch checked={isOpen} onCheckedChange={toggle} aria-label={`Ouvrir ${DAYS_FR[dayKey]}`} />
-        <span className="text-sm font-medium text-foreground">{DAYS_FR[dayKey]}</span>
+    <div className="grid grid-cols-1 items-start gap-3 border-b border-2-tk py-3 last:border-b-0 sm:grid-cols-[110px_1fr_70px] sm:items-center">
+      <div className="flex items-center justify-between gap-2 sm:justify-start">
+        <div className="flex items-center gap-2">
+          <Switch checked={isOpen} onCheckedChange={toggle} aria-label={`Ouvrir ${DAYS_FR[dayKey]}`} />
+          <span className="text-sm font-medium text-foreground">{DAYS_FR[dayKey]}</span>
+        </div>
+        <span className="text-xs tabular text-muted-foreground sm:hidden">
+          {formatHoursTotal(total)}
+        </span>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {!ranges ? (
@@ -329,7 +338,7 @@ function HoursRow({
           </>
         )}
       </div>
-      <span className="col-start-2 text-left text-xs tabular text-muted-foreground sm:col-start-3 sm:text-right">
+      <span className="hidden text-xs tabular text-muted-foreground sm:col-start-3 sm:block sm:text-right">
         {formatHoursTotal(total)}
       </span>
     </div>
@@ -426,7 +435,7 @@ function AnchorNav() {
   }, []);
 
   return (
-    <nav className="sticky top-4 hidden w-[200px] shrink-0 self-start lg:block">
+    <nav className="sticky top-4 hidden w-[180px] shrink-0 self-start md:block lg:w-[200px]">
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Sur cette page
       </p>
@@ -488,6 +497,11 @@ export default function EtablissementPage() {
     if (!draft || !initial) return 0;
     return countDiffs(draft, initial);
   }, [draft, initial]);
+
+  // Validation live pour bloquer le Save tant que des champs requis sont vides.
+  const nameInvalid = !!draft && !draft.name.trim();
+  const orderTypesInvalid =
+    !!draft && !draft.orderDineIn && !draft.orderTakeaway && !draft.orderDelivery;
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const save = useCallback(async () => {
@@ -604,13 +618,18 @@ export default function EtablissementPage() {
                 id="et-name"
                 label="Nom de l'établissement"
                 className="md:col-span-2"
+                error={nameInvalid ? "Le nom est requis." : undefined}
               >
                 <Input
                   id="et-name"
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   placeholder="Ex. Le Petit Bistrot"
-                  className="h-11"
+                  aria-invalid={nameInvalid}
+                  className={cn(
+                    "h-11",
+                    nameInvalid && "border-destructive focus-visible:ring-destructive",
+                  )}
                 />
               </Field>
               <Field
@@ -802,6 +821,7 @@ export default function EtablissementPage() {
         onCancel={() => initial && setDraft(initial)}
         onSave={save}
         saving={saving}
+        disabled={nameInvalid || orderTypesInvalid}
       />
     </div>
   );

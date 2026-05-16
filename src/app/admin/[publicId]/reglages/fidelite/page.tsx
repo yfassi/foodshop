@@ -397,19 +397,21 @@ function TierTimeline({
                 key={t.id}
                 type="button"
                 onClick={() => onSelect(i)}
-                className="flex flex-1 flex-col items-center gap-2"
+                aria-pressed={active}
+                title={`Tier ${i + 1} — Dès ${t.points} pts`}
+                className="group flex flex-1 cursor-pointer flex-col items-center gap-2"
               >
                 <div
                   className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-card text-sm font-semibold transition-transform",
+                    "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-card text-sm font-semibold transition-all",
                     active
                       ? "border-brand-accent bg-brand-accent text-[color:var(--brand-accent-fg)] scale-105 shadow-md"
-                      : "border-2-tk text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                      : "border-2-tk text-muted-foreground group-hover:scale-105 group-hover:border-foreground/40 group-hover:text-foreground"
                   )}
                 >
                   {i + 1}
                 </div>
-                <p className="text-xs font-mono tabular text-foreground">{t.points} pts</p>
+                <p className="text-xs font-mono tabular text-foreground">Dès {t.points} pts</p>
                 <p className="line-clamp-1 max-w-[120px] text-center text-[11px] text-muted-foreground">
                   {t.label || (t.reward_type === "discount" ? `-${t.discount_amount}€` : t.product_name || "Article")}
                 </p>
@@ -613,7 +615,7 @@ function PhonePreview({
   const pointsLeft = selected ? Math.max(0, selected.points - MOCK_USER.points) : 0;
 
   return (
-    <div className="sticky top-4 hidden w-[400px] shrink-0 self-start xl:block">
+    <div className="sticky top-4 hidden w-[300px] shrink-0 self-start lg:block xl:w-[400px]">
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Aperçu côté client · Live
       </p>
