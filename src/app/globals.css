@@ -81,6 +81,66 @@
   --sidebar-ring: oklch(0.708 0 0);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+
+  /* ═══ TaapR admin design system ═══ */
+  /* Secondary surfaces */
+  --bg-2: #fafafa;
+  --bg-3: #f5f5f5;
+  --border-2: #e7e7e7;
+
+  /* Brand accent — user-selectable, drives --primary, --ring, tints */
+  --brand-accent: #171717;
+  --brand-accent-fg: #ffffff;
+
+  /* Tints derived from accent (CSS-only, no JS) */
+  --tint-bg:   color-mix(in oklab, var(--brand-accent) 8%, #ffffff);
+  --tint-bg-2: color-mix(in oklab, var(--brand-accent) 14%, #ffffff);
+  --tint-border: color-mix(in oklab, var(--brand-accent) 22%, #ffffff);
+
+  /* Status tokens (replaces ad-hoc .bg-success-soft etc.) */
+  --status-success-bg: #dcfce7;
+  --status-success-fg: #008138;
+  --status-warn-bg:    #fef3c6;
+  --status-warn-fg:    #b75000;
+  --status-danger-bg:  #ffe2e2;
+  --status-danger-fg:  #bf000f;
+  --status-info-bg:    #dbeafe;
+  --status-info-fg:    #1447e6;
+
+  /* Density — defaults to confort */
+  --dens-card: 20px;
+  --dens-row:  12px;
+  --dens-gap:  16px;
+  --font-base: 14px;
+}
+
+/* Accent variants — set via data-accent="..." on <html> */
+:root[data-accent="blue"]  { --brand-accent: #1447e6; --brand-accent-fg: #ffffff; }
+:root[data-accent="red"]   { --brand-accent: #d7352d; --brand-accent-fg: #ffffff; }
+:root[data-accent="green"] { --brand-accent: #15803d; --brand-accent-fg: #ffffff; }
+:root[data-accent="neutral"] { --brand-accent: #171717; --brand-accent-fg: #ffffff; }
+
+/* Accent variants override shadcn primary + ring so buttons follow */
+:root[data-accent="blue"],
+:root[data-accent="red"],
+:root[data-accent="green"] {
+  --primary: var(--brand-accent);
+  --primary-foreground: var(--brand-accent-fg);
+  --ring: var(--brand-accent);
+}
+
+/* Density modes — class on <body> */
+body.dens-compact {
+  --dens-card: 14px;
+  --dens-row:  8px;
+  --dens-gap:  10px;
+  --font-base: 13px;
+}
+body.dens-confort {
+  --dens-card: 20px;
+  --dens-row:  12px;
+  --dens-gap:  16px;
+  --font-base: 14px;
 }
 
 .dark {
@@ -115,7 +175,32 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* TaapR admin — dark overrides */
+  --bg-2: #121212;
+  --bg-3: #1c1c1c;
+  --border-2: rgba(255, 255, 255, 0.10);
+  --brand-accent: #e5e5e5;
+  --brand-accent-fg: #0a0a0a;
+  --tint-bg:   color-mix(in oklab, var(--brand-accent) 8%, #0a0a0a);
+  --tint-bg-2: color-mix(in oklab, var(--brand-accent) 14%, #0a0a0a);
+  --tint-border: color-mix(in oklab, var(--brand-accent) 22%, #0a0a0a);
+
+  /* Status — dark variants (slightly desaturated for readability) */
+  --status-success-bg: rgba(0, 199, 88, 0.16);
+  --status-success-fg: #6ee7a7;
+  --status-warn-bg:    rgba(249, 156, 0, 0.16);
+  --status-warn-fg:    #fbbf24;
+  --status-danger-bg:  rgba(215, 53, 45, 0.18);
+  --status-danger-fg:  #fda4a4;
+  --status-info-bg:    rgba(20, 71, 230, 0.18);
+  --status-info-fg:    #93c5fd;
 }
+
+/* Dark mode accent variants */
+.dark[data-accent="blue"]  { --brand-accent: #1447e6; --brand-accent-fg: #ffffff; }
+.dark[data-accent="red"]   { --brand-accent: #d7352d; --brand-accent-fg: #ffffff; }
+.dark[data-accent="green"] { --brand-accent: #15803d; --brand-accent-fg: #ffffff; }
 
 html {
   scroll-behavior: smooth;
@@ -178,6 +263,50 @@ html {
   .bg-info-soft { background-color: #dbeafe; }
   .text-warning { color: #b75000; }
   .bg-warning-soft { background-color: #fef3c6; }
+
+  /* TaapR admin — token-aware utilities */
+  .bg-bg-2  { background-color: var(--bg-2); }
+  .bg-bg-3  { background-color: var(--bg-3); }
+  .border-2-tk { border-color: var(--border-2); }
+  .bg-tint   { background-color: var(--tint-bg); }
+  .bg-tint-2 { background-color: var(--tint-bg-2); }
+  .border-tint { border-color: var(--tint-border); }
+  .text-brand-accent { color: var(--brand-accent); }
+  .bg-brand-accent   { background-color: var(--brand-accent); color: var(--brand-accent-fg); }
+  .ring-brand-accent { --tw-ring-color: var(--brand-accent); }
+
+  /* Status pills (background + foreground pairs) */
+  .status-success { background-color: var(--status-success-bg); color: var(--status-success-fg); }
+  .status-warn    { background-color: var(--status-warn-bg);    color: var(--status-warn-fg); }
+  .status-danger  { background-color: var(--status-danger-bg);  color: var(--status-danger-fg); }
+  .status-info    { background-color: var(--status-info-bg);    color: var(--status-info-fg); }
+
+  /* Tabulaire numerals — for prices, IDs, counters, times */
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Live pulse dot (Realtime indicator, status bandeau) */
+  .pulse-dot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background-color: currentColor;
+  }
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    background-color: currentColor;
+    opacity: 0.35;
+    animation: ts-pulse 1.6s ease-out infinite;
+  }
+  @keyframes ts-pulse {
+    0%   { opacity: 0.45; transform: scale(0.6); }
+    70%  { opacity: 0;    transform: scale(1.6); }
+    100% { opacity: 0;    transform: scale(1.6); }
+  }
 
   /* TaapR client mobile UI kit tokens — warm bistro palette */
   .client-bg { background-color: #fdf9f3; }
