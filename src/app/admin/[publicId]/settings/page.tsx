@@ -210,6 +210,18 @@ function QueueManagerSection({ publicId, restaurantId }: { publicId: string; res
   );
 }
 
+// Tabs migrés vers /reglages/<slug>. Si l'utilisateur arrive sur l'ancienne URL
+// (?tab=X), on le redirige vers la nouvelle route.
+const MIGRATED_TABS: Record<string, string> = {
+  floor: "/reglages/plan-de-salle",
+  materiel: "/reglages/materiel",
+  api: "/reglages/api",
+  queue: "/reglages/file-attente",
+  wallet: "/reglages/solde",
+  restaurant: "/reglages/etablissement",
+  loyalty: "/reglages/fidelite",
+};
+
 export default function SettingsPage() {
   const params = useParams<{ publicId: string }>();
   const router = useRouter();
@@ -218,6 +230,15 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+
+  // Redirect legacy ?tab=X URLs to their new /reglages/<slug> route.
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && MIGRATED_TABS[t]) {
+      router.replace(`/admin/${params.publicId}${MIGRATED_TABS[t]}`);
+    }
+  }, [searchParams, router, params.publicId]);
+
   const ALLOWED_TABS: Tab[] = [
     "restaurant",
     "payment",
