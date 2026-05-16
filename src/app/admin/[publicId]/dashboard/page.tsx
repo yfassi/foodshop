@@ -46,6 +46,12 @@ import type { DateRange } from "react-day-picker";
 import { ExportCsvButton } from "@/components/admin/export-csv-button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { FeatureGate } from "@/components/upsell/feature-gate";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 /* ─── Period presets ─── */
 const PERIOD_PRESETS: { key: Period; label: string; group: "quick" | "relative" | "rolling" }[] = [
@@ -369,6 +375,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="mx-auto max-w-5xl">
+        <div className="sticky top-0 z-10 -mx-4 bg-background/90 px-4 pt-2 backdrop-blur md:-mx-8 md:px-8">
         <AdminPageHeader
           kicker="Pilotage"
           icon={BarChart3}
@@ -479,6 +486,7 @@ export default function DashboardPage() {
             </>
           }
         />
+        </div>
 
         {/* ─── Metric cards ─── */}
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -504,7 +512,20 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* ─── Charts ─── */}
+        {/* ─── Empty state ou charts ─── */}
+        {metrics.totalOrders === 0 ? (
+          <div className="mb-6 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              Aucune vente sur la période
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Sélectionnez une autre période ou attendez les prochaines commandes.
+            </p>
+          </div>
+        ) : (
         <div className={`mb-6 grid gap-4 ${isMultiDay ? "md:grid-cols-2" : ""}`}>
           {/* Orders by hour */}
           <div className="rounded-2xl border border-border bg-card p-4">
@@ -595,17 +616,26 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ─── Analyse IA ─── */}
         {analysis && (
-          <div className="mb-6 rounded-2xl border border-border bg-card p-5">
-            <div className="mb-5 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <Sparkles className="h-4 w-4 text-primary" />
-              </div>
-              <TypographyH3>Analyse IA</TypographyH3>
-            </div>
-
+          <Accordion
+            type="single"
+            collapsible
+            defaultValue="ia"
+            className="mb-6 rounded-2xl border border-border bg-card px-5"
+          >
+            <AccordionItem value="ia" className="border-b-0">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </div>
+                  <TypographyH3>Analyse IA</TypographyH3>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Top products */}
               {analysis.topProducts.length > 0 && (
@@ -718,7 +748,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
 
         {/* ─── Fidélité ─── */}

@@ -190,6 +190,26 @@ export default function ClientsPage() {
     setSheetOpen(true);
   };
 
+  // Comptage clients par tier (pour les badges sur le filtre)
+  const tierCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: clients.length };
+    for (const t of LOYALTY_TIERS) counts[t.key] = 0;
+    for (const c of clients) {
+      const k = computeLoyalty(c.order_count, c.total_spent).tier.key;
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return counts;
+  }, [clients]);
+
+  // Validation du crédit (live, pour bloquer le submit tant que invalide)
+  const creditAmountInvalid = useMemo(() => {
+    const raw = creditAmount.trim();
+    if (!raw) return true;
+    const parsed = parseFloat(raw.replace(",", "."));
+    return !Number.isFinite(parsed) || parsed <= 0;
+  }, [creditAmount]);
+  const creditEmailInvalid = !creditEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(creditEmail.trim());
+
   // Loyalty rollup across visible client base
   const loyaltyRollup = useMemo(() => {
     let earned = 0;
@@ -286,19 +306,29 @@ export default function ClientsPage() {
             />
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
-            {TIER_FILTERS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTierFilter(key)}
-                className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                  tierFilter === key
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {TIER_FILTERS.map(({ key, label }) => {
+              const count = tierCounts[key] ?? 0;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setTierFilter(key)}
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                    tierFilter === key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span
+                    className={`tabular-nums ${
+                      tierFilter === key ? "text-muted-foreground" : "text-muted-foreground/60"
+                    }`}
+                  >
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -311,6 +341,19 @@ export default function ClientsPage() {
                 ? "Aucun client pour le moment."
                 : "Aucun résultat avec ces filtres."}
             </TypographyMuted>
+            {clients.length > 0 && (search || tierFilter !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => {
+                  setSearch("");
+                  setTierFilter("all");
+                }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -322,11 +365,14 @@ export default function ClientsPage() {
                       Client
                     </Th>
                     <Th>Statut</Th>
-                    <Th onClick={() => onSort("points")} active={sortKey === "points"} asc={sortAsc} align="right">
-                      Points
+                    <Th align="right" title="Total des points gagnés cumulés depuis le début du programme">
+                      Gagnés
+                    </Th>
+                    <Th onClick={() => onSort("points")} active={sortKey === "points"} asc={sortAsc} align="right" title="Solde actuel de points (gagnés moins utilisés)">
+                      Solde pts
                     </Th>
                     <Th onClick={() => onSort("balance")} active={sortKey === "balance"} asc={sortAsc} align="right">
-                      Solde
+                      Solde €
                     </Th>
                     <Th onClick={() => onSort("orders")} active={sortKey === "orders"} asc={sortAsc} align="right">
                       Commandes
@@ -360,25 +406,23 @@ export default function ClientsPage() {
                             {loy.tier.icon} {loy.tier.label}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">
+                        <td
+                          className="px-3 py-2.5 text-right text-[11px] tabular-nums text-muted-foreground"
+                          title={`${c.points_earned} points gagnés au total`}
+                        >
+                          {c.points_earned > 0 ? c.points_earned : <span className="text-muted-foreground/40">—</span>}
+                        </td>
+                        <td
+                          className="px-3 py-2.5 text-right tabular-nums"
+                          title={`Solde = Gagnés (${c.points_earned}) − Utilisés (${c.points_used})`}
+                        >
                           {c.points_balance > 0 ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-                              title={`Gagnés ${c.points_earned} · Utilisés ${c.points_used}`}
-                            >
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                               <Sparkles className="h-3 w-3" />
                               {c.points_balance}
                             </span>
                           ) : c.points_used > 0 ? (
-                            <span
-                              className="text-[11px] text-muted-foreground"
-                              title={`Gagnés ${c.points_earned} · Utilisés ${c.points_used}`}
-                            >
-                              0
-                              <span className="ml-1 text-muted-foreground/60">
-                                (−{c.points_used})
-                              </span>
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">0</span>
                           ) : (
                             <span className="text-[11px] text-muted-foreground/40">—</span>
                           )}
@@ -439,23 +483,37 @@ export default function ClientsPage() {
                 value={creditEmail}
                 onChange={(e) => setCreditEmail(e.target.value)}
                 placeholder="client@email.com"
+                aria-invalid={creditEmail.length > 0 && creditEmailInvalid}
+                className={creditEmail.length > 0 && creditEmailInvalid ? "border-destructive focus-visible:ring-destructive" : ""}
                 required
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="c-amount" className="text-xs">
-                Montant (€)
+                Montant
               </Label>
-              <Input
-                id="c-amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={creditAmount}
-                onChange={(e) => setCreditAmount(e.target.value)}
-                placeholder="10.00"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="c-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="10,00"
+                  aria-invalid={creditAmount.length > 0 && creditAmountInvalid}
+                  className={`pr-8 font-mono tabular-nums ${creditAmount.length > 0 && creditAmountInvalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  required
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  €
+                </span>
+              </div>
+              {creditAmount.length > 0 && creditAmountInvalid && (
+                <p className="text-[11px] text-destructive">
+                  Montant minimum 0,01 €.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="c-desc" className="text-xs">
@@ -469,7 +527,11 @@ export default function ClientsPage() {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={crediting} className="w-full">
+              <Button
+                type="submit"
+                disabled={crediting || creditAmountInvalid || creditEmailInvalid}
+                className="w-full"
+              >
                 {crediting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Créditer
               </Button>
@@ -523,16 +585,19 @@ function Th({
   active,
   asc,
   align,
+  title,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   active?: boolean;
   asc?: boolean;
   align?: "left" | "right";
+  title?: string;
 }) {
   return (
     <th
       onClick={onClick}
+      title={title}
       className={`px-3 py-2 ${align === "right" ? "text-right" : "text-left"} ${onClick ? "cursor-pointer select-none hover:text-foreground" : ""} ${active ? "text-foreground" : ""}`}
     >
       <span className="inline-flex items-center gap-1">
