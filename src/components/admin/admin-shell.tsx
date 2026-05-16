@@ -51,40 +51,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FeatureGate } from "@/components/upsell/feature-gate";
+import { UserPreferences } from "@/components/admin/user-preferences";
 
 type SettingsSection = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  tab: string;
+  /** Path relative to /admin/[publicId] (e.g. "/settings?tab=payment"). */
+  href: string;
 };
 
+// Établissement and Fidélité now have dedicated routes (/reglages/...). The
+// remaining sub-sections still live as tabs in /settings until they get their
+// own pages.
 const SETTINGS_SECTIONS: SettingsSection[] = [
-  { icon: Store, label: "Établissement", tab: "restaurant" },
-  { icon: CreditCard, label: "Paiement", tab: "payment" },
-  { icon: Gift, label: "Fidélité", tab: "loyalty" },
-  { icon: Wallet, label: "Solde", tab: "wallet" },
-  { icon: Users, label: "File d'attente", tab: "queue" },
-  { icon: Bike, label: "Livraison", tab: "delivery" },
-  { icon: Package, label: "Stock", tab: "stock" },
-  { icon: LayoutGrid, label: "Plan de salle", tab: "floor" },
-  { icon: Printer, label: "Matériel", tab: "materiel" },
-  { icon: Key, label: "API", tab: "api" },
-  { icon: User, label: "Compte", tab: "account" },
+  { icon: Store, label: "Établissement", href: "/reglages/etablissement" },
+  { icon: CreditCard, label: "Paiement", href: "/settings?tab=payment" },
+  { icon: Gift, label: "Fidélité", href: "/reglages/fidelite" },
+  { icon: Wallet, label: "Solde", href: "/settings?tab=wallet" },
+  { icon: Users, label: "File d'attente", href: "/settings?tab=queue" },
+  { icon: Bike, label: "Livraison", href: "/settings?tab=delivery" },
+  { icon: Package, label: "Stock", href: "/settings?tab=stock" },
+  { icon: LayoutGrid, label: "Plan de salle", href: "/settings?tab=floor" },
+  { icon: Printer, label: "Matériel", href: "/settings?tab=materiel" },
+  { icon: Key, label: "API", href: "/settings?tab=api" },
+  { icon: User, label: "Compte", href: "/settings?tab=account" },
 ];
 
 type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   href: string;
+  /** When set, item also opens a sub-menu. The parent href is used for the "is on this section" check. */
+  matchPrefix?: string;
   sections?: SettingsSection[];
 };
 
 const BASE_NAV_ITEMS: NavItem[] = [
-  { icon: ClipboardList, label: "Commandes", href: "" },
-  { icon: UtensilsCrossed, label: "Articles", href: "/menu" },
+  { icon: ClipboardList, label: "Commandes", href: "/commandes" },
+  { icon: UtensilsCrossed, label: "Articles", href: "/articles" },
   { icon: BarChart3, label: "Tableau de bord", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
-  { icon: Settings, label: "Réglages", href: "/settings", sections: SETTINGS_SECTIONS },
+  {
+    icon: Settings,
+    label: "Réglages",
+    href: "/reglages/etablissement",
+    matchPrefix: "/reglages",
+    sections: SETTINGS_SECTIONS,
+  },
 ];
 
 const DELIVERY_NAV_ITEM: NavItem = {
@@ -167,21 +180,34 @@ export function AdminShell({
     if (deliveryEnabled) items.splice(insertAt, 0, DELIVERY_NAV_ITEM);
     return items;
   })();
-  const settingsBase = `/admin/${publicId}/settings`;
-  const onSettingsRoute = pathname?.startsWith(settingsBase) ?? false;
+  const reglagesPrefix = `/admin/${publicId}/reglages`;
+  const settingsLegacyBase = `/admin/${publicId}/settings`;
+  const onReglagesRoute =
+    (pathname?.startsWith(reglagesPrefix) ?? false) ||
+    (pathname?.startsWith(settingsLegacyBase) ?? false);
   const activeTab = searchParams?.get("tab");
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  // Per-group "user has manually toggled" state. Settings group is auto-open
-  // while you're on a settings page, closed otherwise.
+  // Per-group "user has manually toggled" state. Réglages group is auto-open
+  // while you're on a Réglages page (new routes) or legacy /settings, closed otherwise.
   const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({});
-  const isGroupOpen = (href: string) => {
-    if (href in groupOverrides) return groupOverrides[href];
-    return href === "/settings" ? onSettingsRoute : false;
+  const isGroupOpen = (key: string) => {
+    if (key in groupOverrides) return groupOverrides[key];
+    return key === "/reglages" ? onReglagesRoute : false;
   };
   const toggleGroup = (key: string) =>
     setGroupOverrides((prev) => ({ ...prev, [key]: !isGroupOpen(key) }));
+
+  // Returns whether the absolute path matches the current section (path + querystring).
+  const isSectionActive = (sectionHref: string) => {
+    const [path, query] = sectionHref.split("?");
+    const fullPath = `/admin/${publicId}${path}`;
+    if (pathname !== fullPath) return false;
+    if (!query) return true;
+    const expected = new URLSearchParams(query).get("tab");
+    return (activeTab ?? "restaurant") === expected;
+  };
   const hasMultipleRestaurants = !isDemo && restaurants.length > 1;
   const canAddRestaurant = !isDemo;
 
@@ -217,10 +243,15 @@ export function AdminShell({
     return () => clearInterval(interval);
   }, [getStatus]);
 
-  function isActive(href: string) {
-    const full = `/admin/${publicId}${href}`;
-    if (href === "") return pathname === `/admin/${publicId}`;
-    return pathname.startsWith(full);
+  function isActive(item: NavItem) {
+    const matcher = item.matchPrefix ?? item.href;
+    const full = `/admin/${publicId}${matcher}`;
+    if (matcher === "") return pathname === `/admin/${publicId}`;
+    // Treat legacy /settings as part of the Réglages section.
+    if (matcher === "/reglages" && pathname.startsWith(`/admin/${publicId}/settings`)) {
+      return true;
+    }
+    return pathname === full || pathname.startsWith(`${full}/`);
   }
 
   const handleLogout = async () => {
@@ -375,9 +406,10 @@ export function AdminShell({
           {/* Nav */}
           <nav className="flex-1 space-y-1 p-3">
             {NAV_ITEMS.map((item) => {
-              const active = isActive(item.href);
+              const active = isActive(item);
               const hasSubs = !!item.sections && !collapsed;
-              const expanded = hasSubs && isGroupOpen(item.href);
+              const groupKey = item.matchPrefix ?? item.href;
+              const expanded = hasSubs && isGroupOpen(groupKey);
               const itemHref = `/admin/${publicId}${item.href}${qs}`;
 
               return (
@@ -405,7 +437,7 @@ export function AdminShell({
                         type="button"
                         aria-label={expanded ? "Replier" : "Déplier"}
                         aria-expanded={expanded}
-                        onClick={() => toggleGroup(item.href)}
+                        onClick={() => toggleGroup(groupKey)}
                         className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                       >
                         <ChevronDown
@@ -428,12 +460,13 @@ export function AdminShell({
                       <div className="min-h-0">
                         <div className="ml-4 mt-0.5 space-y-px border-l border-sidebar-border/60 pl-2">
                           {item.sections!.map((sec) => {
-                            const subActive =
-                              onSettingsRoute && (activeTab ?? "restaurant") === sec.tab;
+                            const subActive = isSectionActive(sec.href);
+                            const sep = sec.href.includes("?") ? "&" : "?";
+                            const subHref = `/admin/${publicId}${sec.href}${qs ? `${sep}${qs.slice(1)}` : ""}`;
                             return (
                               <Link
-                                key={sec.tab}
-                                href={`${settingsBase}?tab=${sec.tab}`}
+                                key={sec.href}
+                                href={subHref}
                                 className={cn(
                                   "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
                                   subActive
@@ -507,6 +540,9 @@ export function AdminShell({
               )}
             </button>
 
+            {/* Display preferences (theme, density, accent) */}
+            <UserPreferences collapsed={collapsed} />
+
             {/* Profile card — restaurant identity is in the brand block, here we focus on the user */}
             <button
               onClick={() => setAccountOpen(true)}
@@ -565,7 +601,7 @@ export function AdminShell({
       {/* Bottom nav (mobile only) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-card/95 backdrop-blur-sm md:hidden">
         {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
+          const active = isActive(item);
           return (
             <Link
               key={item.href}

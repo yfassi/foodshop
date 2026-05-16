@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveCanonicalPublicId } from "@/lib/resolve-restaurant";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { isSuperAdmin } from "@/lib/super-admin";
+import { PREFS_BOOT_SCRIPT } from "@/components/admin/user-preferences";
 
 export default async function AdminLayout({
   children,
@@ -101,6 +102,8 @@ export default async function AdminLayout({
   if (restaurant.stock_module_active) activeAddons.push("stock");
 
   return (
+    <>
+      <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
     <AdminShell
       publicId={publicId}
       restaurantId={restaurant.id}
@@ -125,5 +128,6 @@ export default async function AdminLayout({
     >
       {children}
     </AdminShell>
+    </>
   );
 }
