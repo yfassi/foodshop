@@ -502,10 +502,13 @@ export async function POST(request: Request) {
       const activePriorOrders = (priorOrders ?? []).filter(
         (o) => o.status !== "cancelled"
       );
+      // An order that burned a discount earns 0 points on itself.
       const earned = activePriorOrders.reduce(
         (sum, o) =>
           sum +
-          Math.floor((o.total_price + (o.loyalty_discount_amount ?? 0)) / 100),
+          ((o.loyalty_points_used ?? 0) > 0
+            ? 0
+            : Math.floor(o.total_price / 100)),
         0
       );
       const used = activePriorOrders.reduce(

@@ -71,12 +71,16 @@ export default async function CustomerAccountPage({
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Loyalty points: earn from gross spend (pre-discount), minus points already
-  // burned on past discount redemptions. Cancelled orders don't count.
+  // Loyalty points: an order that *uses* a loyalty discount earns 0 points;
+  // otherwise 1pt / 1€ paid. Past redemptions also burn their tier cost.
+  // Cancelled orders don't count.
   const paidOrders = (orders ?? []).filter((o) => o.paid && o.status !== "cancelled");
   const earnedPoints = paidOrders.reduce(
     (sum, o) =>
-      sum + Math.floor((o.total_price + (o.loyalty_discount_amount ?? 0)) / 100),
+      sum +
+      ((o.loyalty_points_used ?? 0) > 0
+        ? 0
+        : Math.floor(o.total_price / 100)),
     0
   );
   const usedPoints = paidOrders.reduce(

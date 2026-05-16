@@ -149,7 +149,9 @@ export default function CheckoutPage() {
             const earned = active.reduce(
               (sum, o) =>
                 sum +
-                Math.floor((o.total_price + (o.loyalty_discount_amount ?? 0)) / 100),
+                ((o.loyalty_points_used ?? 0) > 0
+                  ? 0
+                  : Math.floor(o.total_price / 100)),
               0
             );
             const used = active.reduce(

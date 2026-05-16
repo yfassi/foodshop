@@ -336,7 +336,7 @@ export function CheckoutForm({
         <LoyaltySection
           customerProfile={customerProfile}
           totalPoints={totalPoints}
-          earningPoints={Math.floor(total / 100)}
+          earningPoints={activeReward ? 0 : Math.floor(total / 100)}
           tiers={loyaltyTiers}
           items={items}
           activeRewardTierId={activeReward?.tier_id ?? null}
@@ -657,8 +657,14 @@ function LoyaltySection({
             )}
           </p>
           <p className="text-[11px] text-[#68625e]">
-            Cette commande vous rapportera{" "}
-            <span className="font-mono font-semibold">+{earningPoints} pts</span>
+            {earningPoints > 0 ? (
+              <>
+                Cette commande vous rapportera{" "}
+                <span className="font-mono font-semibold">+{earningPoints} pts</span>
+              </>
+            ) : (
+              <>Bonus utilisé · pas de points cumulés sur cette commande</>
+            )}
           </p>
         </div>
       </div>
