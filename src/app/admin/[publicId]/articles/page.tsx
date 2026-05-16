@@ -18,6 +18,9 @@ import {
   Sparkles,
   Settings2,
   Link2,
+  X,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -57,6 +60,7 @@ import { ProductFormSheet } from "@/components/admin/product-form-sheet";
 import { PageHeader } from "@/components/admin/ui/page-header";
 import { EmptyState } from "@/components/admin/ui/empty-state";
 import { UnsavedChangesBar } from "@/components/admin/ui/unsaved-changes-bar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type CategoryWithProducts = Category & { products: Product[] };
 
@@ -405,6 +409,16 @@ function ArticleEditor({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [groups, setGroups] = useState<EditorGroup[] | null>(null);
+  const [linkSharedOpen, setLinkSharedOpen] = useState(false);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [availableShared, setAvailableShared] = useState<Array<{
+    id: string;
+    name: string;
+    min_select: number;
+    max_select: number;
+    option_count: number;
+  }> | null>(null);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
 
   // Reset draft when product changes
   useEffect(() => {
@@ -436,6 +450,16 @@ function ArticleEditor({
       draft.is_featured !== initial.is_featured
     );
   }, [draft, initial]);
+
+  // Validation prix : doit parser en un nombre fini ≥ 0. Tolère "," et "."
+  // comme séparateur, et autorise la chaîne "0" / "0,00".
+  const priceInvalid = useMemo(() => {
+    const raw = draft.priceEuros.trim();
+    if (!raw) return true;
+    const parsed = parseFloat(raw.replace(",", "."));
+    return !Number.isFinite(parsed) || parsed < 0;
+  }, [draft.priceEuros]);
+  const nameInvalid = !draft.name.trim();
 
   const saveDraft = async () => {
     if (!changed) return;
@@ -485,6 +509,75 @@ function ArticleEditor({
       setDuplicating(false);
     }
   };
+
+  // Charge les groupes partagés disponibles à lier (exclut ceux déjà liés).
+  useEffect(() => {
+    if (!linkSharedOpen) return;
+    let cancelled = false;
+    setAvailableShared(null);
+    setLinkSearch("");
+    const load = async () => {
+      const supabase = createClient();
+      const { data: all } = await supabase
+        .from("shared_modifier_groups")
+        .select("id, name, min_select, max_select")
+        .eq("restaurant_id", restaurantId)
+        .order("name", { ascending: true });
+      const ids = (all ?? []).map((g) => g.id);
+      const { data: counts } = ids.length
+        ? await supabase.from("shared_modifiers").select("group_id").in("group_id", ids)
+        : { data: [] as Array<{ group_id: string }> };
+      const countByGroup = new Map<string, number>();
+      for (const m of counts ?? []) {
+        countByGroup.set(m.group_id, (countByGroup.get(m.group_id) ?? 0) + 1);
+      }
+      const linkedIds = new Set(
+        (groups ?? []).filter((g) => g.source === "shared").map((g) => g.id),
+      );
+      if (cancelled) return;
+      setAvailableShared(
+        (all ?? [])
+          .filter((g) => !linkedIds.has(g.id))
+          .map((g) => ({ ...g, option_count: countByGroup.get(g.id) ?? 0 })),
+      );
+    };
+    load().catch(() => {
+      if (!cancelled) setAvailableShared([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkSharedOpen, restaurantId, groups]);
+
+  const linkSharedGroup = async (sharedGroupId: string) => {
+    setLinkingId(sharedGroupId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("product_shared_groups").insert({
+        product_id: product.id,
+        shared_group_id: sharedGroupId,
+        sort_order: (groups?.length ?? 0) + 1,
+      });
+      if (error) throw error;
+      toast.success("Groupe lié");
+      // Refresh local groups
+      const fresh = await fetchProductGroups(product.id);
+      setGroups(fresh);
+      setLinkSharedOpen(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erreur lors de la liaison";
+      toast.error(msg);
+    } finally {
+      setLinkingId(null);
+    }
+  };
+
+  const filteredShared = useMemo(() => {
+    if (!availableShared) return [];
+    const q = linkSearch.trim().toLowerCase();
+    if (!q) return availableShared;
+    return availableShared.filter((g) => g.name.toLowerCase().includes(q));
+  }, [availableShared, linkSearch]);
 
   const doDelete = async () => {
     setDeleting(true);
@@ -557,7 +650,8 @@ function ArticleEditor({
         </div>
       </div>
 
-      <div className="space-y-5 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-5 px-4 py-5 md:px-6 md:py-6">
         {/* Hero: image + name + meta + Modifier */}
         <div className="flex flex-col gap-4 sm:flex-row">
           <button
@@ -599,19 +693,28 @@ function ArticleEditor({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDraft({ ...draft, is_featured: !draft.is_featured })}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  draft.is_featured
-                    ? "border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
-                    : "border-2-tk bg-bg-2 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Sparkles className="h-3 w-3" />
-                {draft.is_featured ? "Top vente" : "Marquer top vente"}
-              </button>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setDraft({ ...draft, is_featured: !draft.is_featured })}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                        draft.is_featured
+                          ? "border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+                          : "border-2-tk bg-bg-2 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {draft.is_featured ? "Top vente" : "Marquer top vente"}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Article mis en avant dans le menu client.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <span className="text-muted-foreground/60">
                 SKU&nbsp;:&nbsp;
                 <span className="font-mono tabular text-muted-foreground">
@@ -665,12 +768,22 @@ function ArticleEditor({
                   inputMode="decimal"
                   value={draft.priceEuros}
                   onChange={(e) => setDraft({ ...draft, priceEuros: e.target.value })}
-                  className="h-11 pr-10 font-mono tabular text-base"
+                  aria-invalid={priceInvalid}
+                  aria-describedby={priceInvalid ? "art-price-err" : undefined}
+                  className={cn(
+                    "h-11 pr-10 font-mono tabular text-base",
+                    priceInvalid && "border-destructive focus-visible:ring-destructive",
+                  )}
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   €
                 </span>
               </div>
+              {priceInvalid && (
+                <p id="art-price-err" className="text-[11px] text-destructive">
+                  Entrez un montant valide (ex. 9,90).
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -804,20 +917,23 @@ function ArticleEditor({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={onAdvancedEdit}
+              onClick={() => setLinkSharedOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-bg-2 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-bg-3"
+              title="Réutiliser un groupe d'options déjà créé dans Options de menu"
             >
-              <Link2 className="h-3.5 w-3.5" /> Lier un groupe d&apos;options
+              <Link2 className="h-3.5 w-3.5" /> Lier un groupe partagé
             </button>
             <button
               type="button"
               onClick={onAdvancedEdit}
               className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-2-tk bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+              title="Groupe propre à cet article (sauces, cuissons, tailles…)"
             >
               <Plus className="h-3.5 w-3.5" /> Créer un nouveau groupe
             </button>
           </div>
         </section>
+        </div>
       </div>
 
       <UnsavedChangesBar
@@ -825,14 +941,19 @@ function ArticleEditor({
         onCancel={() => setDraft(initial)}
         onSave={saveDraft}
         saving={saving}
+        disabled={priceInvalid || nameInvalid}
+        variant="sticky"
       />
 
       <Dialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer cet article ?</DialogTitle>
-            <DialogDescription>
-              « {draft.name} » sera définitivement supprimé du menu. Cette action est irréversible.
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Supprimer cet article ?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              « {draft.name} » sera définitivement supprimé du menu, avec son
+              image éventuelle. <span className="font-medium text-destructive">Cette action est irréversible.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -844,7 +965,77 @@ function ArticleEditor({
               Annuler
             </Button>
             <Button variant="destructive" onClick={doDelete} disabled={deleting}>
-              {deleting ? "Suppression…" : "Supprimer"}
+              {deleting ? "Suppression…" : "Supprimer définitivement"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={linkSharedOpen} onOpenChange={setLinkSharedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Lier un groupe d&apos;options partagé</DialogTitle>
+            <DialogDescription>
+              Sélectionnez un groupe créé dans <span className="font-medium">Options de menu</span> pour le réutiliser sur cet article.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 rounded-md border border-2-tk bg-bg-2 px-2 py-1.5">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="search"
+                value={linkSearch}
+                onChange={(e) => setLinkSearch(e.target.value)}
+                placeholder="Rechercher un groupe…"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                aria-label="Rechercher un groupe d'options"
+              />
+              {linkSearch && (
+                <button
+                  type="button"
+                  onClick={() => setLinkSearch("")}
+                  aria-label="Effacer"
+                  className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto rounded-lg border border-2-tk">
+              {availableShared === null ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Chargement…
+                </p>
+              ) : filteredShared.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  {availableShared.length === 0
+                    ? "Aucun groupe partagé disponible. Créez-en un depuis Options de menu."
+                    : "Aucun groupe ne correspond à votre recherche."}
+                </p>
+              ) : (
+                filteredShared.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => linkSharedGroup(g.id)}
+                    disabled={linkingId !== null}
+                    className="flex w-full items-center justify-between gap-3 border-b border-2-tk px-4 py-2.5 text-left text-sm transition-colors last:border-b-0 hover:bg-bg-3 disabled:opacity-50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">{g.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {g.option_count} option{g.option_count > 1 ? "s" : ""} · Min {g.min_select} · Max {g.max_select}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkSharedOpen(false)} disabled={linkingId !== null}>
+              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1241,7 +1432,7 @@ export default function ArticlesPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[200px_280px_1fr] xl:grid-cols-[240px_380px_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[180px_260px_1fr] xl:grid-cols-[200px_320px_1fr] 2xl:grid-cols-[240px_380px_1fr]">
         {/* Pane 1 — Categories (hidden on md, shown from lg) */}
         <aside className="hidden flex-col border-r border-2-tk bg-bg-2 lg:flex">
           <div className="flex items-center justify-between border-b border-2-tk px-3 py-3">
@@ -1355,6 +1546,16 @@ export default function ArticlesPage() {
                 placeholder="Rechercher dans la catégorie…"
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Effacer la recherche"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-bg-3 hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">

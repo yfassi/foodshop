@@ -13,6 +13,7 @@ import {
   X,
   ArrowRight,
   Eye,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -76,9 +77,21 @@ function SortableOptionRow({
     setPriceEuros(((modifier.price_extra ?? 0) / 100).toFixed(2));
   }, [modifier.price_extra]);
 
+  const priceInvalid = (() => {
+    const raw = priceEuros.trim();
+    if (!raw) return true;
+    const parsed = parseFloat(raw.replace(",", "."));
+    return !Number.isFinite(parsed);
+  })();
+
   const commitPrice = () => {
+    if (priceInvalid) {
+      // Reset à la valeur valide stockée si l'utilisateur a saisi n'importe quoi.
+      setPriceEuros(((modifier.price_extra ?? 0) / 100).toFixed(2));
+      return;
+    }
     const parsed = Math.round(parseFloat(priceEuros.replace(",", ".")) * 100);
-    if (Number.isFinite(parsed) && parsed !== modifier.price_extra) {
+    if (parsed !== modifier.price_extra) {
       onChange({ price_extra: parsed });
     }
   };
@@ -116,7 +129,11 @@ function SortableOptionRow({
           value={priceEuros}
           onChange={(e) => setPriceEuros(e.target.value)}
           onBlur={commitPrice}
-          className="h-9 pr-7 text-right font-mono tabular text-sm"
+          aria-invalid={priceInvalid}
+          className={cn(
+            "h-9 pr-7 text-right font-mono tabular text-sm",
+            priceInvalid && "border-destructive focus-visible:ring-destructive",
+          )}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
           €
@@ -172,7 +189,7 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 function formatOptionPrice(cents: number): string {
-  if (cents === 0) return "Inclus";
+  if (cents === 0) return "Sans supplément";
   const euros = cents / 100;
   const sign = cents > 0 ? "+" : "";
   return `${sign}${euros.toFixed(2).replace(".", ",")} €`;
@@ -191,7 +208,7 @@ function CustomerPreviewPane({
 }) {
   if (!group) {
     return (
-      <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 xl:flex">
+      <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 lg:flex">
         <div className="border-b border-2-tk px-5 py-5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Aperçu côté client
@@ -211,7 +228,7 @@ function CustomerPreviewPane({
     : `${group.name.toLowerCase()}`;
 
   return (
-    <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 xl:flex">
+    <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 lg:flex">
       <div className="border-b border-2-tk px-5 py-5">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           <Eye className="h-3 w-3" /> Aperçu côté client
@@ -305,6 +322,7 @@ export default function OptionsDeMenuPage() {
   const [pendingDelete, setPendingDelete] = useState<GroupWithMods | null>(null);
   const [linkProductOpen, setLinkProductOpen] = useState(false);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [linkProductSearch, setLinkProductSearch] = useState("");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // ── Load data ────────────────────────────────────────────────────────────
@@ -570,6 +588,7 @@ export default function OptionsDeMenuPage() {
   // ── Linked articles ───────────────────────────────────────────────────────
   const openLinkProducts = async () => {
     if (!restaurantId || !selected) return;
+    setLinkProductSearch("");
     setLinkProductOpen(true);
     const supabase = createClient();
     const linkedIds = new Set((productsByGroup.get(selected.id) || []).map((l) => l.product_id));
@@ -657,7 +676,7 @@ export default function OptionsDeMenuPage() {
 
   return (
     <div className="flex h-[100dvh] flex-col md:h-[100vh]">
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_360px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[200px_1fr_260px] xl:grid-cols-[260px_1fr_360px]">
         {/* Left rail */}
         <aside className="hidden flex-col border-r border-2-tk bg-bg-2 md:flex">
           <div className="border-b border-2-tk px-5 py-5">
@@ -734,7 +753,8 @@ export default function OptionsDeMenuPage() {
                       value={selected.name}
                       onChange={(e) => updateGroup(selected.id, { name: e.target.value })}
                       placeholder="Nom du groupe"
-                      className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
+                      aria-label="Nom du groupe d'options"
+                      className="h-auto rounded-none border-0 border-b border-transparent bg-transparent px-0 pb-1 text-2xl font-semibold shadow-none focus-visible:border-foreground focus-visible:ring-0"
                     />
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -777,7 +797,7 @@ export default function OptionsDeMenuPage() {
               {/* Règles de choix — Min / Max + computed preview on the right */}
               <section className="rounded-2xl border border-2-tk bg-card p-5">
                 <h3 className="mb-4 text-sm font-semibold text-foreground">Règles de choix</h3>
-                <div className="grid gap-4 sm:grid-cols-[120px_120px_1fr]">
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label
                       htmlFor="opt-min"
@@ -814,7 +834,7 @@ export default function OptionsDeMenuPage() {
                       className="h-11 text-center font-mono tabular text-base"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="col-span-2 space-y-1.5 sm:col-span-1">
                     <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Aperçu
                     </Label>
@@ -967,24 +987,61 @@ export default function OptionsDeMenuPage() {
               Cliquez sur un article pour le lier à ce groupe d&apos;options.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto rounded-lg border border-2-tk">
-            {availableProducts.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Tous vos articles sont déjà liés à ce groupe.
-              </p>
-            ) : (
-              availableProducts.map((p) => (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 rounded-md border border-2-tk bg-bg-2 px-2 py-1.5">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="search"
+                value={linkProductSearch}
+                onChange={(e) => setLinkProductSearch(e.target.value)}
+                placeholder="Rechercher un article…"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                aria-label="Rechercher un article"
+              />
+              {linkProductSearch && (
                 <button
-                  key={p.id}
                   type="button"
-                  onClick={() => linkProduct(p.id)}
-                  className="flex w-full items-center justify-between border-b border-2-tk px-4 py-2.5 text-left text-sm transition-colors last:border-b-0 hover:bg-bg-3"
+                  onClick={() => setLinkProductSearch("")}
+                  aria-label="Effacer"
+                  className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
                 >
-                  <span className="truncate">{p.name}</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  <X className="h-3 w-3" />
                 </button>
-              ))
-            )}
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto rounded-lg border border-2-tk">
+              {(() => {
+                const q = linkProductSearch.trim().toLowerCase();
+                const filtered = q
+                  ? availableProducts.filter((p) => p.name.toLowerCase().includes(q))
+                  : availableProducts;
+                if (availableProducts.length === 0) {
+                  return (
+                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      Tous vos articles sont déjà liés à ce groupe.
+                    </p>
+                  );
+                }
+                if (filtered.length === 0) {
+                  return (
+                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      Aucun article ne correspond à « {linkProductSearch} ».
+                    </p>
+                  );
+                }
+                return filtered.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => linkProduct(p.id)}
+                    className="flex w-full items-center justify-between border-b border-2-tk px-4 py-2.5 text-left text-sm transition-colors last:border-b-0 hover:bg-bg-3"
+                  >
+                    <span className="truncate">{p.name}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                ));
+              })()}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLinkProductOpen(false)}>
