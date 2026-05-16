@@ -136,19 +136,27 @@ export default function CheckoutPage() {
             setWalletBalance(wallet.balance);
           }
 
-          // Compute loyalty points from paid orders
+          // Loyalty points = earned from gross spend - burned on past discounts
           const { data: paidOrders } = await supabase
             .from("orders")
-            .select("total_price, status, paid")
+            .select("total_price, status, paid, loyalty_discount_amount, loyalty_points_used")
             .eq("restaurant_id", restaurant.id)
             .eq("customer_user_id", user.id)
             .eq("paid", true);
 
           if (paidOrders) {
-            const pts = paidOrders
-              .filter((o) => o.status !== "cancelled")
-              .reduce((sum, o) => sum + Math.floor(o.total_price / 100), 0);
-            setTotalPoints(pts);
+            const active = paidOrders.filter((o) => o.status !== "cancelled");
+            const earned = active.reduce(
+              (sum, o) =>
+                sum +
+                Math.floor((o.total_price + (o.loyalty_discount_amount ?? 0)) / 100),
+              0
+            );
+            const used = active.reduce(
+              (sum, o) => sum + (o.loyalty_points_used ?? 0),
+              0
+            );
+            setTotalPoints(Math.max(0, earned - used));
           }
         }
       }

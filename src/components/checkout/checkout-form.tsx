@@ -57,6 +57,8 @@ export function CheckoutForm({
   const deliveryAddress = useCartStore((s) => s.deliveryAddress);
   const deliveryFee = useCartStore((s) => s.deliveryFee);
   const deliveryMinOrder = useCartStore((s) => s.deliveryMinOrder);
+  const loyaltyReward = useCartStore((s) => s.loyaltyReward);
+  const setLoyaltyReward = useCartStore((s) => s.setLoyaltyReward);
 
   const showOnSite = acceptedPaymentMethods.includes("on_site");
   const showOnline = acceptedPaymentMethods.includes("online") && stripeConnected;
@@ -146,6 +148,9 @@ export function CheckoutForm({
           payment_source: paymentSource,
           customer_email: customerEmail.trim() || undefined,
           queue_session_id: typeof window !== "undefined" ? localStorage.getItem("queue_session_id") : undefined,
+          ...(activeReward
+            ? { loyalty_reward: { tier_id: activeReward.tier_id } }
+            : {}),
           ...(orderType === "delivery" && deliveryAddress
             ? { delivery_address: deliveryAddress }
             : {}),
@@ -175,7 +180,21 @@ export function CheckoutForm({
 
   const itemsTotal = totalPrice();
   const applicableDeliveryFee = orderType === "delivery" ? deliveryFee : 0;
-  const total = itemsTotal + applicableDeliveryFee;
+  const grossTotal = itemsTotal + applicableDeliveryFee;
+  // Loyalty discount: only apply if the cached tier is still eligible.
+  const activeReward =
+    loyaltyReward &&
+    customerProfile &&
+    totalPoints >= loyaltyReward.points &&
+    loyaltyTiers.some(
+      (t) => t.id === loyaltyReward.tier_id && t.reward_type === "discount"
+    )
+      ? loyaltyReward
+      : null;
+  const discountApplied = activeReward
+    ? Math.min(activeReward.discount_amount, grossTotal)
+    : 0;
+  const total = Math.max(0, grossTotal - discountApplied);
   const isWalletSelected = paymentSource === "wallet";
   const walletCoversAll = walletBalance >= total;
   const remainder = total - walletBalance;
@@ -230,6 +249,16 @@ export function CheckoutForm({
               <span className="text-[#68625e]">Frais de livraison</span>
               <span className="font-mono font-medium text-[#1c1410]">
                 {formatPrice(applicableDeliveryFee)}
+              </span>
+            </div>
+          )}
+          {discountApplied > 0 && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-[#d7352d]">
+                Bonus fidélité · {activeReward?.label ?? "Réduction"}
+              </span>
+              <span className="font-mono font-medium text-[#d7352d]">
+                −{formatPrice(discountApplied)}
               </span>
             </div>
           )}
@@ -307,64 +336,88 @@ export function CheckoutForm({
         <LoyaltySection
           customerProfile={customerProfile}
           totalPoints={totalPoints}
-          earningPoints={Math.floor(totalPrice() / 100)}
+          earningPoints={Math.floor(total / 100)}
           tiers={loyaltyTiers}
           items={items}
+          activeRewardTierId={activeReward?.tier_id ?? null}
           publicId={publicId}
           onClaim={(tier) => {
-            if (tier.reward_type !== "free_product" || !tier.product_id) return;
-            const productName = tier.product_name ?? tier.label ?? "Article offert";
-            const existing = items.find(
-              (it) => it.product_id === tier.product_id && it.base_price === 0
-            );
-            if (existing) {
-              removeCartItem(existing.id);
-              toast(`${productName} retiré de votre panier`);
+            if (tier.reward_type === "discount") {
+              if (!tier.discount_amount || tier.discount_amount <= 0) return;
+              if (loyaltyReward?.tier_id === tier.id) {
+                setLoyaltyReward(null);
+                toast(`${tier.label || "Réduction"} retirée`);
+                return;
+              }
+              setCartRestaurantPublicId(publicId);
+              setLoyaltyReward({
+                tier_id: tier.id,
+                points: tier.points,
+                discount_amount: tier.discount_amount,
+                label:
+                  tier.label ||
+                  `${(tier.discount_amount / 100).toFixed(2)} € offerts`,
+              });
+              toast.success(`${tier.label || "Réduction"} appliquée à votre commande`);
               return;
             }
-            setCartRestaurantPublicId(publicId);
-            addCartItem({
-              product_id: tier.product_id,
-              product_name: `🎁 ${productName} (offert)`,
-              base_price: 0,
-              quantity: 1,
-              modifiers: [],
-              is_menu: false,
-              menu_supplement: 0,
-            });
-            toast.success(`${productName} ajouté gratuitement à votre commande`);
+
+            if (tier.reward_type === "free_product" && tier.product_id) {
+              const productName = tier.product_name ?? tier.label ?? "Article offert";
+              const existing = items.find(
+                (it) => it.product_id === tier.product_id && it.base_price === 0
+              );
+              if (existing) {
+                removeCartItem(existing.id);
+                toast(`${productName} retiré de votre panier`);
+                return;
+              }
+              setCartRestaurantPublicId(publicId);
+              addCartItem({
+                product_id: tier.product_id,
+                product_name: `🎁 ${productName} (offert)`,
+                base_price: 0,
+                quantity: 1,
+                modifiers: [],
+                is_menu: false,
+                menu_supplement: 0,
+              });
+              toast.success(`${productName} ajouté gratuitement à votre commande`);
+            }
           }}
         />
       )}
 
-      {/* Email — optional, for the order confirmation receipt */}
-      <div>
-        <Label
-          htmlFor="customer_email"
-          className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
-        >
-          Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
-        </Label>
-        <input
-          id="customer_email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="vous@exemple.fr"
-          value={customerEmail}
-          onChange={(e) => {
-            setCustomerEmail(e.target.value);
-            if (emailError) setEmailError(null);
-          }}
-          onBlur={() => setEmailError(validateEmail(customerEmail))}
-          className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
-            emailError ? "border-destructive" : "border-border"
-          }`}
-        />
-        {emailError && (
-          <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
-        )}
-      </div>
+      {/* Email — only ask if we don't already have one for the receipt */}
+      {!defaultEmail && (
+        <div>
+          <Label
+            htmlFor="customer_email"
+            className="mb-2.5 block font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+          >
+            Email <span className="text-muted-foreground/60">(optionnel · reçu par mail)</span>
+          </Label>
+          <input
+            id="customer_email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="vous@exemple.fr"
+            value={customerEmail}
+            onChange={(e) => {
+              setCustomerEmail(e.target.value);
+              if (emailError) setEmailError(null);
+            }}
+            onBlur={() => setEmailError(validateEmail(customerEmail))}
+            className={`flex h-12 w-full rounded-xl border-[1.5px] bg-background px-4 text-[14px] outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground ${
+              emailError ? "border-destructive" : "border-border"
+            }`}
+          />
+          {emailError && (
+            <p className="mt-1.5 text-[11px] text-destructive">{emailError}</p>
+          )}
+        </div>
+      )}
 
       {/* Payment method */}
       <div>
@@ -467,32 +520,6 @@ export function CheckoutForm({
         </div>
       </div>
 
-      {/* Email for guests paying online (receipt + order number) */}
-      {needsEmail && (
-        <div>
-          <Label
-            htmlFor="customer-email"
-            className="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#68625e]"
-          >
-            Email
-          </Label>
-          <input
-            id="customer-email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            value={customerEmail}
-            onChange={(e) => setCustomerEmail(e.target.value)}
-            placeholder="vous@email.com"
-            className="block h-12 w-full rounded-[12px] border-[1.5px] border-[#dbd7d2] bg-white px-4 text-[15px] font-medium text-[#1c1410] outline-none transition-colors placeholder:text-[#a89e94] focus:border-[#1c1410] focus:shadow-[0_0_0_3px_#1c14101a]"
-          />
-          <p className="mt-1.5 text-[12px] text-[#68625e]">
-            Pour recevoir votre reçu et le numéro de commande.
-          </p>
-        </div>
-      )}
-
       {/* Partial wallet info */}
       {isWalletSelected && !walletCoversAll && (
         <div className="flex items-start gap-3 rounded-[12px] border border-[#d8e3f4] bg-[#d8e3f4]/40 px-4 py-3">
@@ -557,6 +584,7 @@ function LoyaltySection({
   earningPoints,
   tiers,
   items,
+  activeRewardTierId,
   publicId,
   onClaim,
 }: {
@@ -565,6 +593,7 @@ function LoyaltySection({
   earningPoints: number;
   tiers: LoyaltyTier[];
   items: CartItem[];
+  activeRewardTierId: string | null;
   publicId: string;
   onClaim: (tier: LoyaltyTier) => void;
 }) {
@@ -591,16 +620,23 @@ function LoyaltySection({
   const sortedTiers = [...tiers].sort((a, b) => a.points - b.points);
   const unlocked = sortedTiers.filter((t) => totalPoints >= t.points);
   const claimableTiers = unlocked.filter(
-    (t) => t.reward_type === "free_product" && !!t.product_id
+    (t) =>
+      (t.reward_type === "free_product" && !!t.product_id) ||
+      (t.reward_type === "discount" && !!t.discount_amount && t.discount_amount > 0)
   );
   const nextTier = sortedTiers.find((t) => t.points > totalPoints);
 
-  const findClaimed = (tier: LoyaltyTier) =>
-    tier.product_id
-      ? items.find(
-          (it) => it.product_id === tier.product_id && it.base_price === 0
-        )
-      : undefined;
+  const isClaimed = (tier: LoyaltyTier) => {
+    if (tier.reward_type === "free_product" && tier.product_id) {
+      return items.some(
+        (it) => it.product_id === tier.product_id && it.base_price === 0
+      );
+    }
+    if (tier.reward_type === "discount") {
+      return activeRewardTierId === tier.id;
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-2.5">
@@ -638,7 +674,7 @@ function LoyaltySection({
           </p>
           <div className="space-y-1.5">
             {claimableTiers.map((tier) => {
-              const claimed = !!findClaimed(tier);
+              const claimed = isClaimed(tier);
               const title =
                 tier.label || tier.product_name || "Article offert";
               return (

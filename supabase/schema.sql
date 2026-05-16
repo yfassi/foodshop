@@ -446,6 +446,15 @@ CREATE TABLE IF NOT EXISTS public.platform_demo_customers (
 );
 
 
+-- Orders: loyalty discount applied
+ALTER TABLE public.orders
+  ADD COLUMN loyalty_tier_id TEXT,
+  ADD COLUMN loyalty_discount_amount INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN loyalty_points_used INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX idx_orders_loyalty_points_used
+  ON public.orders (customer_user_id, restaurant_id)
+  WHERE loyalty_points_used > 0;
+
 -- ============================================
 -- REALTIME
 -- ============================================
