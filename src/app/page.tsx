@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   QrCode,
   ShoppingBag,
@@ -299,14 +299,6 @@ const PLAN_FEATURE_GROUPS: PlanFeatureGroup[] = [
           groupe: "Prioritaire dédié",
         },
       },
-      {
-        label: "Account manager",
-        override: {
-          essentiel: "—",
-          pro: "—",
-          groupe: "Dédié",
-        },
-      },
     ],
   },
 ];
@@ -398,17 +390,23 @@ type Sector = {
 
 const SECTORS: Sector[] = [
   {
-    emoji: "🍷",
-    name: "Bistrots & brasseries",
-    desc: "QR à table, plan de salle, additions séparées.",
+    emoji: "🚚",
+    name: "Food trucks",
+    desc: "QR sur la vitrine, paiement direct depuis le téléphone du client.",
     tag: "★ LE PLUS POPULAIRE",
     featured: true,
   },
+  {
+    emoji: "🍣",
+    name: "Snacks & spécialités",
+    desc: "Carte courte, options et allergènes, sans saisie en double.",
+    tag: "★ LE PLUS POPULAIRE",
+    featured: true,
+  },
+  { emoji: "🍷", name: "Bistrots & brasseries", desc: "QR à table, plan de salle, additions séparées." },
   { emoji: "🍕", name: "Pizzerias de quartier", desc: "Click & collect, fournée et livraison gérés au même endroit." },
   { emoji: "☕", name: "Cafés & salons de thé", desc: "Carte digitale qui change avec le service, fidélité incluse." },
-  { emoji: "🚚", name: "Food trucks", desc: "QR sur la vitrine, paiement direct depuis le téléphone du client." },
   { emoji: "🥗", name: "Cantines & ghost kitchens", desc: "Cuisine connectée, multi-canaux, statistiques par couvert." },
-  { emoji: "🍣", name: "Snacks & spécialités", desc: "Carte courte, options et allergènes, sans saisie en double." },
 ];
 
 type Engagement = {
@@ -449,40 +447,6 @@ const ENGAGEMENTS: Engagement[] = [
     desc: "Une équipe française, des serveurs hébergés en France.",
   },
 ];
-
-function Counter({ target, format = (n: number) => n.toString() }: { target: number; format?: (n: number) => string }) {
-  const [val, setVal] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let started = false;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting && !started) {
-            started = true;
-            const dur = 1200;
-            const start = performance.now();
-            const tick = (t: number) => {
-              const p = Math.min(1, (t - start) / dur);
-              const eased = 1 - Math.pow(1 - p, 3);
-              setVal(Math.round(target * eased));
-              if (p < 1) requestAnimationFrame(tick);
-            };
-            requestAnimationFrame(tick);
-          }
-        });
-      },
-      { threshold: 0.5 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [target]);
-  return <span ref={ref}>{format(val)}</span>;
-}
-
-const formatThousands = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 export default function Home() {
   const [billing, setBilling] = useState<"mensuel" | "annuel">("mensuel");
@@ -622,26 +586,46 @@ export default function Home() {
         </div>
 
         <div className="modules-carousel" role="tablist" aria-label="Modules Taapr">
-          {MODULES.map((m) => (
-            <button
-              type="button"
-              key={m.id}
-              role="tab"
-              aria-selected={activeModuleId === m.id}
-              aria-controls="module-panel"
-              className={`module-card${activeModuleId === m.id ? " active" : ""}`}
-              onClick={() => setActiveModuleId(m.id)}
-            >
-              <div className="module-card-top">
-                <span className={`module-icon ${m.iconClass}`} aria-hidden="true">
-                  <m.Icon size={20} strokeWidth={1.75} />
-                </span>
-                <span className={`module-tag${m.paid ? " paid" : ""}`}>{m.short}</span>
-              </div>
-              <h3 className="module-card-name">{m.name}</h3>
-              <p className="module-card-hint">{m.hint}</p>
-            </button>
-          ))}
+          {MODULES.map((m) => {
+            const detailHref =
+              m.id === "livraison" ? "/livraison" : m.id === "stock" ? "/stock" : null;
+            const inner = (
+              <>
+                <div className="module-card-top">
+                  <span className={`module-icon ${m.iconClass}`} aria-hidden="true">
+                    <m.Icon size={20} strokeWidth={1.75} />
+                  </span>
+                  <span className={`module-tag${m.paid ? " paid" : ""}`}>{m.short}</span>
+                </div>
+                <h3 className="module-card-name">{m.name}</h3>
+                <p className="module-card-hint">{m.hint}</p>
+              </>
+            );
+            if (detailHref) {
+              return (
+                <Link
+                  key={m.id}
+                  href={detailHref}
+                  className={`module-card${activeModuleId === m.id ? " active" : ""}`}
+                >
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <button
+                type="button"
+                key={m.id}
+                role="tab"
+                aria-selected={activeModuleId === m.id}
+                aria-controls="module-panel"
+                className={`module-card${activeModuleId === m.id ? " active" : ""}`}
+                onClick={() => setActiveModuleId(m.id)}
+              >
+                {inner}
+              </button>
+            );
+          })}
         </div>
 
         <div className="module-panel" id="module-panel" role="tabpanel">
@@ -675,33 +659,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* BIG STAT */}
-      <section className="big-stat">
-        <div className="big-stat-inner">
-          <div className="bs-block">
-            <div className="bs-num">
-              <Counter target={1247} format={formatThousands} />€
-            </div>
-            <div className="bs-label">CA moyen samedi soir</div>
-          </div>
-          <div className="bs-divider" />
-          <div className="bs-block">
-            <div className="bs-num">
-              +<Counter target={32} />%
-            </div>
-            <div className="bs-label">de commandes en plus<br />vs l&apos;ancienne caisse</div>
-          </div>
-          <div className="bs-divider" />
-          <div className="bs-block">
-            <div className="bs-num">
-              &lt; <Counter target={4} /><small>h</small>
-            </div>
-            <div className="bs-label">pour mettre en place,<br />imprimante comprise</div>
-          </div>
-        </div>
-        <div className="bs-script">les chiffres parlent ✦</div>
       </section>
 
       {/* SECTORS · "Pour qui ?" */}
