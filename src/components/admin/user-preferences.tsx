@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Palette, Sun, Moon, Rows3, Rows4 } from "lucide-react";
+import { Palette, Sun, Moon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -10,7 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 
 type Theme = "light" | "dark";
-type Density = "confort" | "compact";
 type Accent = "neutral" | "blue" | "red" | "green";
 
 const ACCENT_SWATCHES: { value: Accent; label: string; color: string }[] = [
@@ -20,34 +19,25 @@ const ACCENT_SWATCHES: { value: Accent; label: string; color: string }[] = [
   { value: "green",   label: "Vert", color: "#15803d" },
 ];
 
-function readPrefs(): { theme: Theme; density: Density; accent: Accent } {
+function readPrefs(): { theme: Theme; accent: Accent } {
   if (typeof window === "undefined") {
-    return { theme: "light", density: "confort", accent: "neutral" };
+    return { theme: "light", accent: "neutral" };
   }
   return {
     theme: (localStorage.getItem("taapr.theme") as Theme) || "light",
-    density: (localStorage.getItem("taapr.density") as Density) || "confort",
     accent: (localStorage.getItem("taapr.accent") as Accent) || "neutral",
   };
 }
 
-function applyPrefs(theme: Theme, density: Density, accent: Accent) {
+function applyPrefs(theme: Theme, accent: Accent) {
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
-  root.classList.toggle("dens-compact", density === "compact");
-  root.classList.toggle("dens-confort", density === "confort");
-  // Also on body — spec says body for density classes.
-  if (document.body) {
-    document.body.classList.toggle("dens-compact", density === "compact");
-    document.body.classList.toggle("dens-confort", density === "confort");
-  }
   root.setAttribute("data-accent", accent);
 }
 
 export function UserPreferences({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
-  const [density, setDensity] = useState<Density>("confort");
   const [accent, setAccent] = useState<Accent>("neutral");
 
   useEffect(() => {
@@ -57,28 +47,22 @@ export function UserPreferences({ collapsed = false }: { collapsed?: boolean }) 
     const p = readPrefs();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydrate from localStorage on mount
     setTheme(p.theme);
-    setDensity(p.density);
     setAccent(p.accent);
-    applyPrefs(p.theme, p.density, p.accent);
+    applyPrefs(p.theme, p.accent);
   }, []);
 
-  const update = (next: { theme?: Theme; density?: Density; accent?: Accent }) => {
+  const update = (next: { theme?: Theme; accent?: Accent }) => {
     const t = next.theme ?? theme;
-    const d = next.density ?? density;
     const a = next.accent ?? accent;
     if (next.theme !== undefined) {
       setTheme(next.theme);
       localStorage.setItem("taapr.theme", next.theme);
     }
-    if (next.density !== undefined) {
-      setDensity(next.density);
-      localStorage.setItem("taapr.density", next.density);
-    }
     if (next.accent !== undefined) {
       setAccent(next.accent);
       localStorage.setItem("taapr.accent", next.accent);
     }
-    applyPrefs(t, d, a);
+    applyPrefs(t, a);
   };
 
   return (
@@ -107,18 +91,6 @@ export function UserPreferences({ collapsed = false }: { collapsed?: boolean }) 
               ]}
               value={theme}
               onChange={(v) => update({ theme: v as Theme })}
-            />
-          </div>
-
-          <div>
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Densité</div>
-            <Segmented
-              options={[
-                { value: "confort", label: "Confort", icon: Rows3 },
-                { value: "compact", label: "Compact", icon: Rows4 },
-              ]}
-              value={density}
-              onChange={(v) => update({ density: v as Density })}
             />
           </div>
 
@@ -188,12 +160,13 @@ export const PREFS_BOOT_SCRIPT = `
 (function() {
   try {
     var t = localStorage.getItem('taapr.theme') || 'light';
-    var d = localStorage.getItem('taapr.density') || 'confort';
     var a = localStorage.getItem('taapr.accent') || 'neutral';
     var r = document.documentElement;
     if (t === 'dark') r.classList.add('dark');
-    r.classList.add(d === 'compact' ? 'dens-compact' : 'dens-confort');
     r.setAttribute('data-accent', a);
+    // Cleanup any legacy density class left from a previous session.
+    r.classList.remove('dens-compact', 'dens-confort');
+    if (document.body) document.body.classList.remove('dens-compact', 'dens-confort');
   } catch(e) {}
 })();
 `;
