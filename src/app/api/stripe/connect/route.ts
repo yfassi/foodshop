@@ -65,11 +65,14 @@ export async function POST(request: Request) {
         .eq("id", restaurant.id);
     }
 
-    // Generate onboarding link
+    // Generate onboarding link. Stripe envoie l'utilisateur sur ces URLs après
+    // l'onboarding (return) ou en cas de session expirée (refresh) — pointer
+    // directement vers la nouvelle route /reglages/paiement, qui détecte les
+    // params stripe_return/stripe_refresh pour rafraîchir le statut.
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${appUrl}/admin/${restaurant_public_id}/settings?stripe_refresh=true`,
-      return_url: `${appUrl}/admin/${restaurant_public_id}/settings?stripe_return=true`,
+      refresh_url: `${appUrl}/admin/${restaurant_public_id}/reglages/paiement?stripe_refresh=true`,
+      return_url: `${appUrl}/admin/${restaurant_public_id}/reglages/paiement?stripe_return=true`,
       type: "account_onboarding",
     });
 

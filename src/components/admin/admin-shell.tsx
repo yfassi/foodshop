@@ -60,21 +60,21 @@ type SettingsSection = {
   href: string;
 };
 
-// Établissement and Fidélité now have dedicated routes (/reglages/...). The
-// remaining sub-sections still live as tabs in /settings until they get their
-// own pages.
+// Toutes les sections Réglages sont des routes dédiées /reglages/<slug>.
+// La page /settings reste un redirect transparent vers la nouvelle route
+// correspondant à ?tab=X pour les bookmarks et liens existants.
 const SETTINGS_SECTIONS: SettingsSection[] = [
   { icon: Store, label: "Établissement", href: "/reglages/etablissement" },
-  { icon: CreditCard, label: "Paiement", href: "/settings?tab=payment" },
+  { icon: CreditCard, label: "Paiement", href: "/reglages/paiement" },
   { icon: Gift, label: "Fidélité", href: "/reglages/fidelite" },
-  { icon: Wallet, label: "Solde", href: "/settings?tab=wallet" },
-  { icon: Users, label: "File d'attente", href: "/settings?tab=queue" },
-  { icon: Bike, label: "Livraison", href: "/settings?tab=delivery" },
-  { icon: Package, label: "Stock", href: "/settings?tab=stock" },
-  { icon: LayoutGrid, label: "Plan de salle", href: "/settings?tab=floor" },
-  { icon: Printer, label: "Matériel", href: "/settings?tab=materiel" },
-  { icon: Key, label: "API", href: "/settings?tab=api" },
-  { icon: User, label: "Compte", href: "/settings?tab=account" },
+  { icon: Wallet, label: "Solde", href: "/reglages/solde" },
+  { icon: Users, label: "File d'attente", href: "/reglages/file-attente" },
+  { icon: Bike, label: "Livraison", href: "/reglages/livraison" },
+  { icon: Package, label: "Stock", href: "/reglages/stock" },
+  { icon: LayoutGrid, label: "Plan de salle", href: "/reglages/plan-de-salle" },
+  { icon: Printer, label: "Matériel", href: "/reglages/materiel" },
+  { icon: Key, label: "API", href: "/reglages/api" },
+  { icon: User, label: "Compte", href: "/reglages/compte" },
 ];
 
 type NavItem = {
