@@ -151,7 +151,7 @@ export function IngredientsClient({
   };
 
   return (
-    <div className="space-y-6 px-4 py-6 md:px-8">
+    <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Link
           href={`/admin/${publicId}/stock`}

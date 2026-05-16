@@ -104,7 +104,7 @@ export function StockDashboard({
   const lows = ingredients.filter((i) => i.low_threshold > 0 && i.current_qty <= i.low_threshold);
 
   return (
-    <div className="space-y-6 px-4 py-6 md:px-8">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary/70">
@@ -128,7 +128,7 @@ export function StockDashboard({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3">
         <DashboardCard
           icon={<AlertTriangle className="h-5 w-5" />}
           tone="warn"

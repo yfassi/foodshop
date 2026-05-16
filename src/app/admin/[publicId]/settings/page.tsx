@@ -989,8 +989,8 @@ export default function SettingsPage() {
   const sectionMeta = SECTION_META[activeTab];
 
   return (
-    <div className="px-4 py-6 md:px-6">
-      <div className="mx-auto max-w-2xl">
+    <div>
+      <div className="mx-auto max-w-3xl">
         <AdminPageHeader
           kicker="Réglages"
           icon={sectionMeta.icon}

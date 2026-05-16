@@ -9,7 +9,12 @@ import {
   Sparkles,
   Percent,
   UtensilsCrossed,
+  TrendingUp,
+  Award,
+  Activity,
+  Users as UsersIcon,
 } from "lucide-react";
+import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +36,50 @@ import type { Restaurant, LoyaltyTier, Product } from "@/lib/types";
 interface FideliteDraft {
   loyaltyEnabled: boolean;
   tiers: LoyaltyTier[];
+}
+
+interface LoyaltyStats {
+  enabled: boolean;
+  totals: {
+    active_members: number;
+    points_earned: number;
+    points_used: number;
+    points_outstanding: number;
+    redemptions: number;
+    discount_amount: number;
+  };
+  recent_redemptions: Array<{
+    order_id_display: string;
+    customer_user_id: string | null;
+    customer_name: string | null;
+    points_used: number;
+    discount_amount: number;
+    tier_label: string;
+    created_at: string;
+  }>;
+  top_redeemers: Array<{
+    user_id: string;
+    name: string;
+    points_earned: number;
+    points_used: number;
+    points_balance: number;
+    redemptions: number;
+    total_spent: number;
+  }>;
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 // Mock customer for the live phone preview — anchors the "you are here" arrow.
@@ -55,6 +104,206 @@ function countDiffs(a: FideliteDraft, b: FideliteDraft): number {
   if (a.loyaltyEnabled !== b.loyaltyEnabled) n++;
   if (JSON.stringify(a.tiers) !== JSON.stringify(b.tiers)) n++;
   return n;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Loyalty insights — earn/use overview + recent redemptions + top redeemers
+// ────────────────────────────────────────────────────────────────────────────
+
+function LoyaltyInsights({ stats }: { stats: LoyaltyStats | null }) {
+  if (!stats) return null;
+  const { totals, recent_redemptions, top_redeemers } = stats;
+  const noData =
+    totals.active_members === 0 &&
+    totals.points_earned === 0 &&
+    totals.redemptions === 0;
+
+  return (
+    <section className="rounded-2xl border border-2-tk bg-card p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <Activity className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">
+          Activité du programme
+        </h3>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <KpiTile
+          icon={<UsersIcon className="h-3.5 w-3.5" />}
+          label="Membres actifs"
+          value={String(totals.active_members)}
+        />
+        <KpiTile
+          icon={<TrendingUp className="h-3.5 w-3.5" />}
+          label="Points gagnés"
+          value={totals.points_earned.toLocaleString("fr-FR")}
+          mono
+        />
+        <KpiTile
+          icon={<Gift className="h-3.5 w-3.5" />}
+          label="Points utilisés"
+          value={totals.points_used.toLocaleString("fr-FR")}
+          mono
+          accent={totals.points_used > 0}
+        />
+        <KpiTile
+          icon={<Award className="h-3.5 w-3.5" />}
+          label="En circulation"
+          value={totals.points_outstanding.toLocaleString("fr-FR")}
+          mono
+          hint={
+            totals.redemptions > 0
+              ? `${totals.redemptions} échange${totals.redemptions > 1 ? "s" : ""} · ${formatPrice(totals.discount_amount)} offert${totals.redemptions > 1 ? "s" : ""}`
+              : undefined
+          }
+        />
+      </div>
+
+      {noData ? (
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Aucune activité fidélité enregistrée pour le moment. Les statistiques
+          apparaîtront dès qu&apos;un client gagnera ou utilisera des points.
+        </p>
+      ) : (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {/* Recent redemptions */}
+          <div className="rounded-xl border border-2-tk bg-bg-2/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Échanges récents
+              </p>
+              <span className="text-[11px] text-muted-foreground tabular">
+                {recent_redemptions.length}
+              </span>
+            </div>
+            {recent_redemptions.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                Aucun échange enregistré.
+              </p>
+            ) : (
+              <ul className="max-h-72 space-y-1 overflow-y-auto pr-1">
+                {recent_redemptions.map((r, i) => (
+                  <li
+                    key={`${r.order_id_display}-${i}`}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-card px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {r.customer_name || "Client"}{" "}
+                        <span className="text-muted-foreground">
+                          · {r.order_id_display}
+                        </span>
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {r.tier_label} · {formatDateTime(r.created_at)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-mono text-xs font-semibold tabular text-foreground">
+                        −{r.points_used} pts
+                      </p>
+                      <p className="font-mono text-[11px] tabular text-rose-600">
+                        −{formatPrice(r.discount_amount)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Top redeemers */}
+          <div className="rounded-xl border border-2-tk bg-bg-2/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Top utilisateurs
+              </p>
+              <span className="text-[11px] text-muted-foreground tabular">
+                {top_redeemers.length}
+              </span>
+            </div>
+            {top_redeemers.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                Aucun client n&apos;a encore échangé de points.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {top_redeemers.map((c, i) => (
+                  <li
+                    key={c.user_id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-card px-3 py-2"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tint text-[10px] font-bold text-brand-accent tabular">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-foreground">
+                          {c.name}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {c.redemptions} échange{c.redemptions > 1 ? "s" : ""} ·{" "}
+                          {formatPrice(c.total_spent)} dépensés
+                        </p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-mono text-xs font-semibold tabular text-foreground">
+                        {c.points_used} pts
+                      </p>
+                      <p className="text-[11px] tabular text-muted-foreground">
+                        solde {c.points_balance}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function KpiTile({
+  icon,
+  label,
+  value,
+  hint,
+  mono,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+  mono?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-3",
+        accent ? "border-tint bg-tint/40" : "border-2-tk bg-bg-2/40"
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        <span className="text-muted-foreground/70">{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <p
+        className={cn(
+          "mt-1 text-lg font-semibold text-foreground",
+          mono && "font-mono tabular"
+        )}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -480,6 +729,7 @@ export default function FidelitePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [redeemedCount, setRedeemedCount] = useState(0);
+  const [stats, setStats] = useState<LoyaltyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pickIdx, setPickIdx] = useState(0);
@@ -533,6 +783,19 @@ export default function FidelitePage() {
           .eq("restaurant_id", data.id)
           .gt("loyalty_discount_amount", 0);
         if (typeof redeemed === "number") setRedeemedCount(redeemed);
+
+        // Loyalty aggregate stats (best-effort)
+        try {
+          const res = await fetch(
+            `/api/admin/loyalty/stats?restaurant_public_id=${params.publicId}`
+          );
+          if (res.ok) {
+            const json = (await res.json()) as LoyaltyStats;
+            setStats(json);
+          }
+        } catch {
+          // ignore — section just won't render
+        }
       }
       setLoading(false);
     };
@@ -602,7 +865,7 @@ export default function FidelitePage() {
   const selectedTier = draft.tiers[pickIdx] ?? null;
 
   return (
-    <div className="space-y-6 p-4 md:p-7">
+    <div className="space-y-6">
       <PageHeader
         icon={<Gift className="h-5 w-5" />}
         eyebrow="Réglages"
@@ -610,7 +873,7 @@ export default function FidelitePage() {
         subtitle="Configurez les paliers de récompense pour vos clients."
       />
 
-      <div className="flex gap-8 pb-24">
+      <div className="flex gap-6 pb-24 lg:gap-8">
         <div className="min-w-0 flex-1 space-y-5">
           <HeroProgramme
             enabled={draft.loyaltyEnabled}
@@ -618,6 +881,8 @@ export default function FidelitePage() {
             activeCount={activeCount}
             redeemedCount={redeemedCount}
           />
+
+          <LoyaltyInsights stats={stats} />
 
           {/* Rule card */}
           <section className="rounded-2xl border border-2-tk bg-card p-5">

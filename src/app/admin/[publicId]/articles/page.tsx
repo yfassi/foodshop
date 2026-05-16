@@ -14,7 +14,10 @@ import {
   ChevronRight,
   UtensilsCrossed,
   Layers,
-  Wrench,
+  Copy,
+  Sparkles,
+  Settings2,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -251,6 +254,7 @@ type EditorDraft = {
   description: string;
   priceEuros: string;
   is_available: boolean;
+  is_featured: boolean;
 };
 
 function productToDraft(p: Product): EditorDraft {
@@ -259,6 +263,7 @@ function productToDraft(p: Product): EditorDraft {
     description: p.description ?? "",
     priceEuros: ((p.price ?? 0) / 100).toFixed(2),
     is_available: p.is_available,
+    is_featured: p.is_featured ?? false,
   };
 }
 
@@ -269,7 +274,111 @@ function draftToPayload(d: EditorDraft) {
     description: d.description.trim() || null,
     price: Number.isFinite(priceCents) ? priceCents : 0,
     is_available: d.is_available,
+    is_featured: d.is_featured,
   };
+}
+
+type EditorGroup = {
+  id: string;
+  source: "own" | "shared";
+  name: string;
+  min: number;
+  max: number;
+  option_count: number;
+};
+
+async function fetchProductGroups(productId: string): Promise<EditorGroup[]> {
+  const supabase = createClient();
+  const [own, links] = await Promise.all([
+    supabase
+      .from("modifier_groups")
+      .select("id, name, min_select, max_select, sort_order")
+      .eq("product_id", productId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("product_shared_groups")
+      .select("shared_group_id, sort_order")
+      .eq("product_id", productId)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  const ownGroups = (own.data ?? []) as Array<{
+    id: string;
+    name: string;
+    min_select: number;
+    max_select: number;
+  }>;
+  const ownIds = ownGroups.map((g) => g.id);
+  const sharedIds = ((links.data ?? []) as Array<{ shared_group_id: string }>).map(
+    (l) => l.shared_group_id
+  );
+
+  // Get option counts in parallel
+  const [{ data: ownMods }, { data: shared }, { data: sharedMods }] = await Promise.all([
+    ownIds.length > 0
+      ? supabase.from("modifiers").select("group_id").in("group_id", ownIds)
+      : Promise.resolve({ data: [] as Array<{ group_id: string }> }),
+    sharedIds.length > 0
+      ? supabase
+          .from("shared_modifier_groups")
+          .select("id, name, min_select, max_select")
+          .in("id", sharedIds)
+      : Promise.resolve({
+          data: [] as Array<{
+            id: string;
+            name: string;
+            min_select: number;
+            max_select: number;
+          }>,
+        }),
+    sharedIds.length > 0
+      ? supabase
+          .from("shared_modifiers")
+          .select("group_id")
+          .in("group_id", sharedIds)
+      : Promise.resolve({ data: [] as Array<{ group_id: string }> }),
+  ]);
+
+  const ownCountByGroup = new Map<string, number>();
+  for (const m of ownMods ?? []) {
+    ownCountByGroup.set(m.group_id, (ownCountByGroup.get(m.group_id) ?? 0) + 1);
+  }
+  const sharedCountByGroup = new Map<string, number>();
+  for (const m of sharedMods ?? []) {
+    sharedCountByGroup.set(
+      m.group_id,
+      (sharedCountByGroup.get(m.group_id) ?? 0) + 1
+    );
+  }
+
+  const sharedById = new Map(
+    (shared ?? []).map((g) => [g.id, g])
+  );
+
+  const out: EditorGroup[] = [];
+  for (const g of ownGroups) {
+    out.push({
+      id: g.id,
+      source: "own",
+      name: g.name,
+      min: g.min_select,
+      max: g.max_select,
+      option_count: ownCountByGroup.get(g.id) ?? 0,
+    });
+  }
+  for (const id of sharedIds) {
+    const g = sharedById.get(id);
+    if (!g) continue;
+    out.push({
+      id: g.id,
+      source: "shared",
+      name: g.name,
+      min: g.min_select,
+      max: g.max_select,
+      option_count: sharedCountByGroup.get(id) ?? 0,
+    });
+  }
+  return out;
 }
 
 function ArticleEditor({
@@ -278,28 +387,53 @@ function ArticleEditor({
   restaurantId,
   onApplied,
   onAdvancedEdit,
+  onDuplicated,
+  onDeleted,
 }: {
   product: Product;
   category: Category | null;
   restaurantId: string;
   onApplied: (next: Product) => void;
   onAdvancedEdit: () => void;
+  onDuplicated: () => void;
+  onDeleted: () => void;
 }) {
   const initial = useMemo(() => productToDraft(product), [product]);
   const [draft, setDraft] = useState<EditorDraft>(initial);
   const [saving, setSaving] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [groups, setGroups] = useState<EditorGroup[] | null>(null);
 
   // Reset draft when product changes
   useEffect(() => {
     setDraft(initial);
   }, [initial]);
 
+  // Fetch modifier groups for the current product
+  useEffect(() => {
+    let cancelled = false;
+    setGroups(null);
+    fetchProductGroups(product.id)
+      .then((g) => {
+        if (!cancelled) setGroups(g);
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id]);
+
   const changed = useMemo(() => {
     return (
       draft.name !== initial.name ||
       draft.description !== initial.description ||
       draft.priceEuros !== initial.priceEuros ||
-      draft.is_available !== initial.is_available
+      draft.is_available !== initial.is_available ||
+      draft.is_featured !== initial.is_featured
     );
   }, [draft, initial]);
 
@@ -326,18 +460,71 @@ function ArticleEditor({
     }
   };
 
+  const duplicate = async () => {
+    setDuplicating(true);
+    try {
+      const supabase = createClient();
+      const payload = draftToPayload(draft);
+      const { error } = await supabase.from("products").insert({
+        name: `${payload.name} (copie)`,
+        description: payload.description,
+        price: payload.price,
+        category_id: product.category_id,
+        image_url: product.image_url,
+        is_available: payload.is_available,
+        is_featured: false,
+        sort_order: (product.sort_order ?? 0) + 1,
+      });
+      if (error) throw error;
+      toast.success("Article dupliqué");
+      onDuplicated();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erreur lors de la duplication";
+      toast.error(msg);
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      const supabase = createClient();
+      if (product.image_url) {
+        const pathMatch = product.image_url.split("/product-images/")[1]?.split("?")[0];
+        if (pathMatch) {
+          await supabase.storage.from("product-images").remove([pathMatch]);
+        }
+      }
+      const { error } = await supabase.from("products").delete().eq("id", product.id);
+      if (error) throw error;
+      toast.success("Article supprimé");
+      onDeleted();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erreur lors de la suppression";
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   return (
     <>
-      <div className="flex items-start justify-between gap-4 border-b border-2-tk px-6 py-4">
-        <div className="min-w-0 flex-1">
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {category?.name || "Article"} ›
-          </p>
-          <h2 className="truncate text-xl font-semibold text-foreground">
-            {draft.name || "Sans nom"}
-          </h2>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      {/* Breadcrumb header — mockup-style */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-2-tk px-4 py-3 md:px-6 md:py-4">
+        <nav
+          aria-label="Fil d'ariane"
+          className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <span>Articles</span>
+          <ChevronRight className="h-3 w-3 shrink-0" />
+          <span className="truncate text-foreground">
+            {category?.name ? `${category.name} · ` : ""}
+            <span className="font-semibold">{draft.name || "Sans nom"}</span>
+          </span>
+        </nav>
+        <div className="flex shrink-0 items-center gap-1.5">
           <span
             className={cn(
               "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
@@ -350,74 +537,202 @@ function ArticleEditor({
           </span>
           <button
             type="button"
-            onClick={onAdvancedEdit}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-bg-3"
+            onClick={duplicate}
+            disabled={duplicating}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-bg-3 disabled:opacity-50"
+            title="Dupliquer l'article"
           >
-            <Wrench className="h-3.5 w-3.5" /> Plus d&apos;options
+            <Copy className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Dupliquer</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            aria-label="Supprimer l'article"
+            title="Supprimer l'article"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-2-tk bg-card text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="space-y-6 overflow-y-auto px-6 py-6">
-        {/* Hero: image + main fields */}
-        <div className="flex flex-col gap-4 md:flex-row">
-          <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-2-tk bg-bg-3">
+      <div className="space-y-5 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
+        {/* Hero: image + name + meta + Modifier */}
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <button
+            type="button"
+            onClick={onAdvancedEdit}
+            className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-2-tk bg-bg-3 sm:h-28 sm:w-28"
+            title="Modifier l'image"
+          >
             {product.image_url ? (
-              <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="128px" />
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="112px"
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
-                <ImageIcon className="h-10 w-10" />
+                <ImageIcon className="h-8 w-8" />
               </div>
             )}
-          </div>
-          <div className="flex-1 space-y-3">
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-[10px] font-medium text-transparent transition-colors group-hover:bg-black/30 group-hover:text-white">
+              Modifier
+            </span>
+          </button>
+
+          <div className="min-w-0 flex-1 space-y-3">
             <div>
-              <Label htmlFor="art-name">Nom</Label>
+              <Label htmlFor="art-name" className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+                Nom de l&apos;article
+              </Label>
               <Input
                 id="art-name"
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 placeholder="Nom de l'article"
+                className="mt-1.5 h-11 text-base font-semibold"
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setDraft({ ...draft, is_featured: !draft.is_featured })}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  draft.is_featured
+                    ? "border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+                    : "border-2-tk bg-bg-2 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sparkles className="h-3 w-3" />
+                {draft.is_featured ? "Top vente" : "Marquer top vente"}
+              </button>
+              <span className="text-muted-foreground/60">
+                SKU&nbsp;:&nbsp;
+                <span className="font-mono tabular text-muted-foreground">
+                  {product.id.slice(0, 8).toUpperCase()}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={onAdvancedEdit}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-bg-3"
+              >
+                <Pencil className="h-3 w-3" /> Modifier
+              </button>
+            </div>
+
             <div>
-              <Label htmlFor="art-desc">Description</Label>
+              <Label
+                htmlFor="art-desc"
+                className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                Description
+              </Label>
               <textarea
                 id="art-desc"
                 value={draft.description}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                 placeholder="Description courte affichée au client"
                 rows={2}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                className="mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
           </div>
         </div>
 
-        {/* Price & availability card */}
+        {/* Prix & disponibilité — 2x2 grid like the mockup */}
         <section className="rounded-2xl border border-2-tk bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">Prix & disponibilité</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="art-price">Prix (€)</Label>
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
+            Prix &amp; disponibilité
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="art-price"
+                className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                Prix de vente
+              </Label>
               <div className="relative">
                 <Input
                   id="art-price"
                   inputMode="decimal"
                   value={draft.priceEuros}
                   onChange={(e) => setDraft({ ...draft, priceEuros: e.target.value })}
-                  className="pr-10 font-mono tabular"
+                  className="h-11 pr-10 font-mono tabular text-base"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   €
                 </span>
               </div>
             </div>
-            <div className="flex items-end justify-between rounded-lg border border-2-tk bg-bg-2 px-4 py-2.5">
-              <div>
-                <p className="text-sm font-medium text-foreground">Disponible</p>
-                <p className="text-xs text-muted-foreground">Affiché au client si activé</p>
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Prix barré (optionnel)
+              </Label>
+              <Input
+                value="—"
+                readOnly
+                disabled
+                title="Bientôt disponible — comparez le prix barré à votre prix de vente"
+                className="h-11 font-mono tabular text-base"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Stock
+              </Label>
+              <Input
+                value="Illimité"
+                readOnly
+                disabled
+                title="Géré via le module Stock"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                TVA
+              </Label>
+              <Input
+                value="Sur place — 10 %"
+                readOnly
+                disabled
+                title="Taux TVA par défaut"
+                className="h-11"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Article disponibilité — standalone card with green pill */}
+        <section className="rounded-2xl border border-2-tk bg-card p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-semibold text-foreground">
+                Article disponible à la commande
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Désactivez pour le masquer temporairement sans le supprimer.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                  draft.is_available
+                    ? "status-success"
+                    : "border border-2-tk bg-bg-2 text-muted-foreground"
+                )}
+              >
+                {draft.is_available ? "Disponible" : "Masqué"}
+              </span>
               <Switch
                 checked={draft.is_available}
                 onCheckedChange={(v) => setDraft({ ...draft, is_available: v })}
@@ -426,32 +741,82 @@ function ArticleEditor({
           </div>
         </section>
 
-        {/* Options & suppléments — pointer to "Plus d'options" */}
+        {/* Options & suppléments — list with min/max badges */}
         <section className="rounded-2xl border border-2-tk bg-card p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Options & suppléments</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Sauces, tailles, suppléments, groupes liés (réutilisables).
-              </p>
-            </div>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Options &amp; suppléments
+            </h3>
+            <span className="text-[11px] text-muted-foreground tabular">
+              {groups?.length ?? 0} groupe{(groups?.length ?? 0) > 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {groups === null ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              Chargement…
+            </p>
+          ) : groups.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              Aucun groupe d&apos;options. Ajoutez une sauce, un accompagnement…
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {groups.map((g) => (
+                <li
+                  key={`${g.source}-${g.id}`}
+                  className="flex items-center gap-2 rounded-lg border border-2-tk bg-bg-2/40 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                      {g.name}
+                      {g.source === "shared" && (
+                        <span
+                          className="inline-flex items-center gap-0.5 rounded-full bg-tint px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-brand-accent"
+                          title="Groupe partagé entre plusieurs articles"
+                        >
+                          <Link2 className="h-2.5 w-2.5" />
+                          Partagé
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {g.option_count} option{g.option_count > 1 ? "s" : ""}
+                      {g.min > 0 && ` · ${g.min} requise${g.min > 1 ? "s" : ""}`}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-md border border-2-tk bg-card px-1.5 py-0.5 text-[10px] font-mono tabular text-muted-foreground">
+                    Min {g.min} · Max {g.max}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onAdvancedEdit}
+                    aria-label="Modifier le groupe"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={onAdvancedEdit}
               className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-bg-2 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-bg-3"
             >
-              <Layers className="h-3.5 w-3.5" /> Gérer
+              <Link2 className="h-3.5 w-3.5" /> Lier un groupe d&apos;options
+            </button>
+            <button
+              type="button"
+              onClick={onAdvancedEdit}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-2-tk bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" /> Créer un nouveau groupe
             </button>
           </div>
-        </section>
-
-        {/* Channel visibility — placeholder card, hooks into existing channels in advanced sheet */}
-        <section className="rounded-2xl border border-2-tk bg-card p-5">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Visibilité par canal</h3>
-          <p className="text-xs text-muted-foreground">
-            La visibilité par canal (sur place / à emporter / livraison) est gérée
-            dans l&apos;éditeur complet — cliquez sur « Plus d&apos;options ».
-          </p>
         </section>
       </div>
 
@@ -461,6 +826,29 @@ function ArticleEditor({
         onSave={saveDraft}
         saving={saving}
       />
+
+      <Dialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer cet article ?</DialogTitle>
+            <DialogDescription>
+              « {draft.name} » sera définitivement supprimé du menu. Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={doDelete} disabled={deleting}>
+              {deleting ? "Suppression…" : "Supprimer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -834,13 +1222,14 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="border-b border-2-tk px-6 py-4">
+    <div className="flex h-[100dvh] flex-col md:h-[100vh]">
+      <div className="border-b border-2-tk px-4 py-3 md:px-6 md:py-4">
         <PageHeader
           icon={<UtensilsCrossed className="h-5 w-5" />}
           eyebrow="Carte"
           title="Articles"
           subtitle="Catégories, articles et options — édition rapide en 3 panneaux"
+          className="pb-0"
           right={
             <Link
               href={`/admin/${params.publicId}/articles/options-de-menu`}
@@ -852,9 +1241,9 @@ export default function ArticlesPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[240px_360px_1fr]">
-        {/* Pane 1 — Categories */}
-        <aside className="hidden flex-col border-r border-2-tk bg-bg-2 md:flex">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[200px_280px_1fr] xl:grid-cols-[240px_380px_1fr]">
+        {/* Pane 1 — Categories (hidden on md, shown from lg) */}
+        <aside className="hidden flex-col border-r border-2-tk bg-bg-2 lg:flex">
           <div className="flex items-center justify-between border-b border-2-tk px-3 py-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">Catégories</h3>
@@ -908,9 +1297,37 @@ export default function ArticlesPage() {
 
         {/* Pane 2 — Articles list */}
         <section className="hidden flex-col border-r border-2-tk md:flex">
-          <div className="flex items-center justify-between border-b border-2-tk bg-card px-3 py-3">
+          <div className="flex items-center justify-between gap-2 border-b border-2-tk bg-card px-3 py-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              {/* Compact category picker (md only) — replaces hidden cats pane */}
+              <div className="flex items-center gap-1.5 lg:hidden">
+                <select
+                  value={selectedCat?.id ?? ""}
+                  onChange={(e) => setSelection(e.target.value, undefined)}
+                  className="h-8 flex-1 min-w-0 rounded-md border border-2-tk bg-bg-2 px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Choisir une catégorie"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.products.length})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setCategoryDialogOpen(true);
+                  }}
+                  aria-label="Nouvelle catégorie"
+                  title="Nouvelle catégorie"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-2-tk bg-card text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {/* Title (lg+ only) */}
+              <div className="hidden items-center gap-2 lg:flex">
                 <h3 className="truncate text-sm font-semibold text-foreground">
                   {selectedCat?.name || "—"}
                 </h3>
@@ -923,7 +1340,7 @@ export default function ArticlesPage() {
               type="button"
               onClick={openNewProduct}
               disabled={!selectedCat}
-              className="inline-flex items-center gap-1 rounded-md bg-tint px-2.5 py-1.5 text-xs font-medium text-brand-accent hover:bg-tint-2 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-tint px-2.5 py-1.5 text-xs font-medium text-brand-accent hover:bg-tint-2 disabled:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" /> Article
             </button>
@@ -979,6 +1396,11 @@ export default function ArticlesPage() {
                 )
               }
               onAdvancedEdit={() => openEditProduct(selectedItem)}
+              onDuplicated={() => fetchMenu()}
+              onDeleted={() => {
+                setSelection(selectedCat.id, undefined);
+                fetchMenu();
+              }}
             />
           ) : (
             <EditorEmptyState hasItems={(selectedCat?.products.length ?? 0) > 0} />

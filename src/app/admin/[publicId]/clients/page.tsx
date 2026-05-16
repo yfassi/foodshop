@@ -22,6 +22,8 @@ import {
   Plus,
   Search,
   Users,
+  Sparkles,
+  Gift,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { computeLoyalty, LOYALTY_TIERS, type LoyaltyTier } from "@/lib/loyalty";
@@ -39,9 +41,12 @@ interface ClientEntry {
   order_count: number;
   total_spent: number;
   last_order_at: string | null;
+  points_earned: number;
+  points_used: number;
+  points_balance: number;
 }
 
-type SortKey = "name" | "balance" | "orders" | "spent" | "last";
+type SortKey = "name" | "balance" | "orders" | "spent" | "last" | "points";
 
 const TIER_FILTERS = [
   { key: "all" as const, label: "Tous" },
@@ -163,6 +168,9 @@ export default function ClientsPage() {
             (a.last_order_at ? new Date(a.last_order_at).getTime() : 0) -
             (b.last_order_at ? new Date(b.last_order_at).getTime() : 0);
           break;
+        case "points":
+          cmp = a.points_balance - b.points_balance;
+          break;
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -182,6 +190,26 @@ export default function ClientsPage() {
     setSheetOpen(true);
   };
 
+  // Loyalty rollup across visible client base
+  const loyaltyRollup = useMemo(() => {
+    let earned = 0;
+    let used = 0;
+    let activeMembers = 0;
+    for (const c of clients) {
+      earned += c.points_earned ?? 0;
+      used += c.points_used ?? 0;
+      if ((c.points_earned ?? 0) > 0 || (c.points_used ?? 0) > 0) {
+        activeMembers += 1;
+      }
+    }
+    return {
+      earned,
+      used,
+      outstanding: Math.max(0, earned - used),
+      activeMembers,
+    };
+  }, [clients]);
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -191,7 +219,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="px-4 py-6 md:px-6">
+    <div>
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader
           kicker="Carnet client"
@@ -215,6 +243,36 @@ export default function ClientsPage() {
             </Button>
           }
         />
+
+        {/* Loyalty rollup — visible only when at least one client touched points */}
+        {(loyaltyRollup.earned > 0 || loyaltyRollup.used > 0) && (
+          <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4">
+            <RollupTile
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              label="Membres fidélité"
+              value={String(loyaltyRollup.activeMembers)}
+            />
+            <RollupTile
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              label="Points gagnés"
+              value={loyaltyRollup.earned.toLocaleString("fr-FR")}
+              mono
+            />
+            <RollupTile
+              icon={<Gift className="h-3.5 w-3.5" />}
+              label="Points utilisés"
+              value={loyaltyRollup.used.toLocaleString("fr-FR")}
+              mono
+              accent={loyaltyRollup.used > 0}
+            />
+            <RollupTile
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              label="En circulation"
+              value={loyaltyRollup.outstanding.toLocaleString("fr-FR")}
+              mono
+            />
+          </div>
+        )}
 
         {/* Filters bar */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -264,6 +322,9 @@ export default function ClientsPage() {
                       Client
                     </Th>
                     <Th>Statut</Th>
+                    <Th onClick={() => onSort("points")} active={sortKey === "points"} asc={sortAsc} align="right">
+                      Points
+                    </Th>
                     <Th onClick={() => onSort("balance")} active={sortKey === "balance"} asc={sortAsc} align="right">
                       Solde
                     </Th>
@@ -298,6 +359,29 @@ export default function ClientsPage() {
                           <Badge variant="outline" className="text-[10px]">
                             {loy.tier.icon} {loy.tier.label}
                           </Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">
+                          {c.points_balance > 0 ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                              title={`Gagnés ${c.points_earned} · Utilisés ${c.points_used}`}
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              {c.points_balance}
+                            </span>
+                          ) : c.points_used > 0 ? (
+                            <span
+                              className="text-[11px] text-muted-foreground"
+                              title={`Gagnés ${c.points_earned} · Utilisés ${c.points_used}`}
+                            >
+                              0
+                              <span className="ml-1 text-muted-foreground/60">
+                                (−{c.points_used})
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/40">—</span>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
                           <span className={c.balance > 0 ? "text-primary" : ""}>
@@ -393,6 +477,42 @@ export default function ClientsPage() {
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function RollupTile({
+  icon,
+  label,
+  value,
+  mono,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg px-3 py-2 ${
+        accent
+          ? "bg-amber-50 dark:bg-amber-500/10"
+          : "bg-muted/40"
+      }`}
+    >
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span>{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <p
+        className={`mt-0.5 text-base font-semibold text-foreground ${
+          mono ? "font-mono tabular-nums" : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

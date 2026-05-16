@@ -12,6 +12,7 @@ import {
   Layers,
   X,
   ArrowRight,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -86,13 +87,16 @@ function SortableOptionRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-lg border border-2-tk bg-card p-2"
+      className={cn(
+        "group flex items-center gap-2 rounded-lg border border-2-tk bg-card px-2 py-1.5 transition-colors",
+        !modifier.is_available && "opacity-60"
+      )}
     >
       <button
         {...attributes}
         {...listeners}
         type="button"
-        className="flex h-7 w-7 cursor-grab items-center justify-center text-muted-foreground/40 hover:text-foreground active:cursor-grabbing"
+        className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/40 hover:text-foreground active:cursor-grabbing"
         aria-label="Glisser pour réordonner"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -101,15 +105,18 @@ function SortableOptionRow({
         value={modifier.name}
         onChange={(e) => onChange({ name: e.target.value })}
         placeholder="Nom de l'option"
-        className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
+        className={cn(
+          "h-9 flex-1 min-w-0 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0",
+          !modifier.is_available && "line-through"
+        )}
       />
-      <div className="relative w-28 shrink-0">
+      <div className="relative w-24 shrink-0">
         <Input
           inputMode="decimal"
           value={priceEuros}
           onChange={(e) => setPriceEuros(e.target.value)}
           onBlur={commitPrice}
-          className="pr-7 text-right font-mono tabular"
+          className="h-9 pr-7 text-right font-mono tabular text-sm"
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
           €
@@ -119,14 +126,16 @@ function SortableOptionRow({
         checked={modifier.is_available}
         onCheckedChange={(v) => onChange({ is_available: v })}
         aria-label="Disponibilité"
+        className="shrink-0"
       />
       <button
         type="button"
         onClick={onDelete}
         aria-label="Supprimer l'option"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-bg-3 hover:text-destructive"
+        title="Supprimer l'option"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-bg-3 hover:text-destructive"
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   );
@@ -143,6 +152,140 @@ function buildRulesPreview(min: number, max: number) {
   if (min === max) return `Le client doit choisir exactement ${min} options.`;
   if (min === 0) return `Le client peut choisir jusqu'à ${max} options.`;
   return `Le client doit choisir entre ${min} et ${max} options.`;
+}
+
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "—";
+  const diff = Date.now() - t;
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `il y a ${days} j`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `il y a ${months} mois`;
+  return `il y a ${Math.floor(months / 12)} an${months >= 24 ? "s" : ""}`;
+}
+
+function formatOptionPrice(cents: number): string {
+  if (cents === 0) return "Inclus";
+  const euros = cents / 100;
+  const sign = cents > 0 ? "+" : "";
+  return `${sign}${euros.toFixed(2).replace(".", ",")} €`;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Customer-side preview pane — shows how a customer sees this group
+// ────────────────────────────────────────────────────────────────────────────
+
+function CustomerPreviewPane({
+  group,
+  sampleArticleName,
+}: {
+  group: GroupWithMods | null;
+  sampleArticleName: string | null;
+}) {
+  if (!group) {
+    return (
+      <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 xl:flex">
+        <div className="border-b border-2-tk px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Aperçu côté client
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sélectionnez un groupe pour voir l&apos;aperçu.
+          </p>
+        </div>
+      </aside>
+    );
+  }
+
+  const isRequired = group.min_select >= 1;
+  const isSingle = group.max_select === 1;
+  const title = isSingle
+    ? `choix de ${group.name.toLowerCase()}`
+    : `${group.name.toLowerCase()}`;
+
+  return (
+    <aside className="hidden flex-col border-l border-2-tk bg-bg-2/40 xl:flex">
+      <div className="border-b border-2-tk px-5 py-5">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <Eye className="h-3 w-3" /> Aperçu côté client
+        </p>
+        <p className="mt-1.5 truncate text-sm font-semibold text-foreground">
+          {sampleArticleName || "Article exemple"} — {title}
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="rounded-2xl border border-2-tk bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="text-base font-semibold text-foreground">{group.name}</h4>
+            {isRequired && (
+              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
+                Obligatoire
+              </span>
+            )}
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {buildRulesPreview(group.min_select, group.max_select)}
+          </p>
+
+          {group.shared_modifiers.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-2-tk p-4 text-center text-xs text-muted-foreground">
+              Ajoutez une option pour voir l&apos;aperçu.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {group.shared_modifiers.map((m, i) => {
+                const checked = i === 0 && isRequired;
+                return (
+                  <li
+                    key={m.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors",
+                      checked
+                        ? "border-foreground/30 bg-foreground/[0.03]"
+                        : "border-2-tk bg-card"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                        checked
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-muted-foreground/40"
+                      )}
+                      aria-hidden
+                    >
+                      {checked && <span className="h-1.5 w-1.5 rounded-full bg-background" />}
+                    </span>
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 truncate text-sm",
+                        m.is_available
+                          ? "text-foreground"
+                          : "text-muted-foreground line-through"
+                      )}
+                    >
+                      {m.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs tabular text-muted-foreground">
+                      {formatOptionPrice(m.price_extra)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -508,9 +651,13 @@ export default function OptionsDeMenuPage() {
     );
   }
 
+  const sampleArticleName = selected
+    ? productsByGroup.get(selected.id)?.[0]?.product.name ?? null
+    : null;
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[280px_1fr]">
+    <div className="flex h-[100dvh] flex-col md:h-[100vh]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_360px]">
         {/* Left rail */}
         <aside className="hidden flex-col border-r border-2-tk bg-bg-2 md:flex">
           <div className="border-b border-2-tk px-5 py-5">
@@ -578,44 +725,66 @@ export default function OptionsDeMenuPage() {
         {/* Editor */}
         <section className="overflow-y-auto bg-background">
           {selected ? (
-            <div className="mx-auto max-w-3xl space-y-6 px-8 py-7">
-              {/* Header */}
-              <header className="flex items-start justify-between gap-4 border-b border-2-tk pb-5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Groupe d&apos;options
-                  </p>
-                  <Input
-                    value={selected.name}
-                    onChange={(e) => updateGroup(selected.id, { name: e.target.value })}
-                    placeholder="Nom du groupe"
-                    className="mt-1 h-auto border-0 bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
-                  />
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Utilisé dans {productsByGroup.get(selected.id)?.length ?? 0} article(s).
-                  </p>
+            <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 md:px-8 md:py-7">
+              {/* Header — mockup-style: big title left, icon actions right, meta below */}
+              <header className="space-y-3 border-b border-2-tk pb-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      value={selected.name}
+                      onChange={(e) => updateGroup(selected.id, { name: e.target.value })}
+                      placeholder="Nom du groupe"
+                      className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => duplicateGroup(selected)}
+                      aria-label="Dupliquer le groupe"
+                      title="Dupliquer le groupe"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-2-tk bg-card px-2.5 text-xs font-medium text-foreground hover:bg-bg-3"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Dupliquer</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(selected)}
+                      aria-label="Supprimer le groupe"
+                      title="Supprimer le groupe"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-2-tk bg-card text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => duplicateGroup(selected)}>
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Dupliquer
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setPendingDelete(selected)}
-                  >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Supprimer
-                  </Button>
-                </div>
+                <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                  <span>Groupe d&apos;options</span>
+                  <span aria-hidden>·</span>
+                  <span>
+                    Utilisé dans{" "}
+                    <span className="font-semibold text-foreground">
+                      {productsByGroup.get(selected.id)?.length ?? 0} article
+                      {(productsByGroup.get(selected.id)?.length ?? 0) > 1 ? "s" : ""}
+                    </span>
+                  </span>
+                  <span aria-hidden>·</span>
+                  <span>Modifié {timeAgo(selected.created_at)}</span>
+                </p>
               </header>
 
-              {/* Rules */}
+              {/* Règles de choix — Min / Max + computed preview on the right */}
               <section className="rounded-2xl border border-2-tk bg-card p-5">
                 <h3 className="mb-4 text-sm font-semibold text-foreground">Règles de choix</h3>
-                <div className="grid gap-4 md:grid-cols-[1fr_1fr_1.5fr]">
-                  <div>
-                    <Label htmlFor="opt-min">Min requis</Label>
+                <div className="grid gap-4 sm:grid-cols-[120px_120px_1fr]">
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="opt-min"
+                      className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Minimum requis
+                    </Label>
                     <Input
                       id="opt-min"
                       type="number"
@@ -624,11 +793,16 @@ export default function OptionsDeMenuPage() {
                       onChange={(e) =>
                         updateGroup(selected.id, { min_select: parseInt(e.target.value || "0", 10) })
                       }
-                      className="font-mono tabular"
+                      className="h-11 text-center font-mono tabular text-base"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="opt-max">Max autorisé</Label>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="opt-max"
+                      className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Maximum autorisé
+                    </Label>
                     <Input
                       id="opt-max"
                       type="number"
@@ -637,14 +811,16 @@ export default function OptionsDeMenuPage() {
                       onChange={(e) =>
                         updateGroup(selected.id, { max_select: parseInt(e.target.value || "0", 10) })
                       }
-                      className="font-mono tabular"
+                      className="h-11 text-center font-mono tabular text-base"
                     />
                   </div>
-                  <div>
-                    <Label>Aperçu</Label>
-                    <div className="mt-1 rounded-lg border border-2-tk bg-bg-2 px-3 py-2.5 text-sm text-muted-foreground">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Aperçu
+                    </Label>
+                    <p className="text-sm text-muted-foreground sm:pt-2.5">
                       {buildRulesPreview(selected.min_select, selected.max_select)}
-                    </div>
+                    </p>
                   </div>
                 </div>
               </section>
@@ -751,6 +927,9 @@ export default function OptionsDeMenuPage() {
             </div>
           )}
         </section>
+
+        {/* Customer-side preview pane (xl+) */}
+        <CustomerPreviewPane group={selected} sampleArticleName={sampleArticleName} />
       </div>
 
       {/* Mobile note */}

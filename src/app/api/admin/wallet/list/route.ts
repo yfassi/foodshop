@@ -68,10 +68,12 @@ export async function GET(request: Request) {
       if (emailMap.size === userIdSet.size) break;
     }
 
-    // Stats agrégées par client (orders pour ce resto)
+    // Stats agrégées par client (orders pour ce resto, paid only pour la fidélité)
     const { data: orderRows } = await adminSupabase
       .from("orders")
-      .select("customer_user_id, total_price, created_at, status")
+      .select(
+        "customer_user_id, total_price, created_at, status, paid, loyalty_points_used"
+      )
       .eq("restaurant_id", restaurant.id)
       .in("customer_user_id", userIds)
       .neq("status", "cancelled");
@@ -80,6 +82,8 @@ export async function GET(request: Request) {
       order_count: number;
       total_spent: number;
       last_order_at: string | null;
+      points_earned: number;
+      points_used: number;
     };
     const statsMap = new Map<string, Stats>();
     for (const row of orderRows || []) {
@@ -88,11 +92,22 @@ export async function GET(request: Request) {
         order_count: 0,
         total_spent: 0,
         last_order_at: null,
+        points_earned: 0,
+        points_used: 0,
       };
       cur.order_count += 1;
       cur.total_spent += row.total_price || 0;
       if (!cur.last_order_at || row.created_at > cur.last_order_at) {
         cur.last_order_at = row.created_at;
+      }
+      // Loyalty: paid orders only. Earning rule = 1€ → 1pt, except orders
+      // that themselves redeem a discount (they earn 0).
+      if (row.paid) {
+        const used = row.loyalty_points_used ?? 0;
+        cur.points_used += used;
+        if (used === 0) {
+          cur.points_earned += Math.floor((row.total_price ?? 0) / 100);
+        }
       }
       statsMap.set(row.customer_user_id, cur);
     }
@@ -103,7 +118,10 @@ export async function GET(request: Request) {
         order_count: 0,
         total_spent: 0,
         last_order_at: null,
+        points_earned: 0,
+        points_used: 0,
       };
+      const pointsBalance = Math.max(0, stats.points_earned - stats.points_used);
       return {
         wallet_id: w.id,
         user_id: w.user_id,
@@ -115,6 +133,9 @@ export async function GET(request: Request) {
         order_count: stats.order_count,
         total_spent: stats.total_spent,
         last_order_at: stats.last_order_at,
+        points_earned: stats.points_earned,
+        points_used: stats.points_used,
+        points_balance: pointsBalance,
       };
     });
 
