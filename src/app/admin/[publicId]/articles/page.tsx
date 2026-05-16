@@ -2,7 +2,6 @@
 
 import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -61,6 +60,43 @@ import { PageHeader } from "@/components/admin/ui/page-header";
 import { EmptyState } from "@/components/admin/ui/empty-state";
 import { UnsavedChangesBar } from "@/components/admin/ui/unsaved-changes-bar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { OptionsManager } from "@/components/admin/articles/options-manager";
+
+// Petit hook : détecte si le viewport matche une media query. Utilisé pour
+// décider si on rend l'éditeur dans un Sheet plein écran (mobile) ou dans le
+// 3-pane (desktop).
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia(query);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync with viewport on mount
+    setMatches(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
 
 type CategoryWithProducts = Category & { products: Product[] };
 
@@ -945,31 +981,29 @@ function ArticleEditor({
         variant="sticky"
       />
 
-      <Dialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" /> Supprimer cet article ?
-            </DialogTitle>
-            <DialogDescription className="pt-2">
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-2">
               « {draft.name} » sera définitivement supprimé du menu, avec son
               image éventuelle. <span className="font-medium text-destructive">Cette action est irréversible.</span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDelete(false)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doDelete}
               disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={doDelete} disabled={deleting}>
               {deleting ? "Suppression…" : "Supprimer définitivement"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={linkSharedOpen} onOpenChange={setLinkSharedOpen}>
         <DialogContent className="max-w-lg">
@@ -1166,6 +1200,8 @@ function CategoryDialog({
 // Main page
 // ────────────────────────────────────────────────────────────────────────────
 
+type ArticlesTab = "articles" | "options";
+
 export default function ArticlesPage() {
   const params = useParams<{ publicId: string }>();
   const router = useRouter();
@@ -1178,6 +1214,20 @@ export default function ArticlesPage() {
 
   const urlCatId = searchParams.get("cat");
   const urlItemId = searchParams.get("item");
+  const urlTab = searchParams.get("tab");
+  const activeTab: ArticlesTab = urlTab === "options" ? "options" : "articles";
+
+  const setTab = useCallback(
+    (next: ArticlesTab) => {
+      const usp = new URLSearchParams(searchParams.toString());
+      if (next === "articles") usp.delete("tab");
+      else usp.set("tab", next);
+      router.replace(`?${usp.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -1413,26 +1463,33 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col md:h-[100vh]">
-      <div className="border-b border-2-tk px-4 py-3 md:px-6 md:py-4">
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => setTab(v as ArticlesTab)}
+      className="flex h-[100dvh] flex-col md:h-[100vh]"
+    >
+      <div className="border-b border-2-tk px-4 pt-3 md:px-6 md:pt-4">
         <PageHeader
           icon={<UtensilsCrossed className="h-5 w-5" />}
           eyebrow="Carte"
           title="Articles"
-          subtitle="Catégories, articles et options — édition rapide en 3 panneaux"
-          className="pb-0"
-          right={
-            <Link
-              href={`/admin/${params.publicId}/articles/options-de-menu`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-bg-3"
-            >
-              <Layers className="h-4 w-4" /> Options de menu
-            </Link>
-          }
+          subtitle="Catégories, articles et options de menu."
+          className="pb-3"
         />
+        <TabsList className="mb-0 grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="articles" className="gap-1.5">
+            <UtensilsCrossed className="h-3.5 w-3.5" />
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="options" className="gap-1.5">
+            <Layers className="h-3.5 w-3.5" />
+            Options de menu
+          </TabsTrigger>
+        </TabsList>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[180px_260px_1fr] xl:grid-cols-[200px_320px_1fr] 2xl:grid-cols-[240px_380px_1fr]">
+      <TabsContent value="articles" className="m-0 flex-1 overflow-hidden data-[state=inactive]:hidden">
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[180px_260px_1fr] xl:grid-cols-[200px_320px_1fr] 2xl:grid-cols-[240px_380px_1fr]">
         {/* Pane 1 — Categories (hidden on md, shown from lg) */}
         <aside className="hidden flex-col border-r border-2-tk bg-bg-2 lg:flex">
           <div className="flex items-center justify-between border-b border-2-tk px-3 py-3">
@@ -1492,30 +1549,38 @@ export default function ArticlesPage() {
             <div className="min-w-0 flex-1">
               {/* Compact category picker (md only) — replaces hidden cats pane */}
               <div className="flex items-center gap-1.5 lg:hidden">
-                <select
+                <Select
                   value={selectedCat?.id ?? ""}
-                  onChange={(e) => setSelection(e.target.value, undefined)}
-                  className="h-8 flex-1 min-w-0 rounded-md border border-2-tk bg-bg-2 px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                  aria-label="Choisir une catégorie"
+                  onValueChange={(v) => setSelection(v, undefined)}
                 >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.products.length})
-                    </option>
-                  ))}
-                </select>
-                <button
+                  <SelectTrigger
+                    className="h-8 flex-1 min-w-0 text-sm"
+                    aria-label="Choisir une catégorie"
+                  >
+                    <SelectValue placeholder="Catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.products.length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon"
                   onClick={() => {
                     setEditingCategory(null);
                     setCategoryDialogOpen(true);
                   }}
                   aria-label="Nouvelle catégorie"
                   title="Nouvelle catégorie"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-2-tk bg-card text-muted-foreground hover:text-foreground"
+                  className="h-8 w-8 shrink-0"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
               {/* Title (lg+ only) */}
               <div className="hidden items-center gap-2 lg:flex">
@@ -1609,10 +1674,48 @@ export default function ArticlesPage() {
         </section>
       </div>
 
-      {/* Mobile note */}
-      <div className="border-t border-2-tk bg-bg-2 px-4 py-3 text-center text-xs text-muted-foreground md:hidden">
-        L&apos;éditeur 3 panneaux nécessite un écran ≥ 768px. Utilisez l&apos;éditeur complet sur mobile.
-      </div>
+      </TabsContent>
+
+      <TabsContent value="options" className="m-0 flex-1 overflow-auto data-[state=inactive]:hidden">
+        <OptionsManager />
+      </TabsContent>
+
+      {/* Mobile editor : Sheet plein écran quand un article est sélectionné. */}
+      <Sheet
+        open={isMobile && activeTab === "articles" && !!selectedItem && !!selectedCat && !!restaurantId}
+        onOpenChange={(o) => {
+          if (!o) setSelection(selectedCat?.id, undefined);
+        }}
+      >
+        <SheetContent side="right" className="w-full p-0 sm:max-w-md md:hidden">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Éditer l&apos;article</SheetTitle>
+          </SheetHeader>
+          {selectedItem && selectedCat && restaurantId && (
+            <ArticleEditor
+              key={`mobile-${selectedItem.id}`}
+              product={selectedItem}
+              category={selectedCat}
+              restaurantId={restaurantId}
+              onApplied={(next) =>
+                setCategories((prev) =>
+                  prev.map((c) =>
+                    c.id === next.category_id
+                      ? { ...c, products: c.products.map((p) => (p.id === next.id ? next : p)) }
+                      : c,
+                  ),
+                )
+              }
+              onAdvancedEdit={() => openEditProduct(selectedItem)}
+              onDuplicated={() => fetchMenu()}
+              onDeleted={() => {
+                setSelection(selectedCat.id, undefined);
+                fetchMenu();
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Dialogs */}
       <CategoryDialog
@@ -1623,26 +1726,27 @@ export default function ArticlesPage() {
         saving={savingCategory}
       />
 
-      <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer la catégorie</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Supprimer la catégorie ?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-2">
               {pendingDelete?.products.length
-                ? `Cette catégorie contient ${pendingDelete.products.length} article(s). Ils seront aussi supprimés.`
-                : "Cette action est définitive."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDelete(null)}>
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Supprimer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                ? `« ${pendingDelete.name} » contient ${pendingDelete.products.length} article${pendingDelete.products.length > 1 ? "s" : ""} qui seront aussi supprimés. `
+                : `« ${pendingDelete?.name ?? "Cette catégorie"} » sera supprimée. `}
+              <span className="font-medium text-destructive">Cette action est irréversible.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {restaurantId && (
         <ProductFormSheet
@@ -1655,6 +1759,6 @@ export default function ArticlesPage() {
           onSaved={fetchMenu}
         />
       )}
-    </div>
+    </Tabs>
   );
 }
