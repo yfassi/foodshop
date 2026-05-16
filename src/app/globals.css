@@ -107,11 +107,6 @@
   --status-info-bg:    #dbeafe;
   --status-info-fg:    #1447e6;
 
-  /* Density — defaults to confort */
-  --dens-card: 20px;
-  --dens-row:  12px;
-  --dens-gap:  16px;
-  --font-base: 14px;
 }
 
 /* Accent variants — set via data-accent="..." on <html> */
@@ -127,20 +122,6 @@
   --primary: var(--brand-accent);
   --primary-foreground: var(--brand-accent-fg);
   --ring: var(--brand-accent);
-}
-
-/* Density modes — class on <body> */
-body.dens-compact {
-  --dens-card: 14px;
-  --dens-row:  8px;
-  --dens-gap:  10px;
-  --font-base: 13px;
-}
-body.dens-confort {
-  --dens-card: 20px;
-  --dens-row:  12px;
-  --dens-gap:  16px;
-  --font-base: 14px;
 }
 
 .dark {

@@ -18,8 +18,14 @@ import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { PageHeader } from "@/components/admin/ui/page-header";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { UnsavedChangesBar } from "@/components/admin/ui/unsaved-changes-bar";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -32,6 +38,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Restaurant, LoyaltyTier, Product } from "@/lib/types";
+
+// Ancres pour la table des matières (AnchorNav). L'ordre détermine l'affichage.
+const SECTIONS = [
+  { id: "statut", label: "Statut" },
+  { id: "activite", label: "Activité" },
+  { id: "regle", label: "Règle d'attribution" },
+  { id: "paliers", label: "Paliers de récompense" },
+];
 
 interface FideliteDraft {
   loyaltyEnabled: boolean;
@@ -119,15 +133,18 @@ function LoyaltyInsights({ stats }: { stats: LoyaltyStats | null }) {
     totals.redemptions === 0;
 
   return (
-    <section className="rounded-2xl border border-2-tk bg-card p-5">
-      <div className="mb-4 flex items-center gap-2">
+    <section
+      id="activite"
+      className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7"
+    >
+      <div className="mb-5 flex items-center gap-2">
         <Activity className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold text-foreground">
+        <h2 className="text-base font-semibold text-foreground">
           Activité du programme
-        </h3>
+        </h2>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — toujours visibles, version compacte */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <KpiTile
           icon={<UsersIcon className="h-3.5 w-3.5" />}
@@ -166,102 +183,106 @@ function LoyaltyInsights({ stats }: { stats: LoyaltyStats | null }) {
           apparaîtront dès qu&apos;un client gagnera ou utilisera des points.
         </p>
       ) : (
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          {/* Recent redemptions */}
-          <div className="rounded-xl border border-2-tk bg-bg-2/40 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        // Détails repliés par défaut pour épurer l'écran. L'opérateur déplie quand
+        // il veut consulter les échanges récents ou le classement.
+        <Accordion type="multiple" className="mt-4">
+          <AccordionItem value="redemptions" className="border-b-0">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 text-sm font-medium">
                 Échanges récents
-              </p>
-              <span className="text-[11px] text-muted-foreground tabular">
-                {recent_redemptions.length}
+                <span className="rounded-full bg-bg-3 px-1.5 py-0.5 text-[10px] tabular text-muted-foreground">
+                  {recent_redemptions.length}
+                </span>
               </span>
-            </div>
-            {recent_redemptions.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Aucun échange enregistré.
-              </p>
-            ) : (
-              <ul className="max-h-72 space-y-1 overflow-y-auto pr-1">
-                {recent_redemptions.map((r, i) => (
-                  <li
-                    key={`${r.order_id_display}-${i}`}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-card px-3 py-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-foreground">
-                        {r.customer_name || "Client"}{" "}
-                        <span className="text-muted-foreground">
-                          · {r.order_id_display}
-                        </span>
-                      </p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {r.tier_label} · {formatDateTime(r.created_at)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-mono text-xs font-semibold tabular text-foreground">
-                        −{r.points_used} pts
-                      </p>
-                      <p className="font-mono text-[11px] tabular text-rose-600">
-                        −{formatPrice(r.discount_amount)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Top redeemers */}
-          <div className="rounded-xl border border-2-tk bg-bg-2/40 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Top utilisateurs
-              </p>
-              <span className="text-[11px] text-muted-foreground tabular">
-                {top_redeemers.length}
-              </span>
-            </div>
-            {top_redeemers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Aucun client n&apos;a encore échangé de points.
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {top_redeemers.map((c, i) => (
-                  <li
-                    key={c.user_id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-card px-3 py-2"
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tint text-[10px] font-bold text-brand-accent tabular">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0">
+            </AccordionTrigger>
+            <AccordionContent>
+              {recent_redemptions.length === 0 ? (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  Aucun échange enregistré.
+                </p>
+              ) : (
+                <ul className="max-h-72 space-y-1 overflow-y-auto pr-1">
+                  {recent_redemptions.map((r, i) => (
+                    <li
+                      key={`${r.order_id_display}-${i}`}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-bg-2/40 px-3 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium text-foreground">
-                          {c.name}
+                          {r.customer_name || "Client"}{" "}
+                          <span className="text-muted-foreground">
+                            · {r.order_id_display}
+                          </span>
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
-                          {c.redemptions} échange{c.redemptions > 1 ? "s" : ""} ·{" "}
-                          {formatPrice(c.total_spent)} dépensés
+                          {r.tier_label} · {formatDateTime(r.created_at)}
                         </p>
                       </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-mono text-xs font-semibold tabular text-foreground">
-                        {c.points_used} pts
-                      </p>
-                      <p className="text-[11px] tabular text-muted-foreground">
-                        solde {c.points_balance}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono text-xs font-semibold tabular text-foreground">
+                          −{r.points_used} pts
+                        </p>
+                        <p className="font-mono text-[11px] tabular text-rose-600">
+                          −{formatPrice(r.discount_amount)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="top" className="border-b-0">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                Top utilisateurs
+                <span className="rounded-full bg-bg-3 px-1.5 py-0.5 text-[10px] tabular text-muted-foreground">
+                  {top_redeemers.length}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              {top_redeemers.length === 0 ? (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  Aucun client n&apos;a encore échangé de points.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {top_redeemers.map((c, i) => (
+                    <li
+                      key={c.user_id}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-bg-2/40 px-3 py-2"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tint text-[10px] font-bold text-brand-accent tabular">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium text-foreground">
+                            {c.name}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {c.redemptions} échange{c.redemptions > 1 ? "s" : ""} ·{" "}
+                            {formatPrice(c.total_spent)} dépensés
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono text-xs font-semibold tabular text-foreground">
+                          {c.points_used} pts
+                        </p>
+                        <p className="text-[11px] tabular text-muted-foreground">
+                          solde {c.points_balance}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </section>
   );
@@ -310,7 +331,9 @@ function KpiTile({
 // Hero card "Mon programme"
 // ────────────────────────────────────────────────────────────────────────────
 
-function HeroProgramme({
+// Bandeau de statut épuré, aligné sur StatusBandeau d'établissement :
+// pas de gradient, juste un fond teinté + indicateur clair + métriques compactes.
+function StatusBandeau({
   enabled,
   onToggle,
   activeCount,
@@ -322,40 +345,98 @@ function HeroProgramme({
   redeemedCount: number;
 }) {
   return (
-    <section className="rounded-2xl border border-tint p-5 bg-[linear-gradient(135deg,rgba(215,53,45,0.10),rgba(215,53,45,0.04))]">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white">
-          <Gift className="h-5 w-5" />
+    <section
+      id="statut"
+      className={cn(
+        "scroll-mt-20 rounded-2xl border p-5",
+        enabled
+          ? "border-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/20"
+          : "border-2-tk bg-bg-2",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-4">
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            enabled
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          <Gift className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-foreground">Mon programme</h2>
-          <p className="text-sm text-muted-foreground">
-            {activeCount} actif{activeCount > 1 ? "s" : ""} · {redeemedCount} récompenses échangées
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Programme fidélité
           </p>
-        </div>
-        <div className="hidden items-center gap-4 sm:flex">
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Actifs</p>
-            <p className="text-base font-semibold tabular text-foreground">{activeCount}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Échanges</p>
-            <p className="text-base font-semibold tabular text-foreground">{redeemedCount}</p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[11px] font-medium",
-              enabled ? "status-success" : "border border-2-tk bg-bg-2 text-muted-foreground"
-            )}
-          >
+          <h2 className="text-base font-semibold text-foreground">
             {enabled ? "Actif" : "Désactivé"}
-          </span>
-          <Switch checked={enabled} onCheckedChange={onToggle} className="scale-110" />
+          </h2>
+          {enabled && (
+            <p className="mt-0.5 text-xs text-muted-foreground tabular">
+              {activeCount} client{activeCount > 1 ? "s" : ""} actif{activeCount > 1 ? "s" : ""} · {redeemedCount} récompense{redeemedCount > 1 ? "s" : ""} échangée{redeemedCount > 1 ? "s" : ""}
+            </p>
+          )}
         </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={onToggle}
+          aria-label="Activer le programme fidélité"
+        />
       </div>
     </section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Anchor nav (sticky right) — table des matières alignée sur Établissement
+// ────────────────────────────────────────────────────────────────────────────
+
+function AnchorNav() {
+  const [active, setActive] = useState<string>(SECTIONS[0].id);
+
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    for (const s of SECTIONS) {
+      const el = document.getElementById(s.id);
+      if (!el) continue;
+      const obs = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) setActive(s.id);
+          }
+        },
+        { rootMargin: "-30% 0px -50% 0px" },
+      );
+      obs.observe(el);
+      observers.push(obs);
+    }
+    return () => observers.forEach((o) => o.disconnect());
+  }, []);
+
+  return (
+    <nav className="sticky top-4 hidden w-[180px] shrink-0 self-start md:block lg:w-[200px]">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Sur cette page
+      </p>
+      <ul className="space-y-1">
+        {SECTIONS.map((s) => (
+          <li key={s.id}>
+            <a
+              href={`#${s.id}`}
+              className={cn(
+                "block border-l-2 px-3 py-1 text-xs transition-colors",
+                active === s.id
+                  ? "border-l-[color:var(--brand-accent)] text-foreground font-medium"
+                  : "border-l-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {s.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -615,45 +696,46 @@ function PhonePreview({
   const pointsLeft = selected ? Math.max(0, selected.points - MOCK_USER.points) : 0;
 
   return (
-    <div className="sticky top-4 hidden w-[300px] shrink-0 self-start lg:block xl:w-[400px]">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Aperçu côté client · Live
+    <aside className="sticky top-4 hidden w-[280px] shrink-0 self-start lg:block xl:w-[320px]">
+      <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <Sparkles className="h-3 w-3" />
+        Aperçu côté client
       </p>
-      <div className="rounded-[36px] bg-[#111] p-3 shadow-xl">
-        <div className="overflow-hidden rounded-[28px] bg-[#f8f1e7] p-5">
+      <div className="rounded-2xl border border-2-tk bg-bg-2/60 p-4">
+        <div className="overflow-hidden rounded-xl bg-card p-4">
           {/* User header */}
           <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-accent text-sm font-semibold text-[color:var(--brand-accent-fg)]">
               {MOCK_USER.name.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-[#1a1410]">{MOCK_USER.name}</p>
-              <p className="truncate text-[11px] text-[#1a1410]/60">{restaurantName}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{MOCK_USER.name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{restaurantName}</p>
             </div>
           </div>
 
           {/* Points card */}
-          <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600">
+          <div className="mb-4 rounded-xl border border-2-tk bg-bg-2/40 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Mes points
             </p>
-            <p className="mt-1 font-mono text-2xl font-bold tabular text-[#1a1410]">
+            <p className="mt-1 font-mono text-2xl font-bold tabular text-foreground">
               {MOCK_USER.points} pts
             </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#1a1410]/10">
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-bg-3">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-rose-500 to-rose-600 transition-all"
+                className="h-full rounded-full bg-brand-accent transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
             {selected && pointsLeft > 0 && (
-              <p className="mt-2 text-xs text-[#1a1410]/70">
-                Plus que <span className="font-mono tabular font-semibold">{pointsLeft} pts</span>{" "}
-                avant <span className="font-medium">{tierLabel(selected)}</span>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Plus que <span className="font-mono tabular font-semibold text-foreground">{pointsLeft} pts</span>{" "}
+                avant <span className="font-medium text-foreground">{tierLabel(selected)}</span>
               </p>
             )}
             {selected && pointsLeft === 0 && (
-              <p className="mt-2 text-xs font-medium text-rose-600">
+              <p className="mt-2 text-[11px] font-medium text-brand-accent">
                 <Sparkles className="mr-1 inline h-3 w-3" />
                 Palier débloqué — échangez vos points !
               </p>
@@ -661,26 +743,28 @@ function PhonePreview({
           </div>
 
           {/* Tier list */}
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#1a1410]/60">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Paliers
           </p>
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {tiers.map((t, i) => {
               const unlocked = MOCK_USER.points >= t.points;
               return (
                 <li
                   key={t.id}
                   className={cn(
-                    "flex items-center gap-2 rounded-xl border bg-white px-3 py-2",
-                    i === selectedIdx ? "border-rose-300 ring-1 ring-rose-200" : "border-[#1a1410]/10"
+                    "flex items-center gap-2 rounded-lg border px-2.5 py-1.5",
+                    i === selectedIdx
+                      ? "border-[color:var(--brand-accent)] bg-tint/30"
+                      : "border-2-tk bg-bg-2/40",
                   )}
                 >
                   <div
                     className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular",
                       unlocked
-                        ? "bg-rose-600 text-white"
-                        : "bg-[#1a1410]/10 text-[#1a1410]/40"
+                        ? "bg-brand-accent text-[color:var(--brand-accent-fg)]"
+                        : "bg-bg-3 text-muted-foreground",
                     )}
                   >
                     {i + 1}
@@ -689,35 +773,32 @@ function PhonePreview({
                     <p
                       className={cn(
                         "truncate text-xs font-medium",
-                        unlocked ? "text-[#1a1410]" : "text-[#1a1410]/50"
+                        unlocked ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
                       {tierLabel(t)}
                     </p>
-                    <p className="text-[10px] font-mono tabular text-[#1a1410]/60">
-                      {t.points} pts
+                    <p className="text-[10px] font-mono tabular text-muted-foreground">
+                      Dès {t.points} pts
                     </p>
                   </div>
                   {unlocked && (
-                    <button
-                      type="button"
-                      className="rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-semibold text-white"
-                    >
-                      Échanger
-                    </button>
+                    <span className="rounded-full bg-brand-accent px-2 py-0.5 text-[10px] font-semibold text-[color:var(--brand-accent-fg)]">
+                      Disponible
+                    </span>
                   )}
                 </li>
               );
             })}
             {tiers.length === 0 && (
-              <li className="rounded-xl border border-dashed border-[#1a1410]/20 bg-white/40 px-3 py-4 text-center text-xs text-[#1a1410]/40">
+              <li className="rounded-lg border border-dashed border-2-tk px-3 py-4 text-center text-xs text-muted-foreground">
                 Ajoutez un palier pour voir l&apos;aperçu.
               </li>
             )}
           </ul>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -868,16 +949,16 @@ export default function FidelitePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        icon={<Gift className="h-5 w-5" />}
-        eyebrow="Réglages"
+      <AdminPageHeader
+        kicker="Réglages"
+        icon={Gift}
         title="Fidélité"
         subtitle="Configurez les paliers de récompense pour vos clients."
       />
 
       <div className="flex gap-6 pb-24 lg:gap-8">
         <div className="min-w-0 flex-1 space-y-5">
-          <HeroProgramme
+          <StatusBandeau
             enabled={draft.loyaltyEnabled}
             onToggle={(v) => setDraft({ ...draft, loyaltyEnabled: v })}
             activeCount={activeCount}
@@ -886,21 +967,26 @@ export default function FidelitePage() {
 
           <LoyaltyInsights stats={stats} />
 
-          {/* Rule card */}
-          <section className="rounded-2xl border border-2-tk bg-card p-5">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Règle d&apos;attribution</h3>
+          {/* Règle d'attribution */}
+          <section
+            id="regle"
+            className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7"
+          >
+            <h2 className="mb-5 text-base font-semibold text-foreground">
+              Règle d&apos;attribution
+            </h2>
             <div className="grid gap-4 md:grid-cols-[1fr_1fr_2fr]">
-              <div>
+              <div className="space-y-2">
                 <Label>Dépense (€)</Label>
-                <Input value={1} readOnly disabled className="font-mono tabular" />
+                <Input value={1} readOnly disabled className="h-11 font-mono tabular" />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Points gagnés</Label>
-                <Input value={1} readOnly disabled className="font-mono tabular" />
+                <Input value={1} readOnly disabled className="h-11 font-mono tabular" />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Validité</Label>
-                <Input value="12 mois" readOnly disabled />
+                <Input value="12 mois" readOnly disabled className="h-11" />
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
@@ -908,31 +994,39 @@ export default function FidelitePage() {
             </p>
           </section>
 
-          <TierTimeline
-            tiers={draft.tiers}
-            selectedIdx={pickIdx}
-            onSelect={setPickIdx}
-            onAdd={addTier}
-          />
-
-          {selectedTier ? (
-            <TierEditor
-              tier={selectedTier}
-              index={pickIdx}
-              products={products}
-              onChange={(next) => updateTier(pickIdx, next)}
-              onDelete={() => deleteTier(pickIdx)}
+          {/* Paliers — timeline + éditeur dans une section unique */}
+          <section
+            id="paliers"
+            className="scroll-mt-20 space-y-5"
+          >
+            <TierTimeline
+              tiers={draft.tiers}
+              selectedIdx={pickIdx}
+              onSelect={setPickIdx}
+              onAdd={addTier}
             />
-          ) : (
-            <section className="rounded-2xl border border-dashed border-2-tk bg-bg-2 p-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Ajoutez un premier palier pour commencer à configurer votre programme.
-              </p>
-            </section>
-          )}
+
+            {selectedTier ? (
+              <TierEditor
+                tier={selectedTier}
+                index={pickIdx}
+                products={products}
+                onChange={(next) => updateTier(pickIdx, next)}
+                onDelete={() => deleteTier(pickIdx)}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-2-tk bg-bg-2 p-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Ajoutez un premier palier pour commencer à configurer votre programme.
+                </p>
+              </div>
+            )}
+          </section>
         </div>
 
         <PhonePreview tiers={draft.tiers} selectedIdx={pickIdx} restaurantName={restaurant.name} />
+
+        <AnchorNav />
       </div>
 
       <UnsavedChangesBar
