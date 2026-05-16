@@ -131,6 +131,42 @@ function formatHoursTotal(mins: number): string {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Field — label + control with breathing room
+// ────────────────────────────────────────────────────────────────────────────
+
+function Field({
+  id,
+  label,
+  icon,
+  hint,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <Label
+        htmlFor={id}
+        className="flex items-center gap-1.5 text-[13px] font-medium text-foreground"
+      >
+        {icon && <span className="text-muted-foreground">{icon}</span>}
+        {label}
+      </Label>
+      {children}
+      {hint && (
+        <p className="text-[11px] text-muted-foreground">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Status bandeau (Ouvert / Fermé)
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -227,12 +263,12 @@ function HoursRow({
   };
 
   return (
-    <div className="grid grid-cols-[80px_1fr_70px] items-center gap-3 border-b border-2-tk py-2 last:border-b-0">
+    <div className="grid grid-cols-[110px_1fr] items-start gap-3 border-b border-2-tk py-3 last:border-b-0 sm:grid-cols-[110px_1fr_70px] sm:items-center">
       <div className="flex items-center gap-2">
         <Switch checked={isOpen} onCheckedChange={toggle} aria-label={`Ouvrir ${DAYS_FR[dayKey]}`} />
         <span className="text-sm font-medium text-foreground">{DAYS_FR[dayKey]}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {!ranges ? (
           <span className="text-sm italic text-muted-foreground">Fermé</span>
         ) : (
@@ -293,7 +329,7 @@ function HoursRow({
           </>
         )}
       </div>
-      <span className="text-right text-xs tabular text-muted-foreground">
+      <span className="col-start-2 text-left text-xs tabular text-muted-foreground sm:col-start-3 sm:text-right">
         {formatHoursTotal(total)}
       </span>
     </div>
@@ -531,7 +567,7 @@ export default function EtablissementPage() {
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(customerUrl)}`;
 
   return (
-    <div className="space-y-6 p-4 md:p-7">
+    <div className="space-y-6">
       <PageHeader
         icon={<Store className="h-5 w-5" />}
         eyebrow="Réglages"
@@ -544,12 +580,13 @@ export default function EtablissementPage() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-lg border border-2-tk bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-bg-3"
           >
-            <ExternalLink className="h-3.5 w-3.5" /> Aperçu client
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Aperçu client</span>
           </a>
         }
       />
 
-      <div className="flex gap-8 pb-24">
+      <div className="flex gap-6 pb-24 lg:gap-8">
         <div className="min-w-0 flex-1 space-y-5">
           <StatusBandeau
             isOpen={draft.isAcceptingOrders}
@@ -558,77 +595,89 @@ export default function EtablissementPage() {
           />
 
           {/* Informations */}
-          <section id="infos" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+          <section id="infos" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7">
+            <h2 className="mb-6 flex items-center gap-2 text-base font-semibold text-foreground">
               <Store className="h-4 w-4 text-muted-foreground" /> Informations
             </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <Label htmlFor="et-name">Nom de l&apos;établissement</Label>
+            <div className="grid gap-6 md:grid-cols-2 md:gap-x-6 md:gap-y-7">
+              <Field
+                id="et-name"
+                label="Nom de l'établissement"
+                className="md:col-span-2"
+              >
                 <Input
                   id="et-name"
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   placeholder="Ex. Le Petit Bistrot"
+                  className="h-11"
                 />
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="et-desc">Description courte</Label>
+              </Field>
+              <Field
+                id="et-desc"
+                label="Description courte"
+                hint="Affichée sur la page d'accueil de votre menu en ligne."
+                className="md:col-span-2"
+              >
                 <textarea
                   id="et-desc"
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                   placeholder="Quelques mots décrivant votre établissement"
-                  rows={2}
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                  rows={3}
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2.5 text-sm shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
                 />
-              </div>
-              <div>
-                <Label htmlFor="et-address" className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                  Adresse
-                </Label>
+              </Field>
+              <Field
+                id="et-address"
+                label="Adresse"
+                icon={<MapPin className="h-3.5 w-3.5" />}
+              >
                 <Input
                   id="et-address"
                   value={draft.address}
                   onChange={(e) => setDraft({ ...draft, address: e.target.value })}
                   placeholder="12 rue de Paris, 75001 Paris"
+                  className="h-11"
                 />
-              </div>
-              <div>
-                <Label htmlFor="et-phone" className="flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                  Téléphone
-                </Label>
+              </Field>
+              <Field
+                id="et-phone"
+                label="Téléphone"
+                icon={<Phone className="h-3.5 w-3.5" />}
+              >
                 <Input
                   id="et-phone"
                   value={draft.phone}
                   onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
                   placeholder="01 23 45 67 89"
+                  className="h-11"
                 />
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="et-email" className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                  E-mail de contact
-                </Label>
+              </Field>
+              <Field
+                id="et-email"
+                label="E-mail de contact"
+                icon={<Mail className="h-3.5 w-3.5" />}
+                className="md:col-span-2"
+              >
                 <Input
                   id="et-email"
                   type="email"
                   value={draft.email}
                   onChange={(e) => setDraft({ ...draft, email: e.target.value })}
                   placeholder="contact@monrestaurant.fr"
+                  className="h-11"
                 />
-              </div>
+              </Field>
             </div>
           </section>
 
           {/* Horaires */}
-          <section id="horaires" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+          <section id="horaires" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7">
+            <h2 className="mb-6 flex items-center gap-2 text-base font-semibold text-foreground">
               <Clock className="h-4 w-4 text-muted-foreground" /> Horaires d&apos;ouverture
             </h2>
-            <div className="rounded-xl border border-2-tk bg-bg-2 px-3">
+            <div className="rounded-xl border border-2-tk bg-bg-2 px-3 py-1">
               {Object.keys(DAYS_FR).map((day) => (
                 <HoursRow
                   key={day}
@@ -646,11 +695,11 @@ export default function EtablissementPage() {
           </section>
 
           {/* Types de commande */}
-          <section id="types" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+          <section id="types" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7">
+            <h2 className="mb-6 flex items-center gap-2 text-base font-semibold text-foreground">
               <ShoppingBag className="h-4 w-4 text-muted-foreground" /> Types de commande
             </h2>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <OrderTypeTile
                 icon={<UtensilsCrossed className="h-5 w-5" />}
                 label="Sur place"
@@ -677,11 +726,11 @@ export default function EtablissementPage() {
           </section>
 
           {/* Lien de commande / QR */}
-          <section id="lien" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+          <section id="lien" className="scroll-mt-20 rounded-2xl border border-2-tk bg-card p-5 md:p-7">
+            <h2 className="mb-6 flex items-center gap-2 text-base font-semibold text-foreground">
               <QrCode className="h-4 w-4 text-muted-foreground" /> Lien de commande
             </h2>
-            <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+            <div className="grid gap-6 md:grid-cols-[200px_1fr] lg:grid-cols-[220px_1fr]">
               <div className="flex flex-col items-center gap-2 rounded-xl border border-2-tk bg-bg-2 p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qrSrc} alt="QR code" className="h-40 w-40" width={160} height={160} />
@@ -694,31 +743,42 @@ export default function EtablissementPage() {
                   Télécharger
                 </a>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <Label>URL publique</Label>
+              <div className="space-y-5">
+                <Field id="et-url" label="URL publique">
                   <div className="flex items-center gap-2">
-                    <Input value={customerUrl} readOnly className="font-mono text-xs" />
+                    <Input
+                      id="et-url"
+                      value={customerUrl}
+                      readOnly
+                      className="h-11 font-mono text-xs"
+                    />
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="icon"
+                      className="h-11 w-11 shrink-0"
                       onClick={() => {
                         navigator.clipboard.writeText(customerUrl);
                         toast.success("Lien copié");
                       }}
+                      title="Copier le lien"
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button asChild variant="outline" size="sm">
-                      <a href={customerUrl} target="_blank" rel="noopener noreferrer">
+                    <Button asChild variant="outline" size="icon" className="h-11 w-11 shrink-0">
+                      <a
+                        href={customerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Ouvrir le lien"
+                      >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     </Button>
                   </div>
-                </div>
-                <div className="rounded-lg border border-2-tk bg-bg-2 px-3 py-2.5">
+                </Field>
+                <div className="rounded-lg border border-2-tk bg-bg-2 px-3 py-3">
                   <p className="text-xs font-medium text-foreground">Tables configurées</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     La gestion des tables (plan de salle) reste dans{" "}
                     <Link
                       href={`/admin/${params.publicId}/settings?tab=floor`}

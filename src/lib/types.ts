@@ -351,6 +351,9 @@ export interface Order {
   delivery_tip: number;
   delivery_distance_m: number | null;
   pager_number: string | null;
+  loyalty_tier_id: string | null;
+  loyalty_discount_amount: number;
+  loyalty_points_used: number;
   created_at: string;
   updated_at: string;
 }

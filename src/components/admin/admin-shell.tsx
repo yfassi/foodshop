@@ -172,6 +172,14 @@ export function AdminShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const qs = isDemo ? "?demo=true" : "";
+  // Pages that need to span the full viewport width (multi-pane layouts, dense
+  // realtime screens). They handle their own padding instead of the standard
+  // max-w-6xl container.
+  const FULLWIDTH_PREFIXES = [
+    `/admin/${publicId}/articles`,
+    `/admin/${publicId}/commandes`,
+  ];
+  const fullWidth = FULLWIDTH_PREFIXES.some((p) => pathname?.startsWith(p));
   const NAV_ITEMS = (() => {
     const items = [...BASE_NAV_ITEMS];
     // Insert before "Réglages" (last item).
@@ -592,9 +600,13 @@ export function AdminShell({
 
         {/* Main content */}
         <div className="flex-1 overflow-auto" role="region" aria-label="Contenu principal">
-          <div className="mx-auto max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-8">
-            {children}
-          </div>
+          {fullWidth ? (
+            <div className="pb-24 md:pb-0">{children}</div>
+          ) : (
+            <div className="mx-auto max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-8">
+              {children}
+            </div>
+          )}
         </div>
       </div>
 

@@ -22,6 +22,7 @@ import {
   CalendarIcon,
   ChevronDown,
   BarChart3,
+  Gift,
 } from "lucide-react";
 import {
   BarChart,
@@ -223,6 +224,52 @@ export default function DashboardPage() {
     }));
   }, [orders, isMultiDay, rangeDays, dateRange.start]);
 
+  /* ─── Loyalty roll-up over selected period ─── */
+  const loyaltyStats = useMemo(() => {
+    const paid = orders.filter((o) => o.paid && o.status !== "cancelled");
+    let earned = 0;
+    let used = 0;
+    let discount = 0;
+    const redemptions = paid.filter((o) => (o.loyalty_points_used ?? 0) > 0);
+    for (const o of paid) {
+      const u = o.loyalty_points_used ?? 0;
+      used += u;
+      discount += o.loyalty_discount_amount ?? 0;
+      if (u === 0) earned += Math.floor(o.total_price / 100);
+    }
+    // Top redeemers (by points used)
+    const byCustomer = new Map<
+      string,
+      { name: string; points: number; redemptions: number; discount: number }
+    >();
+    for (const o of redemptions) {
+      const name = o.customer_info.name || o.display_order_number || "Anonyme";
+      const cur = byCustomer.get(name) || {
+        name,
+        points: 0,
+        redemptions: 0,
+        discount: 0,
+      };
+      cur.points += o.loyalty_points_used ?? 0;
+      cur.discount += o.loyalty_discount_amount ?? 0;
+      cur.redemptions += 1;
+      byCustomer.set(name, cur);
+    }
+    const topRedeemers = Array.from(byCustomer.values())
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 5);
+
+    return {
+      earned,
+      used,
+      net: Math.max(0, earned - used),
+      discount,
+      redemptionsCount: redemptions.length,
+      recentRedemptions: redemptions.slice(0, 8),
+      topRedeemers,
+    };
+  }, [orders]);
+
   /* ─── Top clients ─── */
   const topClients = useMemo(() => {
     const completed = orders.filter((o) => o.status !== "cancelled");
@@ -320,8 +367,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-4 py-6 md:px-6">
-      <div className="mx-auto max-w-4xl">
+    <div>
+      <div className="mx-auto max-w-5xl">
         <AdminPageHeader
           kicker="Pilotage"
           icon={BarChart3}
@@ -434,7 +481,7 @@ export default function DashboardPage() {
         />
 
         {/* ─── Metric cards ─── */}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
             icon={ShoppingBag}
             label="Commandes"
@@ -671,6 +718,130 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ─── Fidélité ─── */}
+        {(loyaltyStats.earned > 0 || loyaltyStats.used > 0) && (
+          <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+            <div className="mb-5 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10">
+                <Gift className="h-4 w-4 text-rose-500" />
+              </div>
+              <TypographyH3>Fidélité</TypographyH3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <MetricCard
+                icon={Sparkles}
+                label="Points gagnés"
+                value={loyaltyStats.earned.toLocaleString("fr-FR")}
+              />
+              <MetricCard
+                icon={Gift}
+                label="Points utilisés"
+                value={loyaltyStats.used.toLocaleString("fr-FR")}
+                sub={
+                  loyaltyStats.redemptionsCount > 0
+                    ? `${loyaltyStats.redemptionsCount} échange${loyaltyStats.redemptionsCount > 1 ? "s" : ""}`
+                    : undefined
+                }
+              />
+              <MetricCard
+                icon={TrendingUp}
+                label="Solde net"
+                value={loyaltyStats.net.toLocaleString("fr-FR")}
+              />
+              <MetricCard
+                icon={DollarSign}
+                label="Remises offertes"
+                value={formatPrice(loyaltyStats.discount)}
+              />
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {/* Recent redemptions */}
+              <div className="rounded-xl bg-muted/40 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-rose-500" />
+                  <TypographyH4>Échanges récents</TypographyH4>
+                </div>
+                {loyaltyStats.recentRedemptions.length === 0 ? (
+                  <TypographyMuted className="py-4 text-center text-xs">
+                    Aucun échange sur cette période.
+                  </TypographyMuted>
+                ) : (
+                  <ul className="space-y-2">
+                    {loyaltyStats.recentRedemptions.map((o) => {
+                      const name =
+                        o.customer_info.name ||
+                        o.display_order_number ||
+                        "Anonyme";
+                      return (
+                        <li
+                          key={o.id}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{name}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {o.display_order_number || `#${o.order_number}`} ·{" "}
+                              {formatDate(o.created_at)}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="font-mono text-xs font-semibold tabular-nums">
+                              −{o.loyalty_points_used ?? 0} pts
+                            </p>
+                            <p className="font-mono text-[11px] tabular-nums text-rose-600">
+                              −{formatPrice(o.loyalty_discount_amount ?? 0)}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {/* Top redeemers */}
+              <div className="rounded-xl bg-muted/40 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <TypographyH4>Top utilisateurs</TypographyH4>
+                </div>
+                {loyaltyStats.topRedeemers.length === 0 ? (
+                  <TypographyMuted className="py-4 text-center text-xs">
+                    Aucun client n&apos;a encore échangé de points.
+                  </TypographyMuted>
+                ) : (
+                  <ul className="space-y-2">
+                    {loyaltyStats.topRedeemers.map((c, i) => (
+                      <li
+                        key={c.name}
+                        className="flex items-center justify-between gap-2 text-sm"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-600">
+                            {i + 1}
+                          </span>
+                          <span className="truncate font-medium">{c.name}</span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span className="block font-mono text-xs font-semibold tabular-nums">
+                            {c.points} pts
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {c.redemptions} échange
+                            {c.redemptions > 1 ? "s" : ""}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

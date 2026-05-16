@@ -834,13 +834,14 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="border-b border-2-tk px-6 py-4">
+    <div className="flex h-[100dvh] flex-col md:h-[100vh]">
+      <div className="border-b border-2-tk px-4 py-3 md:px-6 md:py-4">
         <PageHeader
           icon={<UtensilsCrossed className="h-5 w-5" />}
           eyebrow="Carte"
           title="Articles"
           subtitle="Catégories, articles et options — édition rapide en 3 panneaux"
+          className="pb-0"
           right={
             <Link
               href={`/admin/${params.publicId}/articles/options-de-menu`}
@@ -852,9 +853,9 @@ export default function ArticlesPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[240px_360px_1fr]">
-        {/* Pane 1 — Categories */}
-        <aside className="hidden flex-col border-r border-2-tk bg-bg-2 md:flex">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[200px_280px_1fr] xl:grid-cols-[240px_380px_1fr]">
+        {/* Pane 1 — Categories (hidden on md, shown from lg) */}
+        <aside className="hidden flex-col border-r border-2-tk bg-bg-2 lg:flex">
           <div className="flex items-center justify-between border-b border-2-tk px-3 py-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">Catégories</h3>
@@ -908,9 +909,37 @@ export default function ArticlesPage() {
 
         {/* Pane 2 — Articles list */}
         <section className="hidden flex-col border-r border-2-tk md:flex">
-          <div className="flex items-center justify-between border-b border-2-tk bg-card px-3 py-3">
+          <div className="flex items-center justify-between gap-2 border-b border-2-tk bg-card px-3 py-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              {/* Compact category picker (md only) — replaces hidden cats pane */}
+              <div className="flex items-center gap-1.5 lg:hidden">
+                <select
+                  value={selectedCat?.id ?? ""}
+                  onChange={(e) => setSelection(e.target.value, undefined)}
+                  className="h-8 flex-1 min-w-0 rounded-md border border-2-tk bg-bg-2 px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Choisir une catégorie"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.products.length})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setCategoryDialogOpen(true);
+                  }}
+                  aria-label="Nouvelle catégorie"
+                  title="Nouvelle catégorie"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-2-tk bg-card text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {/* Title (lg+ only) */}
+              <div className="hidden items-center gap-2 lg:flex">
                 <h3 className="truncate text-sm font-semibold text-foreground">
                   {selectedCat?.name || "—"}
                 </h3>
@@ -923,7 +952,7 @@ export default function ArticlesPage() {
               type="button"
               onClick={openNewProduct}
               disabled={!selectedCat}
-              className="inline-flex items-center gap-1 rounded-md bg-tint px-2.5 py-1.5 text-xs font-medium text-brand-accent hover:bg-tint-2 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-tint px-2.5 py-1.5 text-xs font-medium text-brand-accent hover:bg-tint-2 disabled:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" /> Article
             </button>
