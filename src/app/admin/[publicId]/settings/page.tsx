@@ -27,8 +27,24 @@ export default function SettingsRedirectPage() {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    const target = (tab && TAB_TO_ROUTE[tab]) || "/reglages/etablissement";
-    router.replace(`/admin/${params.publicId}${target}`);
+    // Stripe Connect callback (legacy URL avant fix du return_url côté API).
+    // Sans tab, mais avec stripe_*=true ⇒ router vers /reglages/paiement en
+    // préservant le param pour que la page déclenche checkStripeStatus.
+    const hasStripeCallback =
+      searchParams.get("stripe_return") === "true" ||
+      searchParams.get("stripe_refresh") === "true";
+
+    let target = (tab && TAB_TO_ROUTE[tab]) || "/reglages/etablissement";
+    if (hasStripeCallback && !tab) {
+      target = "/reglages/paiement";
+    }
+
+    // Préserver tous les query params sauf `tab` (qui est encodé dans le path).
+    const preserved = new URLSearchParams(searchParams.toString());
+    preserved.delete("tab");
+    const qs = preserved.toString();
+    const url = `/admin/${params.publicId}${target}${qs ? `?${qs}` : ""}`;
+    router.replace(url);
   }, [searchParams, router, params.publicId]);
 
   return (
