@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Bike, MapPin, Phone, Loader2 } from "lucide-react";
 import type { Order, Driver } from "@/lib/types";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { ElapsedBadge } from "@/components/admin/ui/elapsed-badge";
+import { useElapsedMinutes } from "@/lib/hooks/use-elapsed";
 
 type OrderWithDriver = Order & { driver?: Driver | null };
 
@@ -160,10 +162,11 @@ function Empty({ label }: { label: string }) {
 
 function OrderCard({ order }: { order: OrderWithDriver }) {
   const addr = order.delivery_address;
+  const elapsedMin = useElapsedMinutes(order.created_at);
   return (
     <Card size="sm">
       <CardContent className="space-y-2 p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold">
             {order.display_order_number || order.id.slice(0, 6)}
           </p>
@@ -171,6 +174,9 @@ function OrderCard({ order }: { order: OrderWithDriver }) {
             {formatPrice(order.total_price)}
           </p>
         </div>
+        {order.created_at && (
+          <ElapsedBadge minutes={elapsedMin} />
+        )}
         {addr && (
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
@@ -178,9 +184,20 @@ function OrderCard({ order }: { order: OrderWithDriver }) {
           </p>
         )}
         {order.driver && (
-          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-            <Phone className="h-3 w-3" />
-            {order.driver.full_name} · {order.driver.phone}
+          <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-foreground">
+            <Phone className="h-3 w-3 shrink-0" />
+            <span>{order.driver.full_name}</span>
+            {order.driver.phone && (
+              <>
+                <span aria-hidden>·</span>
+                <a
+                  href={`tel:${order.driver.phone}`}
+                  className="rounded px-1 py-0.5 underline-offset-2 hover:bg-accent hover:underline"
+                >
+                  {order.driver.phone}
+                </a>
+              </>
+            )}
           </p>
         )}
         {order.delivery_status && (

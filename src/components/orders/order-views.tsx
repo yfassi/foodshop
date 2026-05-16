@@ -143,64 +143,53 @@ export function KitchenView({
   readyOrders,
   doneOrders,
 }: KitchenViewProps) {
-  const [extraTab, setExtraTab] = useState<"ready" | "history" | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ─── À préparer (top lane) ─── */}
+      {/* ─── Nouvelles ─── */}
       <KitchenLane
-        title="À préparer"
+        title="Nouvelles"
         accent="orange"
         orders={newOrders}
         emptyHint="Aucune commande à préparer."
       />
 
-      {/* ─── En cours (bottom lane) ─── */}
+      {/* ─── En préparation ─── */}
       <KitchenLane
-        title="En cours"
+        title="En préparation"
         accent="amber"
         orders={preparingOrders}
         emptyHint="Aucune commande en préparation."
       />
 
-      {/* ─── Footer toggles: Prêtes & Historique ─── */}
+      {/* ─── Prêtes — toujours visible pour signaler à l'opérateur qu'il y a
+            des plats à remettre. ─── */}
+      <KitchenLane
+        title="Prêtes"
+        accent="green"
+        orders={readyOrders}
+        emptyHint="Aucune commande prête à remettre."
+      />
+
+      {/* ─── Historique du jour : derrière un toggle ─── */}
       <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
         <button
           type="button"
-          onClick={() => setExtraTab((t) => (t === "ready" ? null : "ready"))}
+          onClick={() => setShowHistory((v) => !v)}
+          aria-expanded={showHistory}
           className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-            extraTab === "ready"
-              ? "bg-green-600 text-white"
-              : "bg-muted text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-          Prêtes ({readyOrders.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setExtraTab((t) => (t === "history" ? null : "history"))}
-          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-            extraTab === "history"
+            showHistory
               ? "bg-foreground text-background"
               : "bg-muted text-muted-foreground hover:text-foreground"
           }`}
         >
           <span className="h-1.5 w-1.5 rounded-full bg-gray-500" />
-          Historique ({doneOrders.length})
+          {showHistory ? "Masquer" : "Afficher"} l&apos;historique ({doneOrders.length})
         </button>
       </div>
 
-      {extraTab === "ready" && (
-        <KitchenLane
-          title="Prêtes"
-          accent="green"
-          orders={readyOrders}
-          compact
-          emptyHint="Aucune commande prête."
-        />
-      )}
-      {extraTab === "history" && (
+      {showHistory && (
         <KitchenLane
           title="Historique du jour"
           accent="gray"

@@ -87,8 +87,11 @@ export function KitchenTicket({ order, compact = false, locked = false }: Kitche
 
   const totalItems = order.items.reduce((s, i) => s + i.quantity, 0);
 
-  // Width: tickets stay narrow so multiple line up like clipped slips
-  const widthClass = compact ? "w-[240px]" : "w-[280px] md:w-[300px]";
+  // Width: tickets stay narrow so multiple line up like clipped slips, mais
+  // fluides en dessous de sm pour ne pas déborder d'un viewport étroit.
+  const widthClass = compact
+    ? "w-full max-w-[260px] sm:w-[240px]"
+    : "w-full max-w-[320px] sm:w-[280px] md:w-[300px]";
 
   return (
     <div
